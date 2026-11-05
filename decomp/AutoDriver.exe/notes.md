@@ -60,3 +60,24 @@ statically.
   Rollback relies on Windows keeping the old package in the DriverStore, which DriverClean.dll can
   delete (see `../DriverClean.dll/notes.md`).
 - UI warning text: "You may encounter temporary black screens when you update graphic drivers".
+
+## DpInstX: the install command (disassembled, carved copies)
+
+Superseded: "re-signed Microsoft DpInst" and "command line not recovered, `/lm` unknown" above.
+`DrvInstall/DpInstX64.exe` (carved `pe_0898a65e_2010624.bin`) is **not Microsoft's DPInst**: it is
+IObit's own "DpInstX" (log `DpinstX.log`, mutex `DpInstX`, shared memory `FP`) that links DIFxAPI
+and calls it directly. It has no DPInst switches (`/S`, `/LM`, `/F`, `/PATH`, `/SA`, `/SW`: 0 hits).
+
+- DbzInst (`pe_0877265e_93184.bin`) starts it with `CreateProcessW` (`0x409c1d`) and a command line
+  of quoted pieces built at `0x409a92`/`0x409adf`/`0x409b24`:
+  `"<DpInstX64.exe>" "<arg>" "<arg>" ["/i"|"/x"|"/dhi" …]` (literals `"`, ` "`, `/i` `0x409ff8`,
+  `/x` `0x409fcc`, `/dhi`; `APP\` packages take a different branch). Results come back through the
+  `FP` file mapping. Switch meanings not decoded (`/i` = install is the obvious reading).
+- DpInstX64 calls `DriverPackageInstallW(inf, 0x4, NULL, &reboot)` (`0x57da61`-`0x57da6e`) and
+  `DriverPackagePreinstallW(inf, 0x4)` (`0x57c869`, `0x57d9ed`). `0x4` = `DRIVER_PACKAGE_FORCE`
+  (install even if the current driver is a better match, i.e. allows downgrades/side-grades).
+  `DRIVER_PACKAGE_LEGACY_MODE` (`0x10`) is **never set**; these are the only DIFxAPI install calls.
+
+**Unsigned packages: not allowed** (high confidence). Without legacy mode DIFxAPI refuses packages
+that lack a valid signed catalog. Force mode is the risky flag: it replaces a newer or better-ranked
+installed driver without asking.

@@ -40,7 +40,7 @@ only endpoints that belong to SGB or to code SGB really uses.
 | `https://stats.gameboosta.com/gamebooster/active_month.php` | AUpdate | same fields | monthly |
 | `https://stats.gameboosta.com/gamebooster/moreuse.php` | AUpdate | months of continued use, first-use date, **count and date of promotion clicks** | periodic |
 | `https://stats.gameboosta.com/gamebooster/register.php` | AUpdate | first registration: code type, install GUID, hardware hash, language | once |
-| `https://stats.gameboosta.com/gamebooster/iusage_v2.php` | SgbMain via ProductStat3 | feature-usage counters (daily/weekly/immediate), cached and retried | daily / per event |
+| `https://stats.gameboosta.com/gamebooster/iusage_v2.php` | SgbMain via ProductStat3; SgbTray via ProductStatistics3.dll; Diagnosis | feature-usage counters (daily/weekly/immediate), cached and retried | daily / per event; the tray flushes the cache every 5 min |
 | `https://stats.itopvpn.com/iusage_v2.php` | ProductStat3 (default) | same, when no URL is passed | as above |
 | `https://stats.gameboosta.com/gamebooster/smgb_hw.php` | SgbMain (game-requirements "Can You Run It") | CPU, GPU(s), RAM, OS name/bitness, scores | when the feature is used |
 | `https://stats.gameboosta.com/gamebooster/app_stats.php?a=smgb_gamesearch` | SgbMain | game ID searched | on search |
@@ -51,7 +51,7 @@ only endpoints that belong to SGB or to code SGB really uses.
 | `https://stats.gameboosta.com/smgbfeedback/feedback.php` | FeedBack | your message, e-mail, category, licence tier | when you send feedback |
 | `https://stats.gameboosta.com/gamebooster/install.php`, `/aff/install.php` | UninstallPromote | install/uninstall/upgrade event, OS, language, country, affiliate ID, other iTop installs | install, uninstall, upgrade |
 | `http://ascstats.pcgameboost.com/kwstats.php` (HTTP) | SgbInit | `k,s,c,p` keyword/source attribution, `type=newinstall` | first run |
-| `http://ascstats.pcgameboost.com/active.php` (HTTP) | SgbMain via `StatUser.exe` | legacy active ping (`/a smgb4`) | periodic (legacy) |
+| `http://ascstats.pcgameboost.com/active.php` (HTTP) | SgbMain via `StatUser.exe` | legacy active ping (`/a smgb4`). **Never sent in 6.0**: `StatUser.exe` isn't installed and the code that would launch it is unreachable (`decomp/StatUser.exe/notes.md`). Superseded: was listed as "periodic (legacy)". | never |
 | `http://stats.reportcpanel.com/gamebooster/proportion.php` (HTTP) | SgbMain startup manager | startup-item disable rates (request) | periodic |
 | `https://ascstats.iobit.com/base-info.php` | SgbMain, Register | country lookup | as needed |
 | `http://ip-api.com/json/` (HTTP), `https://ipinfo.io/` | installer, nearly every program | your public IP → country code | install and often |

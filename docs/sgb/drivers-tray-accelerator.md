@@ -19,10 +19,11 @@ drivers are **repackaged by the vendor**, not fetched from Intel, AMD, NVIDIA or
 **How it picks.** A driver counts as outdated when the database entry has a newer version or date
 than what is installed. Pro users see more entries. Nothing in the code mentions Apple or Boot Camp.
 
-**Install.** It unpacks the package and runs Microsoft's DpInst, re-signed by the vendor
-(ORANGE VIEW LIMITED). The exact DpInst options are built at run time and weren't recovered, so
-whether it accepts unsigned packages is **unknown**. On 64-bit Windows, an unsigned *kernel* driver
-won't load anyway.
+**Install.** It unpacks the package and runs `DpInstX64.exe`, signed by the vendor (ORANGE VIEW
+LIMITED). That is IObit's own installer, not Microsoft's DpInst: it calls Windows' DIFx driver API
+directly with the **force** flag (installs even over a newer or better-matching driver) and without
+legacy mode, so **unsigned packages are refused** (high confidence; `decomp/AutoDriver.exe/notes.md`).
+Superseded: this paragraph used to call it re-signed Microsoft DpInst with unknown options.
 
 **Backup and restore.** None found: no driver backup and no restore point. The menu only opens
 Windows' own System Restore. Its sibling `DriverClean.dll` deletes old driver packages from the
@@ -48,9 +49,14 @@ elevated without a UAC prompt. While running, on timers, it:
 - reads CPU, GPU and disk temperatures and warns when they are high;
 - shows popups when RAM is over 90 %, after 7 days without a boost, when a new game is installed,
   and when graphics or audio drivers "need updating";
-- runs the updater (`SgbUpdater.exe /auto`), checks the licence (`smgblicense.itopupdate.com`),
-  and sends usage stats (`stats.gameboosta.com`).
-The poll intervals weren't recovered.
+- runs the updater (`SgbUpdater.exe /auto`) every 12 hours (first run 12 hours after the tray
+  starts), checks the licence (`smgblicense.itopupdate.com`),
+  and sends cached usage stats (`stats.gameboosta.com`) every 5 minutes.
+Its timers: a 1-second housekeeping tick (updater due-check, main-window check), the 5-minute stats
+flush, a one-shot 2-second start of the `SMGB_Tray_Boost_Game` task, and popup timers (temperature
+alarm closes after 30 s, its sound stops after 5 s). The process-watch and nag checks run on separate
+threads whose periods weren't traced. Superseded: "The poll intervals weren't recovered."
+(`decomp/SgbTray.exe/notes.md`).
 
 **Mini window.** The small "boosting into Gaming Mode / restoring to Normal Mode" window. It runs
 the same Boost and Restore steps without the main UI, from the tray menu, a hotkey or auto-boost.
