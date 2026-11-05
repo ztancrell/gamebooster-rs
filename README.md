@@ -1,4 +1,4 @@
-# gamebooster
+# gamebooster-rs
 
 A small Windows game booster, written from scratch in Rust for playing Battlefield 6 under Boot
 Camp on a Mac. `boost` applies a handful of well-known tweaks; `restore` undoes all of them. Every
