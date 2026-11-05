@@ -27,6 +27,8 @@ Windows via Boot Camp, playing BF6.
 - 2026-11-05: No copy of SGB's network accelerator (vendor relay servers + packet driver). Instead:
   a `ping` command that reports latency to game-server regions (changes nothing), and an optional
   "fastest DNS" step on boost that restore undoes.
+- 2026-11-05: Lower other processes (SGB's TPriorityController, spec 2.4a), opt-in
+  (`lower_others`), Below normal by default, only the user's own Normal-priority processes.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

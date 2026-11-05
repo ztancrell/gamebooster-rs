@@ -46,6 +46,17 @@ fastest_dns = false
 # Trim the RAM of every non-game process once. Only useful when RAM is nearly full. Not undoable.
 ram_trim = false
 
+# Lower the CPU priority of your other apps (only ones running at Normal, owned by you) during the
+# boost, so background bursts get out of the game's way. Restore puts each one back. Never touched:
+# the games, apps in `close`, the shell and Windows session processes, audio, Discord, Steam, the EA
+# app, anti-cheat, ThrottleStop, OBS, Defender and gamebooster (list: NEVER_LOWER in src/priority.rs).
+lower_others = false
+# below_normal (default) or idle. Idle is what Smart Game Booster uses, but an idle app only runs
+# when the CPU has nothing else to do, so voice chat, music or a stream can stutter while you play.
+lower_others_class = "below_normal"
+# More apps to leave alone (image names as in Task Manager's Details tab), e.g. ["Spotify.exe"].
+lower_others_exclude = []
+
 # Services to stop during the boost (service *key* names, as `sc query` shows them, not the
 # display names). Only listed services are touched: a service with a running dependent that isn't
 # also listed is skipped. `--dry-run` shows what would stop.

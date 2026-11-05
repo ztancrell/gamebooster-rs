@@ -171,6 +171,8 @@ of steam.exe, `SgbTray.exe`, `SgbMain.exe`, `SgbMini.exe`, SGB's own exe, and th
 processes. Ours should do the same, should also exclude the game, its launcher and their children,
 and should be opt-in. IDLE is aggressive (background apps such as voice chat get very little CPU),
 so a configurable class (default BELOW_NORMAL) is a safer choice than copying SGB.
+Implemented as `lower_others` (opt-in, only processes at NORMAL, PID-reuse-safe restore); see
+[docs/tweaks/priority.md](tweaks/priority.md#lower-other-processes).
 
 ### 2.5 Windows automatic updates (A8)
 

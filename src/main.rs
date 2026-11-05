@@ -34,6 +34,7 @@ enum Step {
     Services,
     Processes,
     Ram,
+    LowerOthers,
     PowerPlan,
     GameMode,
     Dns,
@@ -41,7 +42,7 @@ enum Step {
 }
 
 /// Boost order, as in the spec. Restore walks it backwards.
-const BOOST_ORDER: [Step; 7] = [Step::Services, Step::Processes, Step::Ram, Step::PowerPlan, Step::GameMode, Step::Dns, Step::Priority];
+const BOOST_ORDER: [Step; 8] = [Step::Services, Step::Processes, Step::Ram, Step::LowerOthers, Step::PowerPlan, Step::GameMode, Step::Dns, Step::Priority];
 
 fn restore_order() -> impl Iterator<Item = Step> {
     BOOST_ORDER.into_iter().rev()
@@ -73,6 +74,15 @@ fn describe(st: &State, cfg: &Config) -> String {
     let mut out = format!("  services to stop (in order): {}\n", list(&st.services));
     out += &format!("  apps to close (relaunched on restore): {}\n", list(&st.processes));
     out += &format!("  RAM trim: {}\n", if cfg.ram_trim { "yes (not undoable)" } else { "off" });
+    if cfg.lower_others || !st.lowered.is_empty() {
+        let mut names: Vec<&str> = st.lowered.iter().map(|p| p.exe.as_str()).collect();
+        names.sort_by_key(|n| n.to_ascii_lowercase());
+        names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+        out += &format!("  lower other processes to {} (old class restored): {} processes: {}\n",
+            priority::lower_class_name(cfg.lower_others_class), st.lowered.len(), if names.is_empty() { "none".into() } else { names.join(", ") });
+    } else {
+        out += "  lower other processes: off\n";
+    }
     match &st.power {
         Some(p) => {
             out += &format!("  power plan: switch from {} to gamebooster ({}), a copy of High performance with:\n", p.previous_scheme, power::OUR_PLAN);
@@ -166,6 +176,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             None
         },
         dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
+        lowered: if cfg.lower_others { priority::plan_lower(cfg) } else { Vec::new() },
     };
     if dry_run {
         println!("Boost would do (dry run, nothing changed):\n{}", describe(&st, cfg));
@@ -180,6 +191,8 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::Processes => processes::close_all(&cfg.close),
             Step::Ram if cfg.ram_trim => ram::trim(cfg),
             Step::Ram => println!("  off"),
+            Step::LowerOthers if cfg.lower_others => priority::set_others(&st.lowered, Some(cfg.lower_others_class)),
+            Step::LowerOthers => println!("  off"),
             Step::PowerPlan => {
                 if let Some(p) = &st.power {
                     warn("power plan", power::boost(p, cfg.min_processor_state.unwrap_or(100), cfg.max_processor_state));
@@ -241,6 +254,8 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
                 }
             }
             Step::Ram => println!("  nothing to undo"),
+            Step::LowerOthers if st.lowered.is_empty() => println!("  nothing to undo"),
+            Step::LowerOthers => priority::set_others(&st.lowered, None),
             Step::Processes => processes::relaunch(&st.processes),
             Step::Services => st.services.iter().rev().for_each(|s| check("starting a service", services::start(s))),
         }
@@ -369,7 +384,7 @@ mod tests {
             ..Default::default()
         };
         let d = describe(&st, &cfg);
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

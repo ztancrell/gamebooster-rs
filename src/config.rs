@@ -27,6 +27,15 @@ pub struct Config {
     /// Process image names (e.g. "OneDrive.exe"), closed during a boost and relaunched on restore.
     #[serde(default)]
     pub close: Vec<String>,
+    /// Lower the priority of the user's other Normal-priority processes during a boost.
+    #[serde(default)]
+    pub lower_others: bool,
+    /// The class `lower_others` sets: below_normal (default) or idle.
+    #[serde(default)]
+    pub lower_others_class: LowerClass,
+    /// Extra image names `lower_others` leaves alone (on top of `priority::NEVER_LOWER`).
+    #[serde(default)]
+    pub lower_others_exclude: Vec<String>,
     /// On boost, switch the active adapter's IPv4 DNS to a public resolver if it's clearly faster.
     #[serde(default)]
     pub fastest_dns: bool,
@@ -54,6 +63,16 @@ pub enum Priority {
     Normal,
     BelowNormal,
     Low,
+}
+
+/// Priority class for `lower_others`. Idle can starve voice chat and streams, so the default is
+/// Below normal.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LowerClass {
+    #[default]
+    BelowNormal,
+    Idle,
 }
 
 fn yes() -> bool {
@@ -126,6 +145,9 @@ mod tests {
         assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim && !cfg.fastest_dns);
         assert_eq!(cfg.ping_hosts.len(), crate::network::DEFAULT_PING_HOSTS.len());
         assert!(cfg.services.is_empty() && cfg.close.is_empty());
+        assert!(!cfg.lower_others && cfg.lower_others_class == LowerClass::BelowNormal && cfg.lower_others_exclude.is_empty());
+        assert_eq!(Config::parse("lower_others_class = \"idle\"").unwrap().lower_others_class, LowerClass::Idle);
+        assert!(Config::parse("lower_others_class = \"low\"").is_err());
         assert_eq!(cfg.games[0].exe, "bf6.exe");
         assert_eq!(cfg.games[0].priority, Priority::High);
     }

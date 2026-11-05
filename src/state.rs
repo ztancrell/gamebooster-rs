@@ -17,6 +17,9 @@ pub struct State {
     /// Fastest-DNS change (absent in state files from older versions).
     #[serde(default)]
     pub dns: Option<crate::network::DnsState>,
+    /// Processes `lower_others` lowered (absent in state files from older versions).
+    #[serde(default)]
+    pub lowered: Vec<crate::priority::Lowered>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -71,9 +74,16 @@ mod tests {
             power: Some(PowerState { previous_scheme: "381b4222-f694-41f0-9685-ff5bb260df2e".into(), brightness: Some((100, 75)) }),
             game_mode: Some(GameModeState { previous: None }),
             dns: Some(crate::network::DnsState { adapter_guid: "{4D36E972-E325-11CE-BFC1-08002BE10318}".into(), adapter: "Wi-Fi".into(), previous_static: None, server: "1.1.1.1".into() }),
+            lowered: vec![crate::priority::Lowered { pid: 1234, exe: "chrome.exe".into(), created: 133_000_000_000_000_000, old_class: 0x20 }],
         };
         st.save(&path).unwrap();
         assert_eq!(State::load(&path).unwrap(), Some(st));
         std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn old_state_without_new_fields_loads() {
+        let st: State = serde_json::from_str(r#"{"boosted_at":1,"services":[],"processes":[],"power":null,"game_mode":null}"#).unwrap();
+        assert!(st.lowered.is_empty() && st.dns.is_none());
     }
 }

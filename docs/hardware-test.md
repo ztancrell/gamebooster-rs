@@ -24,6 +24,7 @@ copy the whole window text and send it.
    - `services = ["WSearch"]` (Windows Search; harmless to stop).
    - `close = ["OneDrive.exe"]`, or any other app you see running in Task Manager > Details that
      you don't need while playing. Leave `[]` if nothing fits.
+   - `lower_others = true` (keep `lower_others_class = "below_normal"`).
    - Start BF6, check its name in Task Manager > Details, and fix `exe = "bf6.exe"` if it differs.
      Quit BF6 again.
 4. Open PowerShell as administrator (Start, type `PowerShell`, right-click **Windows PowerShell**,
@@ -41,7 +42,9 @@ copy the whole window text and send it.
    `381b4222-f694-41f0-9685-ff5bb260df2e`) and the `AutoGameModeEnabled` value.
 6. `.\gamebooster.exe boost --dry-run`
    Look for: `Boost would do (dry run, nothing changed):`, then your service, your app's full
-   path, the power plan list and `priority: bf6.exe -> High while running`.
+   path, `lower other processes to below normal (old class restored): N processes: <names>`
+   (your apps, none of explorer.exe, Discord, Steam, EA app), the power plan list and
+   `priority: bf6.exe -> High while running`.
    Failure: an `error:` line (usually a config typo; the message says which key).
 7. Start BF6 and wait in the main menu. Alt-Tab back to PowerShell.
 8. `.\capture\snapshot.ps1 -Out 1-before.json`
@@ -53,6 +56,8 @@ copy the whole window text and send it.
    - `Services` / `  stopped service WSearch`
    - `Processes` / `  closed OneDrive.exe (pid ...)`
    - `Ram` / `  off`
+   - `LowerOthers` / `  lowered N processes to below normal` (a `(... skipped: access denied, ...
+     exited)` tail is fine)
    - `PowerPlan` / about 17 `  set    ...` lines / `  activated plan gamebooster (a2921d59-9c60-439e-b61a-21c441a0df53)`.
      `skipped (not on this machine)` is fine for the AMD PowerPlay, Wi-Fi and "unidentified hidden
      display" lines; anywhere else, note it.
@@ -76,7 +81,8 @@ copy the whole window text and send it.
     - Services: `~ WSearch: Running / Auto -> Stopped / Auto`. The part after `/` (start type) must
       **not** change; if it does, that's a failure.
     - Processes: `stopped: OneDrive ...`, `stopped: SearchIndexer ...` (WSearch's process) and
-      `~ bf6 (pid ...) priority: Normal -> High`. Other `started:`/`stopped:` lines are usually
+      `~ bf6 (pid ...) priority: Normal -> High`, plus `~ <app> (pid ...) priority: Normal ->
+      BelowNormal` lines for your other apps (`lower_others`). Other `started:`/`stopped:` lines are usually
       Windows background tasks coming and going.
     - Registry: at most `AutoGameModeEnabled` (only if it wasn't 1 already). Anything else there,
       under BCD or under Windows Update is a failure (we don't touch those).
@@ -89,6 +95,7 @@ copy the whole window text and send it.
     - `Dns` (nothing under it)
     - `GameMode` / `  AutoGameModeEnabled = <old value>` (or `(deleted)` if it was absent)
     - `PowerPlan` / `  reactivated plan <the GUID from step 5>` / `  deleted plan gamebooster`
+    - `LowerOthers` / `  restored the old priority of N processes` (`(... exited)` is fine)
     - `Processes` / `  relaunched C:\...\OneDrive.exe`
     - `Services` / `  started service WSearch`
     - `Restored.`
@@ -122,7 +129,8 @@ If `restore` keeps failing, undo by hand in the same administrator PowerShell. O
 4. Game Mode: if `"previous"` under `"game_mode"` is a number N:
    `reg add HKCU\Software\Microsoft\GameBar /v AutoGameModeEnabled /t REG_DWORD /d N /f`.
    If it is `null`: `reg delete HKCU\Software\Microsoft\GameBar /v AutoGameModeEnabled /f`.
-5. Game priority needs nothing; it ends when BF6 quits.
+5. Game priority and lowered processes (`"lowered"`) need nothing for safety; priorities end when
+   each app quits. To put one back now: Task Manager > Details > right-click > Set priority > Normal.
 6. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority).
 
 A reboot also brings the services back (their start type is never changed), but not the power plan

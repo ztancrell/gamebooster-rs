@@ -11,16 +11,19 @@ What a boost does, in this order (restore goes in reverse):
    didn't list is skipped). Restore starts them again.
 2. **Close apps** you list. Restore relaunches them.
 3. **RAM trim** of all other processes (optional, off by default, not undoable).
-4. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
+4. **Lower other processes** (optional, off by default): your own apps that run at Normal priority
+   go to Below normal (or Idle), except the games, launchers, voice chat, anti-cheat, the shell
+   and a built-in safe list. Restore puts back each one's old priority if it still runs.
+5. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
    active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; optionally
    maximum 99 % to turn Intel Turbo Boost off, and a lower minimum for less heat). Restore
    reactivates your old plan and deletes ours.
-5. **Game Mode** on (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1`). Restore writes back
+6. **Game Mode** on (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1`). Restore writes back
    the old value.
-6. **Fastest DNS** (optional, off by default): if Cloudflare, Google or Quad9 answers DNS lookups
+7. **Fastest DNS** (optional, off by default): if Cloudflare, Google or Quad9 answers DNS lookups
    clearly faster than your current server, sets it on the active adapter (IPv4). Restore puts back
    the old static list or DHCP.
-7. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
+8. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
 
 Separately, `gamebooster ping` measures latency to cloud regions near game servers and changes
 nothing. See [network](docs/tweaks/network.md).
@@ -80,6 +83,9 @@ Copy [gamebooster.example.toml](gamebooster.example.toml) to `gamebooster.toml` 
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
+| `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
+| `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. |
+| `lower_others_exclude` | `[]` | Extra image names to leave alone (case-insensitive), on top of the built-in list. |
 | `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
 | `ping_hosts` | 12 AWS regional endpoints | Hosts `gamebooster ping` measures (TCP port 443). |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). The example file has a commented-out suggested list from SGB, pruned; see [services](docs/tweaks/services.md#suggested-list-from-sgb-pruned). |
@@ -95,7 +101,8 @@ check Task Manager > Details while the game runs.
 
 - Before the first change, boost writes everything restore needs to
   `gamebooster-state.json` next to `gamebooster.exe` (previous power plan, the services it stops,
-  the full paths of the apps it closes, the old Game Mode value, the old DNS setting). If that write fails, nothing is
+  the full paths of the apps it closes, the processes it lowers with their old priority, the old
+  Game Mode value, the old DNS setting). If that write fails, nothing is
   changed. The file's presence means "boosted"; boosting again doesn't overwrite it.
 - After a crash, a power cut or a reboot, just run `gamebooster restore`. Restore is idempotent:
   running services, running apps and an already-deleted plan are fine. If starting a service,
