@@ -21,6 +21,33 @@ the occasional long frame. The gain depends entirely on what runs on your machin
 not the display names. Nothing is stopped by default. Don't list audio (`Audiosrv`), networking,
 security software or Apple/Boot Camp keyboard and trackpad services.
 
+## Suggested list (from SGB, pruned)
+
+`gamebooster.example.toml` carries a commented-out `services = [...]` block (64 services): Smart
+Game Booster's `[Services_WIN10]` list, which Windows 11 also gets, ticked and unticked entries
+alike (decoded in [decomp/SgbData/README.md](../../decomp/SgbData/README.md)). It is opt-in: the
+default stays `services = []`. Each line says what the service is; `risky:` marks ones that can
+break something during the session (an update in progress, text input, Bluetooth, security
+features), `SGB default: off` marks ones SGB listed but didn't tick. Listed services that aren't
+installed or aren't running are simply skipped.
+
+Changed from SGB's list:
+
+- `Hyper-V Data Exchange Service` is a display name; the key `vmickvpexchange` is used instead.
+- Removed, gone from current Windows 10 (22H2) and 11: `UI0Detect` (Interactive Services
+  Detection, removed in 1803), `hkmsvc` and `napagent` (Network Access Protection, removed with
+  Windows 10), `Mcx2Svc`, `ehRecvr` and `ehSched` (Media Center), `AllUserInstallAgent` (Windows 8
+  app installer, replaced by AppXSvc), `WSService` (Windows 8 Store service).
+- Removed as security-relevant: `BDESVC` (BitLocker Drive Encryption Service).
+
+See which of them exist and run on your machine (PowerShell):
+
+```powershell
+Get-Service -Name TrustedInstaller,TabletInputService,StiSvc,WMPNetworkSvc,AxInstSV,ALG,AppMgmt,PeerDistSvc,CertPropSvc,WdiServiceHost,WdiSystemHost,EFS,Fax,KtmRm,lltdsvc,swprv,NetTcpPortSharing,Netlogon,pla,PNRPAutoReg,wercplsupport,PcaSvc,QWAVE,SessionEnv,UmRdpService,RpcLocator,RemoteRegistry,RemoteAccess,SCPolicySvc,SNMPTRAP,StorSvc,WebClient,WcsPlugInService,WerSvc,Wecsvc,FontCache,WinRM,W32Time,DeviceInstall,DsmSvc,fhsvc,vmickvpexchange,vmicshutdown,vmicheartbeat,vmicrdv,vmictimesync,vmicvss,NcaSvc,PrintNotify,svsvc,WiaRpc,SystemEventsBroker,TimeBroker,bthserv,hidserv,DiagTrack,MapsBroker,DPS,TrkWks,SharedAccess,MSiSCSI,CscService,SSDPSRV,Themes -ErrorAction SilentlyContinue | Format-Table Name,Status,StartType
+```
+
+Names missing from the output aren't installed. Only the `Running` ones would be stopped.
+
 ## Try and undo by hand
 
 ```bat

@@ -34,6 +34,78 @@ ram_trim = false
 #   "wuauserv"   Windows Update (it may start again by itself)
 services = []
 
+# Suggested list: Smart Game Booster's Windows 10/11 defaults, pruned of services that no longer
+# exist (see docs/tweaks/services.md). Opt-in: to use it, delete `services = []` above and remove
+# the leading "# " from every line of this block. Then drop what you need: "risky:" lines can break
+# something during the session, "SGB default: off" lines SGB listed but didn't tick. Services that
+# aren't installed or aren't running are skipped.
+# services = [
+#   "TrustedInstaller",   # risky: Windows Modules Installer; interrupts an update in progress
+#   "TabletInputService", # risky: Touch Keyboard and Handwriting Panel; can break IME/text input
+#   "StiSvc",             # Windows Image Acquisition (scanners, cameras)
+#   "WMPNetworkSvc",      # Windows Media Player Network Sharing
+#   "AxInstSV",           # ActiveX Installer
+#   "ALG",                # Application Layer Gateway (ICS helper)
+#   "AppMgmt",            # Application Management (Group Policy software installs)
+#   "PeerDistSvc",        # BranchCache
+#   "CertPropSvc",        # risky: Certificate Propagation; smart-card logon certificates
+#   "WdiServiceHost",     # Diagnostic Service Host
+#   "WdiSystemHost",      # Diagnostic System Host
+#   "EFS",                # risky: Encrypting File System; EFS-encrypted files can't be opened
+#   "Fax",                # Fax
+#   "KtmRm",              # KtmRm for Distributed Transaction Coordinator
+#   "lltdsvc",            # Link-Layer Topology Discovery Mapper (network map)
+#   "swprv",              # risky: Software Shadow Copy Provider; interrupts a backup/restore point
+#   "NetTcpPortSharing",  # Net.Tcp Port Sharing
+#   "Netlogon",           # risky: Netlogon; domain logon/authentication on domain-joined PCs
+#   "pla",                # Performance Logs & Alerts
+#   "PNRPAutoReg",        # PNRP Machine Name Publication (peer networking)
+#   "wercplsupport",      # Problem Reports Control Panel Support
+#   "PcaSvc",             # Program Compatibility Assistant
+#   "QWAVE",              # Quality Windows Audio Video Experience
+#   "SessionEnv",         # Remote Desktop Configuration
+#   "UmRdpService",       # Remote Desktop UserMode Port Redirector
+#   "RpcLocator",         # Remote Procedure Call (RPC) Locator (legacy, not RpcSs)
+#   "RemoteRegistry",     # Remote Registry
+#   "RemoteAccess",       # Routing and Remote Access
+#   "SCPolicySvc",        # risky: Smart Card Removal Policy; removing the card won't lock the PC
+#   "SNMPTRAP",           # SNMP Trap
+#   "StorSvc",            # Storage Service (storage settings, Store app installs)
+#   "WebClient",          # WebDAV client
+#   "WcsPlugInService",   # Windows Color System
+#   "WerSvc",             # Windows Error Reporting
+#   "Wecsvc",             # Windows Event Collector
+#   "FontCache",          # risky: Windows Font Cache; slower font loading and app starts
+#   "WinRM",              # Windows Remote Management
+#   "W32Time",            # Windows Time (clock sync)
+#   "DeviceInstall",      # risky: Device Install; devices plugged in during the session won't install
+#   "DsmSvc",             # Device Setup Manager
+#   "fhsvc",              # File History (pauses backups)
+#   "vmickvpexchange",    # Hyper-V Data Exchange (guest only)
+#   "vmicshutdown",       # Hyper-V Guest Shutdown (guest only)
+#   "vmicheartbeat",      # Hyper-V Heartbeat (guest only)
+#   "vmicrdv",            # Hyper-V Remote Desktop Virtualization (guest only)
+#   "vmictimesync",       # Hyper-V Time Synchronization (guest only)
+#   "vmicvss",            # Hyper-V Volume Shadow Copy Requestor (guest only)
+#   "NcaSvc",             # Network Connectivity Assistant (DirectAccess)
+#   "PrintNotify",        # Printer Extensions and Notifications
+#   "svsvc",              # Spot Verifier (disk corruption checks)
+#   "WiaRpc",             # Still Image Acquisition Events
+#   "SystemEventsBroker", # risky: System Events Broker; core trigger broker for tasks and apps
+#   "TimeBroker",         # risky: Time Broker; background tasks of Store apps
+#   "bthserv",            # risky: Bluetooth Support; Bluetooth pads/headsets can drop. SGB default: off
+#   "hidserv",            # risky: Human Interface Device Service; media/hot keys. SGB default: off
+#   "DiagTrack",          # Connected User Experiences and Telemetry. SGB default: off
+#   "MapsBroker",         # Downloaded Maps Manager. SGB default: off
+#   "DPS",                # Diagnostic Policy Service. SGB default: off
+#   "TrkWks",             # Distributed Link Tracking Client. SGB default: off
+#   "SharedAccess",       # risky: Internet Connection Sharing; Mobile hotspot stops. SGB default: off
+#   "MSiSCSI",            # Microsoft iSCSI Initiator. SGB default: off
+#   "CscService",         # Offline Files. SGB default: off
+#   "SSDPSRV",            # risky: SSDP Discovery; UPnP port mapping some games use. SGB default: off
+#   "Themes",             # risky: Themes; visual style resets/flicker. SGB default: off
+# ]
+
 # Apps to close during the boost (image names, as in Task Manager's Details tab). They are started
 # again on restore. Unsaved work in them is lost. Empty by default. Suggestions:
 #   "OneDrive.exe", "Dropbox.exe", "iCloudServices.exe", "Teams.exe", "Spotify.exe"

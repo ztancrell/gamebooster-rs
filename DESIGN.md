@@ -21,6 +21,8 @@ Windows via Boot Camp, playing BF6.
   `max_processor_state`) and an 800 MHz warning in `status`. Out of scope: clearing BD PROCHOT
   ourselves (needs a kernel driver; WinRing0 is blocked by Defender, and test signing breaks BF6's
   anti-cheat). ThrottleStop covers that.
+- 2026-11-05: Also build SGB's other optimizer tweaks (decoded from its `.dbd` files), but only the
+  ones that matter for gaming on the Boot Camp Mac and that `restore` can undo.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

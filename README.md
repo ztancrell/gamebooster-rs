@@ -72,7 +72,7 @@ Copy [gamebooster.example.toml](gamebooster.example.toml) to `gamebooster.toml` 
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
-| `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). |
+| `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). The example file has a commented-out suggested list from SGB, pruned; see [services](docs/tweaks/services.md#suggested-list-from-sgb-pruned). |
 | `close` | `[]` | Process image names to close (e.g. `"OneDrive.exe"`). |
 | `[[game]]` `exe`, `priority` | example: `bf6.exe`, `high` | Games to raise; priority is `realtime`, `high`, `above_normal`, `normal`, `below_normal` or `low`. |
 

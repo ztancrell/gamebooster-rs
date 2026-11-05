@@ -123,6 +123,23 @@ mod tests {
         assert_eq!(cfg.games[0].priority, Priority::High);
     }
 
+    /// The commented-out suggested `services` block parses once uncommented as its header says.
+    #[test]
+    fn example_suggested_services_parse() {
+        let text = include_str!("../gamebooster.example.toml");
+        let (mut out, mut inside) = (String::new(), false);
+        for line in text.lines().filter(|l| *l != "services = []") {
+            inside |= line == "# services = [";
+            out.push_str(if inside { line.strip_prefix("# ").unwrap() } else { line });
+            out.push('\n');
+            inside &= line != "# ]";
+        }
+        let cfg = Config::parse(&out).unwrap();
+        assert_eq!(cfg.services.len(), 64);
+        assert!(cfg.services.iter().all(|s| !s.contains(' ')), "display name instead of key");
+        assert!(cfg.services.iter().any(|s| s == "vmickvpexchange"));
+    }
+
     #[test]
     fn defaults_and_priority_names() {
         let cfg = Config::parse("[[game]]\nexe = \"a.exe\"\n[[game]]\nexe = \"b.exe\"\npriority = \"above_normal\"").unwrap();
