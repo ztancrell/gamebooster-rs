@@ -93,8 +93,8 @@ setting of the plan, hidden ones included.
 
 ## Optional: Turbo Boost off
 
-**What it is.** Turbo Boost lets an Intel CPU run above its base clock (the i9-9880H in the 2019
-16" MacBook Pro: 2.3 GHz base, up to 4.8 GHz turbo) while power and temperature allow. Windows
+**What it is.** Turbo Boost lets an Intel CPU run above its base clock (the target Mac's i7-9750H: 2.6 GHz base,
+up to 4.5 GHz turbo; the i9-9880H: 2.3 / 4.8 GHz) while power and temperature allow. Windows
 asks for turbo only when the *maximum processor state* is 100 %. At 99 % or lower it caps the
 request at the base clock, so turbo is never used. That is why `max_processor_state = 99` turns
 Turbo Boost off: one percent less on paper, but no turbo at all in practice. (On AMD CPUs the
@@ -170,7 +170,7 @@ A machine without the setting prints `skipped (not on this machine)`. Restore ne
 extra: it deletes the whole gamebooster plan.
 
 **With `max_processor_state`.** They don't conflict, both apply and the lower limit wins:
-`max_processor_state = 99` turns turbo off (CPU at or below base, 2.3 GHz on the i9-9880H), so a
+`max_processor_state = 99` turns turbo off (CPU at or below base, 2.6 GHz on the i7-9750H, 2.3 GHz on the i9-9880H), so a
 cap above base then changes nothing. To test the cap, use it with `max_processor_state = 100`:
 
 ```toml
