@@ -9,6 +9,9 @@ pub struct Config {
     /// Switch to our high-performance power plan during a boost.
     #[serde(default = "yes")]
     pub power_plan: bool,
+    /// Maximum processor state (%) in our power plan, AC and DC. Below 100 turns Intel Turbo Boost off.
+    #[serde(default = "full")]
+    pub max_processor_state: u32,
     /// Make sure Windows Game Mode is on during a boost.
     #[serde(default = "yes")]
     pub game_mode: bool,
@@ -47,6 +50,9 @@ pub enum Priority {
 fn yes() -> bool {
     true
 }
+fn full() -> u32 {
+    100
+}
 fn high() -> Priority {
     Priority::High
 }
@@ -70,6 +76,9 @@ pub fn is_protected(exe: &str) -> bool {
 impl Config {
     pub fn parse(text: &str) -> Result<Config, String> {
         let cfg: Config = toml::from_str(text).map_err(|e| e.to_string())?;
+        if !(5..=100).contains(&cfg.max_processor_state) {
+            return Err(format!("max_processor_state = {} is out of range: use 5 to 100 (99 turns Turbo Boost off)", cfg.max_processor_state));
+        }
         for name in cfg.close.iter().chain(cfg.games.iter().map(|g| &g.exe)) {
             if is_protected(name) {
                 return Err(format!("{name} is a protected process and can't be closed or re-prioritised"));
@@ -108,6 +117,7 @@ mod tests {
     fn defaults_and_priority_names() {
         let cfg = Config::parse("[[game]]\nexe = \"a.exe\"\n[[game]]\nexe = \"b.exe\"\npriority = \"above_normal\"").unwrap();
         assert!(cfg.power_plan && cfg.game_mode);
+        assert_eq!(cfg.max_processor_state, 100);
         assert_eq!(cfg.games[0].priority, Priority::High);
         assert_eq!(cfg.games[1].priority, Priority::AboveNormal);
         assert!(cfg.is_game("A.EXE"));
@@ -120,6 +130,15 @@ mod tests {
         assert!(Config::parse("close = [\"bf6.exe\"]\n[[game]]\nexe = \"bf6.exe\"").is_err());
         assert!(Config::parse("servics = []").is_err());
         assert!(Config::parse("[[game]]\nexe = \"x.exe\"\npriority = \"turbo\"").is_err());
+    }
+
+    #[test]
+    fn max_processor_state_range() {
+        assert_eq!(Config::parse("max_processor_state = 99").unwrap().max_processor_state, 99);
+        assert_eq!(Config::parse("max_processor_state = 5").unwrap().max_processor_state, 5);
+        for bad in ["4", "101", "0", "-1", "99.5"] {
+            assert!(Config::parse(&format!("max_processor_state = {bad}")).is_err(), "{bad} accepted");
+        }
     }
 
     #[test]

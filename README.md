@@ -11,7 +11,8 @@ What a boost does, in this order (restore goes in reverse):
 2. **Close apps** you list. Restore relaunches them.
 3. **RAM trim** of all other processes (optional, off by default, not undoable).
 4. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
-   active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep). Restore
+   active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; optionally
+   maximum 99 % to turn Intel Turbo Boost off). Restore
    reactivates your old plan and deletes ours.
 5. **Game Mode** on (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1`). Restore writes back
    the old value.
@@ -66,6 +67,7 @@ Copy [gamebooster.example.toml](gamebooster.example.toml) to `gamebooster.toml` 
 | Key | Default | Meaning |
 |---|---|---|
 | `power_plan` | `true` | Use the gamebooster power plan. |
+| `max_processor_state` | `100` | Maximum processor state (%) in that plan, 5 to 100. `99` turns Intel Turbo Boost off (less heat and throttling, lower peak clocks); see [power plan](docs/tweaks/power-plan.md#optional-turbo-boost-off). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). |

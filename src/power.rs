@@ -21,6 +21,13 @@
 //! setting doesn't exist and is skipped. The cost is more heat and battery use, which is why we
 //! switch back on restore.
 //!
+//! **Optional: Turbo Boost off.** The maximum processor state is 100 % unless the config sets
+//! `max_processor_state`. On Intel CPUs any value below 100 (99 is enough) stops Windows from
+//! requesting Turbo Boost, so the CPU stays at or below its base clock. On a hot i9 MacBook Pro
+//! that trades peak clock for less heat and less thermal throttling, often steadier frame times.
+//! Verify with `powercfg /query <guid> SUB_PROCESSOR PROCTHROTTLEMAX` (0x63 = 99) and HWiNFO's
+//! core clocks; see docs/tweaks/power-plan.md.
+//!
 //! **How we do it.** We shell out to `powercfg.exe` instead of calling `powrprof.dll` directly:
 //! it is less code, the same commands are what you'd type by hand (see docs/tweaks/power-plan.md),
 //! and a setting the machine doesn't have simply makes `powercfg` fail, which we report as
@@ -42,12 +49,14 @@ pub const BALANCED: &str = "381b4222-f694-41f0-9685-ff5bb260df2e";
 
 const SUB_VIDEO: &str = "7516b95f-f776-4464-8c53-06167f40cc99";
 const VIDEO_BRIGHTNESS: &str = "aded5e82-b909-4619-9949-f5d71dac0bcb";
+const SUB_PROCESSOR: &str = "54533251-82be-4824-96c1-47b60b740d00";
+const PROC_MAX: &str = "bc5038f7-23e0-4960-96da-33abaf5935ec";
 
-/// (subgroup, setting, value, meaning). Written for both AC and DC.
+/// (subgroup, setting, value, meaning). Written for both AC and DC. The maximum processor state
+/// comes from the config instead, see [`max_state_meaning`].
 pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
-    ("54533251-82be-4824-96c1-47b60b740d00", "893dee8e-2bef-41e0-89c6-b55d0929964c", 100, "minimum processor state 100 %"),
-    ("54533251-82be-4824-96c1-47b60b740d00", "bc5038f7-23e0-4960-96da-33abaf5935ec", 100, "maximum processor state 100 %"),
-    ("54533251-82be-4824-96c1-47b60b740d00", "94d3a615-a899-4ac5-ae2b-e4d8f634367f", 1, "cooling policy: active (fans before throttling)"),
+    (SUB_PROCESSOR, "893dee8e-2bef-41e0-89c6-b55d0929964c", 100, "minimum processor state 100 %"),
+    (SUB_PROCESSOR, "94d3a615-a899-4ac5-ae2b-e4d8f634367f", 1, "cooling policy: active (fans before throttling)"),
     ("501a4d13-42af-4429-9fd1-a8218c268e20", "ee12f906-d277-404b-b6da-e5fa1a576df5", 0, "PCIe link state power management off"),
     ("f693fb01-e858-4f00-b20f-f30e12ac06d6", "191f65b5-d45c-4a4f-8aae-1ab8bfd980e6", 1, "AMD ATI PowerPlay: maximize performance (AMD only)"),
     ("0012ee47-9041-4b5d-9b77-535fba8b1442", "6738e2c4-e8a5-4a42-b16a-e040e769756e", 0, "never turn off the disk"),
@@ -63,6 +72,11 @@ pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
     ("9596fb26-9850-41fd-ac3e-f7c3c00afd4b", "03680956-93bc-4294-bba6-4e0f09bb717f", 1, "when sharing media: prevent idle sleep"),
     ("9596fb26-9850-41fd-ac3e-f7c3c00afd4b", "34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4", 0, "when playing video: optimize video quality"),
 ];
+
+/// How boost and --dry-run describe the maximum processor state.
+pub fn max_state_meaning(pct: u32) -> String {
+    format!("maximum processor state {pct} %{}", if pct < 100 { " (Turbo Boost off)" } else { "" })
+}
 
 /// First GUID in `powercfg` output, lowercased (e.g. from "Power Scheme GUID: 381b...  (Balanced)").
 pub fn parse_guid(text: &str) -> Option<String> {
@@ -121,14 +135,16 @@ pub fn plan() -> Result<PowerState, String> {
 }
 
 #[cfg(windows)]
-pub fn boost(st: &PowerState) -> Result<(), String> {
+pub fn boost(st: &PowerState, max_state: u32) -> Result<(), String> {
     delete_ours()?;
     if powercfg(&["/duplicatescheme", HIGH_PERFORMANCE, OUR_PLAN]).is_err() {
         println!("  High performance plan missing, copying Balanced instead");
         powercfg(&["/duplicatescheme", BALANCED, OUR_PLAN])?;
     }
     powercfg(&["/changename", OUR_PLAN, "gamebooster", "Temporary plan created by gamebooster; removed by `gamebooster restore`."])?;
+    let max_meaning = max_state_meaning(max_state);
     let mut values: Vec<(&str, &str, u32, u32, &str)> = SETTINGS.iter().map(|&(g, s, v, m)| (g, s, v, v, m)).collect();
+    values.push((SUB_PROCESSOR, PROC_MAX, max_state, max_state, &max_meaning));
     if let Some((ac, dc)) = st.brightness {
         values.push((SUB_VIDEO, VIDEO_BRIGHTNESS, ac, dc, "keep current display brightness"));
     }
@@ -197,5 +213,12 @@ mod tests {
             assert_eq!(parse_guid(setting).as_deref(), Some(*setting));
         }
         assert_eq!(parse_guid(OUR_PLAN).as_deref(), Some(OUR_PLAN));
+        assert_eq!(parse_guid(PROC_MAX).as_deref(), Some(PROC_MAX));
+    }
+
+    #[test]
+    fn max_state_says_turbo_off_below_100() {
+        assert_eq!(max_state_meaning(100), "maximum processor state 100 %");
+        assert_eq!(max_state_meaning(99), "maximum processor state 99 % (Turbo Boost off)");
     }
 }

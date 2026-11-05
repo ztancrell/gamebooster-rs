@@ -11,7 +11,7 @@ Boost applies them in this order; restore undoes them in reverse.
 | 1 | [Stop services](services.md) | `services = [...]` | `src/services.rs` | Medium, depends on what runs |
 | 2 | [Close apps](close-apps.md) | `close = [...]` | `src/processes.rs` | Medium, depends on what runs |
 | 3 | [RAM trim](ram-trim.md) | `ram_trim = true` | `src/ram.rs` | Low; only when RAM is nearly full |
-| 4 | [Power plan](power-plan.md) | `power_plan = true` | `src/power.rs` | High: the main one |
+| 4 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100` | `src/power.rs` | High: the main one |
 | 5 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on |
 | 6 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy |
 

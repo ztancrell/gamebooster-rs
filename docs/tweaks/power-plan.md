@@ -23,7 +23,7 @@ The cost: more heat, more fan noise, shorter battery life. That's why restore sw
 | Subgroup | Setting | Value |
 |---|---|---|
 | Processor `54533251-82be-4824-96c1-47b60b740d00` | Minimum processor state `893dee8e-2bef-41e0-89c6-b55d0929964c` | 100 |
-| Processor | Maximum processor state `bc5038f7-23e0-4960-96da-33abaf5935ec` | 100 |
+| Processor | Maximum processor state `bc5038f7-23e0-4960-96da-33abaf5935ec` | `max_processor_state` from the config, default 100 ([Turbo Boost off](#optional-turbo-boost-off) below 100) |
 | Processor | System cooling policy `94d3a615-a899-4ac5-ae2b-e4d8f634367f` | 1 (active) |
 | PCI Express `501a4d13-42af-4429-9fd1-a8218c268e20` | Link state power management `ee12f906-d277-404b-b6da-e5fa1a576df5` | 0 (off) |
 | ATI graphics `f693fb01-e858-4f00-b20f-f30e12ac06d6` | ATI PowerPlay `191f65b5-d45c-4a4f-8aae-1ab8bfd980e6` | 1 (maximize performance; AMD only) |
@@ -78,3 +78,43 @@ setting of the plan, hidden ones included.
 - CapFrameX in BF6 (see [README](README.md#how-to-measure-any-tweak)): expect better 1 % lows and
   fewer spikes. If temperatures hit the limit (about 100 °C on Mac Intel CPUs), clocks will drop
   anyway: a cooling pad or raising the Mac's back helps more than any setting.
+
+## Optional: Turbo Boost off
+
+**What it is.** Turbo Boost lets an Intel CPU run above its base clock (the i9-9880H in the 2019
+16" MacBook Pro: 2.3 GHz base, up to 4.8 GHz turbo) while power and temperature allow. Windows
+asks for turbo only when the *maximum processor state* is 100 %. At 99 % or lower it caps the
+request at the base clock, so turbo is never used. That is why `max_processor_state = 99` turns
+Turbo Boost off: one percent less on paper, but no turbo at all in practice. (On AMD CPUs the
+effect is similar for Precision Boost, but this project is tested on Intel.)
+
+**Default.** `max_processor_state = 100` (turbo on), the same as High performance and Balanced.
+gamebooster writes the value for both AC and DC; `--dry-run` and `boost` print it and say
+"Turbo Boost off" when it is below 100. Values outside 5 to 100 are rejected when the config loads.
+
+**Trade-off.** Turbo gives the highest peak clocks, but this i9 reaches about 100 °C within
+minutes, then throttles hard and unevenly, and clocks swing between turbo and far below base. With
+turbo off the CPU runs cooler and at a steady base clock, the fans are quieter and the GPU (which
+shares the cooling) keeps more headroom. Average FPS may drop a little in CPU-bound scenes; the
+1 % lows often improve. Only measuring tells which wins on your machine and game.
+
+**Try and undo by hand** (administrator Command Prompt, works on whatever plan is active):
+
+```bat
+powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 99
+powercfg /setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 99
+powercfg /setactive SCHEME_CURRENT
+```
+
+`/setactive` re-applies the plan so the change takes effect. Undo: the same three lines with
+`100`. Check with `powercfg /query SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX` (0x63 = 99,
+0x64 = 100).
+
+**Measure.**
+
+- HWiNFO sensors: with turbo off, core clocks sit at or below base instead of jumping to 4+ GHz;
+  CPU package temperature should drop and the "Thermal Throttling" / "PROCHOT" flags should stay
+  "No" during a session.
+- CapFrameX in the same BF6 scene, 3 runs at 100 and 3 at 99 (change the config value, then
+  `gamebooster restore` and `gamebooster boost`): compare the 1 % lows and the frame-time graph,
+  not only the average FPS.

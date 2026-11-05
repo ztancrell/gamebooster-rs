@@ -76,6 +76,7 @@ fn describe(st: &State, cfg: &Config) -> String {
             for (_, _, v, meaning) in power::SETTINGS {
                 out += &format!("      {meaning} (= {v})\n");
             }
+            out += &format!("      {} (= {})\n", power::max_state_meaning(cfg.max_processor_state), cfg.max_processor_state);
         }
         None => out += "  power plan: off\n",
     }
@@ -169,7 +170,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::Ram => println!("  off"),
             Step::PowerPlan => {
                 if let Some(p) = &st.power {
-                    warn("power plan", power::boost(p));
+                    warn("power plan", power::boost(p, cfg.max_processor_state));
                 }
             }
             Step::GameMode => {
@@ -297,7 +298,7 @@ mod tests {
             ..Default::default()
         };
         let d = describe(&st, &cfg);
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "apps to close (relaunched on restore): nothing"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

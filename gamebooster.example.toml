@@ -5,6 +5,11 @@
 # Switch to the "gamebooster" power plan (copy of High performance) during a boost.
 power_plan = true
 
+# Maximum processor state (%) in that plan, plugged in and on battery. 100 = full speed with Turbo
+# Boost. 99 = Turbo Boost off on Intel CPUs: lower peak clocks, but less heat and less thermal
+# throttling on a hot MacBook Pro, often steadier frame times. Range 5-100.
+max_processor_state = 100
+
 # Make sure Windows Game Mode is on (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1).
 game_mode = true
 
