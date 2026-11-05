@@ -5,7 +5,12 @@ Two PowerShell scripts for Windows PowerShell 5.1 (built into Windows 10/11). No
 - `snapshot.ps1 -Out <file.json>` saves a read-only snapshot of the system state that game boosters
   usually change. It reads and changes nothing.
 - `compare.ps1 -Before <a.json> -After <b.json>` prints only what changed, grouped as: power, services,
-  processes (started / stopped / priority / affinity), registry, BCD, timer resolution, free memory.
+  processes (started / stopped / priority / affinity), registry, Windows Update, BCD, timer resolution,
+  free memory.
+
+The same scripts check gamebooster's own boost and restore: see
+[docs/hardware-test.md](../docs/hardware-test.md), which also says which spec unknown each part of
+an SGB diff answers.
 
 ## Steps (on the Boot Camp Windows install)
 

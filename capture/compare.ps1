@@ -63,6 +63,7 @@ if ($n -eq 0) { '  (no changes)' }
 ''
 
 Diff-Map 'Registry' $A.registry $B.registry
+Diff-Map 'Windows Update (Automatic Updates settings)' $A.windowsUpdate $B.windowsUpdate
 Diff-Map 'BCD (bcdedit /enum {current})' $A.bcd $B.bcd
 Diff-Map 'Timer resolution' $A.timer $B.timer
 Diff-Map 'Memory' $A.memory $B.memory

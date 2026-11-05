@@ -54,7 +54,7 @@ $snap.power = [ordered]@{ activeScheme = "$activeGuid $activeName"; schemes = $s
 # ---------------- services ----------------
 Write-Host 'services...'
 $svc = [ordered]@{}
-Get-CimInstance Win32_Service | Sort-Object Name | ForEach-Object { $svc[$_.Name] = "$($_.State) / $($_.StartMode)" }
+Get-CimInstance Win32_Service | Sort-Object Name | ForEach-Object { $svc[$_.Name] = "$($_.State) / $($_.StartMode)$(if ($_.DelayedAutoStart) { ' (delayed)' })" }
 $snap.services = $svc
 
 # ---------------- processes ----------------
@@ -118,7 +118,9 @@ foreach ($k in @(
     'HKCU\Control Panel\Desktop',
     'HKCU\Control Panel\Desktop\WindowMetrics',
     'HKCU\Control Panel\Mouse',
-    'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
+    'HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects',
+    'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update',
+    'HKLM\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
 )) { Read-Key $k }
 $tcp = 'HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces'
 # Only the tuning values: the interface keys also hold DHCP lease timestamps that change on their own.
@@ -131,6 +133,19 @@ Get-ChildItem -LiteralPath "Registry::$ifeo" -ErrorAction SilentlyContinue | For
     if (Test-Path -LiteralPath "Registry::$po") { Read-Key $po }
 }
 $snap.registry = $reg
+
+# ---------------- windows update (the Automatic Updates COM object SGB uses) ----------------
+Write-Host 'windows update...'
+$wu = [ordered]@{}
+try {
+    $au = New-Object -ComObject Microsoft.Update.AutoUpdate
+    $wu.serviceEnabled = $au.ServiceEnabled
+    # NotificationLevel: 0 not configured, 1 disabled, 2 notify before download, 3 before install, 4 scheduled
+    $wu.notificationLevel = $au.Settings.NotificationLevel
+    $wu.readOnly = $au.Settings.ReadOnly
+    $wu.required = $au.Settings.Required
+} catch { [void]$snap.notes.Add("windows update query failed: $($_.Exception.Message)") }
+$snap.windowsUpdate = $wu
 
 # ---------------- bcd ----------------
 Write-Host 'bcdedit...'

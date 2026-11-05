@@ -104,4 +104,5 @@ check Task Manager > Details while the game runs.
 - `AutoGameModeEnabled` is per user: run elevated from your own account.
 - Not implemented (on purpose): GPU overclock, monitor presets, clipboard clearing, Windows Update
   changes, network acceleration, tray icon cleanup, killing `explorer.exe`.
-- Tested only by unit tests and a cross-compile; not yet run on real hardware.
+- Tested only by unit tests and a cross-compile; not yet run on real hardware. First-run checklist:
+  [docs/hardware-test.md](docs/hardware-test.md).
