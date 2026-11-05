@@ -47,6 +47,7 @@ The same for Razer Cortex: [docs/razer-cortex/](docs/razer-cortex/README.md).
 The same for Hone (server-driven tweak catalogue, encrypted engine, temporary Game Mode): [docs/hone/](docs/hone/README.md).
 The same for ISLC, Intelligent Standby List Cleaner (standby purge and timer resolution, both placebo or harmful on Windows 10/11): [docs/islc/](docs/islc/README.md).
 The same for ExitLag (relay "ping reducer" with two kernel packet drivers; helps only on a bad ISP route): [docs/exitlag/](docs/exitlag/README.md).
+The same for Process Lasso (ProBalance dynamic priority restraint, read from the binary; a proposal for a dynamic `lower_others`): [docs/process-lasso/](docs/process-lasso/README.md).
 
 ## Install and update
 
