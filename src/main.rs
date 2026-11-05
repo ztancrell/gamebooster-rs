@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 const USAGE: &str = "\
 usage: gamebooster <command> [--dry-run] [--config <file>]
 
-  boost      apply the tweaks enabled in the config (if already boosted: re-apply game priority)
+  boost      apply the tweaks enabled in the config (if already boosted: re-apply game priority and power throttling off)
   restore    undo everything the last boost changed
   status     show whether a boost is active and what it changed
   ping       measure latency to cloud regions near game servers, fastest first (changes nothing)
@@ -151,6 +151,7 @@ fn describe(st: &State, cfg: &Config) -> String {
     for g in &cfg.games {
         out += &format!("  priority: {} -> {:?} while running\n", g.exe, g.priority);
     }
+    out += &format!("  game power throttling (EcoQoS): {}\n", if cfg.game_power_throttling_off { "off while running (handed back to Windows on restore)" } else { "left to Windows" });
     out
 }
 
@@ -222,8 +223,8 @@ fn warn<T>(what: &str, r: Result<T, String>) -> Option<T> {
 #[cfg(windows)]
 fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
     if State::load(state_path)?.is_some() {
-        println!("Already boosted (state in {}). Only re-applying game priority.", state_path.display());
-        if !dry_run && priority::apply(&cfg.games, false) == 0 {
+        println!("Already boosted (state in {}). Only re-applying game priority and power throttling.", state_path.display());
+        if !dry_run && priority::apply(&cfg.games, false, cfg.game_power_throttling_off) == 0 {
             println!("  no configured game is running");
         }
         return Ok(());
@@ -279,7 +280,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
                 }
             }
             Step::Priority => {
-                if priority::apply(&cfg.games, false) == 0 && !cfg.games.is_empty() {
+                if priority::apply(&cfg.games, false, cfg.game_power_throttling_off) == 0 && !cfg.games.is_empty() {
                     println!("  no configured game is running: start it, then run `gamebooster boost` again");
                 }
             }
@@ -292,9 +293,9 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
 #[cfg(windows)]
 fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
     let Some(st) = State::load(state_path)? else {
-        println!("Not boosted (no {}). Resetting game priority only.", state_path.display());
+        println!("Not boosted (no {}). Resetting game priority and power throttling only.", state_path.display());
         if !dry_run {
-            priority::apply(&cfg.games, true);
+            priority::apply(&cfg.games, true, cfg.game_power_throttling_off);
         }
         return Ok(());
     };
@@ -307,7 +308,7 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
     for step in restore_order() {
         println!("{step:?}");
         match step {
-            Step::Priority => { priority::apply(&cfg.games, true); }
+            Step::Priority => { priority::apply(&cfg.games, true, cfg.game_power_throttling_off); }
             Step::GameMode => {
                 if let Some(g) = &st.game_mode {
                     check("Game Mode", game_mode::write(g.previous));

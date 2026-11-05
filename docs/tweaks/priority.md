@@ -42,6 +42,30 @@ Windows forgets the priority when the game exits; that is also an undo.
 - CapFrameX with some background load running (a big download or a file copy), once at Normal and
   once at High ([how](README.md#how-to-measure-any-tweak)).
 
+## Power throttling off
+
+**What it is.** On by default (`game_power_throttling_off = true`). In the same step as the
+priority, each running `[[game]]` process is opted out of Windows power throttling (EcoQoS):
+`SetProcessInformation(ProcessPowerThrottling)` with `ControlMask = EXECUTION_SPEED`,
+`StateMask = 0`. Restore sets both masks to 0, which hands the decision back to Windows. Like
+priority, it needs the game running: start it, then boost (or `boost` again while boosted).
+
+**Windows default.** Windows decides per process; when it thinks an app is in the background
+(minimised, behind another window, on battery) it may run it on slow, efficient settings.
+
+**Why it helps.** Little for a focused, fullscreen game. It stops throttling when BF6 is behind
+another window or Alt-Tabbed, mostly on battery. Low value on the Mac (no hybrid cores), but harmless.
+
+**Safety.** Process-scoped: nothing is stored on disk, and it ends when the game exits, so a crash
+mid-boost is harmless. Needs Windows 10 1709+; access denied (anti-cheat) or an older Windows is
+printed (`power throttling off failed: ...`) and the boost carries on. The timer-resolution flag
+(`IGNORE_TIMER_RESOLUTION`) is deliberately not set: timer-resolution tweaks are rejected
+([Hone research](../hone/README.md)).
+
+**Verify / measure.** Task Manager > Details, "Power throttling" column (Windows 11) shows Disabled
+for `bf6.exe` while boosted. Measure with `gamebooster bench`, `game_power_throttling_off` true vs
+false, ideally on battery with the game windowed.
+
 ## Lower other processes
 
 **What it is.** Optional, off by default (`lower_others = true` turns it on). During a boost, every

@@ -48,6 +48,11 @@ fastest_dns = false
 #   "dynamodb.ap-southeast-2.amazonaws.com",
 # ]
 
+# Opt the running game out of Windows power throttling (EcoQoS) while boosted, so Windows can't slow
+# it down when it's behind another window or on battery. Restore hands it back to Windows. Needs
+# Windows 10 1709+. Applied with the game priority, so the game must be running (see [[game]]).
+game_power_throttling_off = true
+
 # Trim the RAM of every non-game process once. Only useful when RAM is nearly full. Not undoable.
 ram_trim = false
 

@@ -42,7 +42,8 @@ copy the whole window text and send it.
    Look for: `Boost would do (dry run, nothing changed):`, then your service, your app's full
    path, `lower other processes to below normal (old class restored): N processes: <names>`
    (your apps, none of explorer.exe, Discord, Steam, EA app), the power plan list and
-   `priority: bf6.exe -> High while running`.
+   `priority: bf6.exe -> High while running` and
+   `game power throttling (EcoQoS): off while running (handed back to Windows on restore)`.
    Failure: an `error:` line (usually a config typo; the message says which key).
 7. Start BF6 and wait in the main menu. Alt-Tab back to PowerShell.
 8. `.\gamebooster.exe snapshot 1-before.json`
@@ -66,7 +67,8 @@ copy the whole window text and send it.
      Then press Shift five times: no Sticky Keys dialog.
    - `Dns` (nothing under it; `fastest_dns` is off by default)
    - `Priority` / `  set bf6.exe (pid ...) to High`. `could not set` means BF6's anti-cheat blocks it:
-     note it, not fatal.
+     note it, not fatal. Then `  bf6.exe: power throttling off` (`... failed: <reason>` is not fatal;
+     note the reason). Windows 11: Task Manager > Details, "Power throttling" column says Disabled.
    - `Boosted. Run ...`
 10. `.\gamebooster.exe status`
     Look for: `Boosted (since unix time ...)` and
@@ -101,7 +103,7 @@ copy the whole window text and send it.
     `no frames recorded` (game minimised?) or `PresentMon wrote no CSV` (copy its output).
 13. Back to the BF6 main menu (keep the game running), Alt-Tab, then `.\gamebooster.exe restore`.
     Look for:
-    - `Priority` / `  set bf6.exe (pid ...) to Normal`
+    - `Priority` / `  set bf6.exe (pid ...) to Normal` and `  bf6.exe: power throttling handed back to Windows`
     - `Dns` (nothing under it)
     - `Accessibility` / `  Sticky Keys flags restored (0x...)` (one line per shortcut boost turned off)
     - `GameMode` / `  AutoGameModeEnabled = <old value>` (or `(deleted)` if it was absent)
@@ -148,8 +150,8 @@ If `restore` keeps failing, undo by hand in the same administrator PowerShell. O
 5. Accessibility shortcuts: nothing to do; they were changed for this session only, so signing
    out or rebooting brings them back (or turn them on in Settings > Accessibility > Keyboard).
 6. Game priority and lowered processes (`"lowered"`) need nothing for safety; priorities end when
-   each app quits. To put one back now: Task Manager > Details > right-click > Set priority > Normal.
-7. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority).
+   each app quits; so does the game's power-throttling opt-out. To put one back now: Task Manager > Details > right-click > Set priority > Normal.
+7. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority and power throttling off).
 
 A reboot also brings the services back (their start type is never changed), but not the power plan
 or the Game Mode value.

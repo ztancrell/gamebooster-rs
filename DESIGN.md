@@ -42,6 +42,10 @@ Windows via Boot Camp, playing BF6.
 - 2026-11-05: Every tweak must be measurable: keep what helps on the target Mac, document what
   doesn't. `gamebooster bench` records frame times (PresentMon, no injection) and compares runs
   with run-to-run noise accounted for.
+- 2026-11-05: While boosted, opt the running game out of Windows power throttling (EcoQoS)
+  (`game_power_throttling_off`, default on: harmless and process-scoped, nothing stored). Applied
+  with game priority; restore hands control back to Windows. No timer-resolution flag. From the
+  Hone research (docs/hone/README.md, adoption item 1).
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

@@ -3,7 +3,7 @@
 //! **What it does.** For each `[[game]]` in the config that is running, sets its process priority
 //! class (default High). Restore sets running games back to Normal; a game that has exited needs
 //! nothing. The game must already be running: start BF6, then boost (or run `boost` again while
-//! boosted, which only re-applies priority).
+//! boosted, which only re-applies priority and power throttling).
 //!
 //! **Windows default.** Every app starts at Normal. The scheduler then shares CPU time between all
 //! Normal threads, with a small boost for the foreground window.
@@ -240,10 +240,35 @@ pub fn summary(done: usize, gone: usize, denied: usize, to: Option<LowerClass>) 
     s
 }
 
-/// Set every running process of each game to its priority (or to Normal when `reset`).
+/// (ControlMask, StateMask) for `ProcessPowerThrottling`: boost opts the game out of EcoQoS
+/// (control execution speed, state off); restore clears both masks, handing control back to Windows.
+/// Not IGNORE_TIMER_RESOLUTION: timer-resolution tweaks are rejected (docs/hone/README.md).
+pub fn throttling_masks(reset: bool) -> (u32, u32) {
+    const EXECUTION_SPEED: u32 = 1; // PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+    if reset { (0, 0) } else { (EXECUTION_SPEED, 0) }
+}
+
+/// Opt a process out of power throttling (or hand it back to Windows when `reset`).
+/// Needs Windows 10 1709+; fails with access denied or invalid parameter otherwise.
+#[cfg(windows)]
+fn set_throttling(h: windows_sys::Win32::Foundation::HANDLE, reset: bool) -> Result<(), String> {
+    use windows_sys::Win32::System::Threading::{ProcessPowerThrottling, SetProcessInformation, PROCESS_POWER_THROTTLING_CURRENT_VERSION, PROCESS_POWER_THROTTLING_STATE};
+    let (control, state) = throttling_masks(reset);
+    let s = PROCESS_POWER_THROTTLING_STATE { Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION, ControlMask: control, StateMask: state };
+    if unsafe { SetProcessInformation(h, ProcessPowerThrottling, (&s as *const PROCESS_POWER_THROTTLING_STATE).cast(), std::mem::size_of_val(&s) as u32) } != 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error().to_string())
+    }
+}
+
+/// Set every running process of each game to its priority (or to Normal when `reset`), and, with
+/// `throttling_off`, opt it out of power throttling (EcoQoS; `reset` hands it back to Windows).
+/// Restore matches by exe name, like priority: the masks it sets are Windows' default, so a game
+/// relaunched since the boost (or a reused pid, which can't be a game exe) is left as Windows has it.
 /// Returns how many processes were found.
 #[cfg(windows)]
-pub fn apply(games: &[crate::config::Game], reset: bool) -> usize {
+pub fn apply(games: &[crate::config::Game], reset: bool, throttling_off: bool) -> usize {
     use crate::processes::{list, Process};
     use windows_sys::Win32::System::Threading::{SetPriorityClass, PROCESS_SET_INFORMATION};
     let mut found = 0;
@@ -251,8 +276,16 @@ pub fn apply(games: &[crate::config::Game], reset: bool) -> usize {
         let Some(game) = games.iter().find(|g| g.exe.eq_ignore_ascii_case(&p.name)) else { continue };
         found += 1;
         let want = if reset { Priority::Normal } else { game.priority };
-        let ok = Process::open(p.pid, PROCESS_SET_INFORMATION).is_some_and(|h| unsafe { SetPriorityClass(h.0, class(want)) } != 0);
+        let h = Process::open(p.pid, PROCESS_SET_INFORMATION);
+        let ok = h.as_ref().is_some_and(|h| unsafe { SetPriorityClass(h.0, class(want)) } != 0);
         println!("  {} {} (pid {}) to {want:?}", if ok { "set" } else { "could not set" }, p.name, p.pid);
+        if throttling_off {
+            let what = if reset { "power throttling handed back to Windows" } else { "power throttling off" };
+            match h.as_ref().map_or_else(|| Err(std::io::Error::last_os_error().to_string()), |h| set_throttling(h.0, reset)) {
+                Ok(()) => println!("  {}: {what}", p.name),
+                Err(e) => println!("  {}: {what} failed: {e}", p.name),
+            }
+        }
     }
     found
 }
@@ -300,5 +333,11 @@ mod tests {
         assert_eq!(summary(23, 0, 4, Some(LowerClass::BelowNormal)), "lowered 23 processes to below normal (4 skipped: access denied)");
         assert_eq!(summary(5, 2, 0, None), "restored the old priority of 5 processes (2 exited)");
         assert_eq!(summary(1, 0, 0, Some(LowerClass::Idle)), "lowered 1 processes to idle");
+    }
+
+    #[test]
+    fn throttling() {
+        assert_eq!(throttling_masks(false), (1, 0)); // opt out: control execution speed, keep it off
+        assert_eq!(throttling_masks(true), (0, 0)); // restore: Windows decides again
     }
 }

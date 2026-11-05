@@ -97,8 +97,8 @@ gamebooster ping
 
 | Command | What it does |
 |---|---|
-| `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority (use this after starting the game). |
-| `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal. |
+| `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority and power throttling off (use this after starting the game). |
+| `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal (and power throttling to Windows). |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Measures latency (median of 5 TCP connects) to `ping_hosts`, AWS regional endpoints by default, and prints them fastest first. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
 | `init` | Writes the built-in example config as `gamebooster.toml` next to `gamebooster.exe` (or `--config <file>`). Never overwrites an existing file. |
@@ -145,6 +145,7 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `accessibility_shortcuts_off` | `true` | Turn off the Sticky / Filter / Toggle Keys hotkeys while boosted; see [accessibility shortcuts](docs/tweaks/accessibility-shortcuts.md). |
+| `game_power_throttling_off` | `true` | Opt each running `[[game]]` out of Windows power throttling (EcoQoS) while boosted; restore hands it back to Windows. See [game priority](docs/tweaks/priority.md#power-throttling-off). |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
 | `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. |

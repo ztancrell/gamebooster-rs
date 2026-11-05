@@ -21,6 +21,9 @@ pub struct Config {
     /// Turn off the Sticky / Filter / Toggle Keys hotkeys during a boost (session only).
     #[serde(default = "yes")]
     pub accessibility_shortcuts_off: bool,
+    /// Opt the running game out of Windows power throttling (EcoQoS) during a boost.
+    #[serde(default = "yes")]
+    pub game_power_throttling_off: bool,
     /// Trim the working set of every non-game process once, right after closing apps.
     #[serde(default)]
     pub ram_trim: bool,

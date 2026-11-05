@@ -20,6 +20,7 @@ Measured on the target Mac: to be filled in from `gamebooster bench` runs
 | 7 | [Accessibility shortcuts](accessibility-shortcuts.md) | `accessibility_shortcuts_off = true` | `src/accessibility.rs` | None on FPS; stops Sticky Keys pop-ups | not yet |
 | 8 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping | not yet |
 | 9 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy | not yet |
+| 9b | [Game power throttling off](priority.md#power-throttling-off) (same step as 9) | `game_power_throttling_off = true` | `src/priority.rs` | Low; only when the game is in the background or on battery | not yet |
 
 Not a tweak: `gamebooster ping` ([network](network.md#ping)) measures latency to cloud regions and
 changes nothing.

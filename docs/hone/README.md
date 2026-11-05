@@ -250,7 +250,8 @@ and old Boot Camp drivers.
 
 ## Worth adopting into gamebooster-rs (reversible, no driver)
 
-1. **Opt the game out of power throttling (EcoQoS)** with `SetProcessInformation(ProcessPowerThrottling)`
+1. **Built** (`game_power_throttling_off`, default on; see [game priority](../tweaks/priority.md#power-throttling-off)).
+   **Opt the game out of power throttling (EcoQoS)** with `SetProcessInformation(ProcessPowerThrottling)`
    on the game process while boosted.
    - Process-scoped: it ends when the game exits and needs nothing stored.
    - Evidence: HoneTune does exactly this, always on. Microsoft documents the API.
