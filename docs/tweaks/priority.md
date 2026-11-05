@@ -70,12 +70,26 @@ configured games, the apps in `close`, `lower_others_exclude`, and `gamebooster.
 anti-cheat names are from the vendors' usual process names, not checked on a BF6 install; most of
 them run as SYSTEM and would be skipped anyway.
 
+**Never lowered by publisher** (`NEVER_LOWER_PUBLISHERS` in `src/priority.rs`), a safety net so a
+renamed or new exe from a protected vendor is skipped too (idea from Smart PC Utilities' exception
+list, see docs/smartpcutilities-gb/README.md). The publisher is the CompanyName in the exe's version
+info (Properties > Details, "Company"); an exe is skipped when its CompanyName contains, ignoring
+case, one of: `Valve`, `Electronic Arts`, `Epic Games` (also Easy Anti-Cheat), `Riot Games`,
+`Ubisoft`, `Blizzard`, `Discord`, `BattlEye`, `NVIDIA`, `Advanced Micro Devices`,
+`Intel Corporation`, `Apple Inc` (Boot Camp helpers), `Malwarebytes`, `Avast`, `AVG Technologies`,
+`ESET`, `Kaspersky`, `NortonLifeLock`, `Gen Digital`, `Symantec`, `Bitdefender`, `McAfee`, `Sophos`,
+`Trend Micro`, `OBS Project`, or a string in `lower_others_exclude_publishers`. Not "Microsoft"
+(that would cover most of Windows); Defender is in the name list. The signature is not checked: an
+exe that fakes a CompanyName only gets skipped, which is harmless here. Exes without version info
+are matched by name only.
+
 **Exact setting.**
 
 ```toml
 lower_others = true
 lower_others_class = "below_normal"   # or "idle"
 lower_others_exclude = ["Spotify.exe"]
+lower_others_exclude_publishers = ["Spotify"]
 ```
 
 **Try and undo by hand.** Task Manager > Details > right-click an app > Set priority > Below normal

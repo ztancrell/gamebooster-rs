@@ -118,6 +118,7 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
 | `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. |
 | `lower_others_exclude` | `[]` | Extra image names to leave alone (case-insensitive), on top of the built-in list. |
+| `lower_others_exclude_publishers` | `[]` | Extra publishers to leave alone: case-insensitive substrings of the exe's CompanyName (file Properties > Details), on top of the built-in list. |
 | `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
 | `ping_hosts` | 12 AWS regional endpoints | Hosts `gamebooster ping` measures (TCP port 443). |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). The example file has a commented-out suggested list from SGB, pruned; see [services](docs/tweaks/services.md#suggested-list-from-sgb-pruned). |

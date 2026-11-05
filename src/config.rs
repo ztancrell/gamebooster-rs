@@ -36,6 +36,9 @@ pub struct Config {
     /// Extra image names `lower_others` leaves alone (on top of `priority::NEVER_LOWER`).
     #[serde(default)]
     pub lower_others_exclude: Vec<String>,
+    /// Extra CompanyName substrings `lower_others` leaves alone (on top of `priority::NEVER_LOWER_PUBLISHERS`).
+    #[serde(default)]
+    pub lower_others_exclude_publishers: Vec<String>,
     /// On boost, switch the active adapter's IPv4 DNS to a public resolver if it's clearly faster.
     #[serde(default)]
     pub fastest_dns: bool,

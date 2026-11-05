@@ -29,6 +29,8 @@ Windows via Boot Camp, playing BF6.
   "fastest DNS" step on boost that restore undoes.
 - 2026-11-05: Lower other processes (SGB's TPriorityController, spec 2.4a), opt-in
   (`lower_others`), Below normal by default, only the user's own Normal-priority processes.
+- 2026-11-05: `lower_others` also skips by publisher (exe version-info CompanyName substrings,
+  built-in list plus `lower_others_exclude_publishers`), so renamed or new vendor exes are safe.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

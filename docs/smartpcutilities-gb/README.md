@@ -84,6 +84,7 @@ little, and gamebooster-rs already does that reversibly.
     optional power-plan settings during boost (restore puts the old values back). Low value on the
     Mac on battery.
   - An **exception list by publisher** (never touch processes/services signed by AV vendors,
-    launchers, GPU vendors), as a safety net for `lower_others`.
+    launchers, GPU vendors), as a safety net for `lower_others`. Built: `NEVER_LOWER_PUBLISHERS`
+    in `src/priority.rs` (by version-info CompanyName, not signature; processes only).
   - Not worth adopting: memory trimming / standby purge, minimum CPU 100 % (fights the Mac's
     thermals), visual-effects tweaks, pausing Defender/Update, WinRing0 sensors.

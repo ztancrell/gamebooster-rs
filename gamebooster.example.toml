@@ -51,11 +51,15 @@ ram_trim = false
 # the games, apps in `close`, the shell and Windows session processes, audio, Discord, Steam, the EA
 # app, anti-cheat, ThrottleStop, OBS, Defender and gamebooster (list: NEVER_LOWER in src/priority.rs).
 lower_others = false
-# below_normal (default) or idle. Idle is what Smart Game Booster uses, but an idle app only runs
+# below_normal (default) or idle. Idle is what Smart Game Booster's (unused) code would set, but an idle app only runs
 # when the CPU has nothing else to do, so voice chat, music or a stream can stutter while you play.
 lower_others_class = "below_normal"
 # More apps to leave alone (image names as in Task Manager's Details tab), e.g. ["Spotify.exe"].
 lower_others_exclude = []
+# More publishers to leave alone: part of the CompanyName in the exe's Properties > Details tab,
+# case-insensitive, e.g. ["Spotify"]. Built in: launchers, anti-cheat, GPU vendors, security
+# software, OBS (list: NEVER_LOWER_PUBLISHERS in src/priority.rs).
+# lower_others_exclude_publishers = []
 
 # Services to stop during the boost (service *key* names, as `sc query` shows them, not the
 # display names). Only listed services are touched: a service with a running dependent that isn't

@@ -20,8 +20,9 @@
 //!
 //! **Lower other processes (opt-in, `lower_others`).** Like SGB's TPriorityController (spec 2.4a),
 //! but gentler: every process owned by the current user that is at Normal is set to Below normal
-//! (or Idle, `lower_others_class`), except [`NEVER_LOWER`], the games, the `close` list and
-//! `lower_others_exclude`. Each change is recorded (pid, name, creation time, old class) and restore
+//! (or Idle, `lower_others_class`), except [`NEVER_LOWER`], exes whose publisher (version-info
+//! CompanyName) matches [`NEVER_LOWER_PUBLISHERS`] or `lower_others_exclude_publishers`, the games,
+//! the `close` list and `lower_others_exclude`. Each change is recorded (pid, name, creation time, old class) and restore
 //! sets the old class back only on the same process (pid and creation time match), so a reused PID
 //! is never touched. Processes already raised or lowered are left alone, so this never fights game
 //! priority or a choice you made in Task Manager. Verify in Task Manager > Details > Base priority.
@@ -42,6 +43,17 @@ pub const NEVER_LOWER: &[&str] = &[
     "obs64.exe", "msmpeng.exe", "securityhealth*", "nissrv.exe",
 ];
 
+/// Built-in publisher exclusions for `lower_others`: case-insensitive substrings of the exe's
+/// version-info CompanyName, so a renamed or new exe from these vendors is never lowered.
+/// Launchers/stores and anti-cheat, GPU/driver vendors (Apple: Boot Camp helpers), security
+/// software, OBS. Not "Microsoft" (too broad); Defender is covered by `NEVER_LOWER`.
+pub const NEVER_LOWER_PUBLISHERS: &[&str] = &[
+    "Valve", "Electronic Arts", "Epic Games", "Riot Games", "Ubisoft", "Blizzard", "Discord", "BattlEye",
+    "NVIDIA", "Advanced Micro Devices", "Intel Corporation", "Apple Inc",
+    "Malwarebytes", "Avast", "AVG Technologies", "ESET", "Kaspersky", "NortonLifeLock", "Gen Digital",
+    "Symantec", "Bitdefender", "McAfee", "Sophos", "Trend Micro", "OBS Project",
+];
+
 /// Windows' NORMAL_PRIORITY_CLASS (also on non-Windows, for the tests).
 pub const NORMAL_CLASS: u32 = 0x20;
 
@@ -56,19 +68,23 @@ pub struct Lowered {
     pub old_class: u32,
 }
 
-/// In the built-in list, a game, closed by `close`, or in `lower_others_exclude`.
-pub fn excluded(exe: &str, cfg: &crate::config::Config) -> bool {
+/// In the built-in list, a game, closed by `close`, in `lower_others_exclude`, or its publisher
+/// (CompanyName, when known) matches a built-in or `lower_others_exclude_publishers` substring.
+pub fn excluded(exe: &str, publisher: Option<&str>, cfg: &crate::config::Config) -> bool {
     let n = exe.to_ascii_lowercase();
+    let co = publisher.unwrap_or_default().to_lowercase();
+    let by_publisher = |s: &str| !s.is_empty() && co.contains(&s.to_lowercase());
     NEVER_LOWER.iter().any(|p| match p.strip_suffix('*') {
         Some(prefix) => n.starts_with(prefix),
         None => n == *p,
     }) || cfg.is_game(exe)
+        || NEVER_LOWER_PUBLISHERS.iter().copied().chain(cfg.lower_others_exclude_publishers.iter().map(String::as_str)).any(by_publisher)
         || cfg.close.iter().chain(&cfg.lower_others_exclude).any(|c| c.eq_ignore_ascii_case(exe))
 }
 
 /// Lower only our own user's processes that are at Normal and not excluded.
-pub fn should_lower(exe: &str, same_user: bool, class: u32, cfg: &crate::config::Config) -> bool {
-    same_user && class == NORMAL_CLASS && !excluded(exe, cfg)
+pub fn should_lower(exe: &str, publisher: Option<&str>, same_user: bool, class: u32, cfg: &crate::config::Config) -> bool {
+    same_user && class == NORMAL_CLASS && !excluded(exe, publisher, cfg)
 }
 
 pub fn lower_class_name(c: LowerClass) -> &'static str {
@@ -130,6 +146,31 @@ fn created(h: windows_sys::Win32::Foundation::HANDLE) -> Option<u64> {
     (unsafe { GetProcessTimes(h, &mut c, &mut e, &mut k, &mut u) } != 0).then(|| (c.dwHighDateTime as u64) << 32 | c.dwLowDateTime as u64)
 }
 
+/// The CompanyName from an exe's version info (first translation). Not signature-checked: a spoofed
+/// name only makes us skip that exe, which is harmless for an exclusion list.
+#[cfg(windows)]
+fn company_name(path: &str) -> Option<String> {
+    use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
+    let path = crate::wide(path);
+    unsafe {
+        let size = GetFileVersionInfoSizeW(path.as_ptr(), std::ptr::null_mut());
+        let mut buf = vec![0u8; size as usize];
+        if size == 0 || GetFileVersionInfoW(path.as_ptr(), 0, size, buf.as_mut_ptr().cast()) == 0 {
+            return None;
+        }
+        let (mut p, mut len) = (std::ptr::null_mut(), 0u32);
+        let query = |key: &str, p: &mut *mut core::ffi::c_void, len: &mut u32| VerQueryValueW(buf.as_ptr().cast(), crate::wide(key).as_ptr(), p, len) != 0 && *len > 0;
+        if !query("\\VarFileInfo\\Translation", &mut p, &mut len) || len < 4 {
+            return None;
+        }
+        let [lang, cp] = (p as *const [u16; 2]).read_unaligned();
+        if !query(&format!("\\StringFileInfo\\{lang:04x}{cp:04x}\\CompanyName"), &mut p, &mut len) {
+            return None;
+        }
+        Some(crate::from_wide(std::slice::from_raw_parts(p as *const u16, len as usize)))
+    }
+}
+
 /// Read-only: the processes `lower_others` will lower, with what restore needs.
 #[cfg(windows)]
 pub fn plan_lower(cfg: &crate::config::Config) -> Vec<Lowered> {
@@ -139,12 +180,13 @@ pub fn plan_lower(cfg: &crate::config::Config) -> Vec<Lowered> {
     let own_pid = std::process::id();
     list()
         .into_iter()
-        .filter(|p| p.pid != own_pid && !excluded(&p.name, cfg))
+        .filter(|p| p.pid != own_pid && !excluded(&p.name, None, cfg))
         .filter_map(|p| {
             let h = Process::open(p.pid, PROCESS_QUERY_LIMITED_INFORMATION)?;
             let same_user = user_sid(h.0).as_deref() == Some(&me[..]);
             let class = unsafe { GetPriorityClass(h.0) };
-            if !should_lower(&p.name, same_user, class, cfg) {
+            let publisher = p.path.as_deref().and_then(company_name);
+            if !should_lower(&p.name, publisher.as_deref(), same_user, class, cfg) {
                 return None;
             }
             Some(Lowered { pid: p.pid, created: created(h.0)?, exe: p.name, old_class: class })
@@ -225,21 +267,32 @@ mod tests {
         let cfg = Config::parse("close = [\"OneDrive.exe\"]\nlower_others_exclude = [\"Spotify.exe\"]\n[[game]]\nexe = \"bf6.exe\"").unwrap();
         for name in ["BF6.exe", "onedrive.exe", "spotify.EXE", "Explorer.EXE", "Discord.exe", "DiscordPTB.exe",
             "EAAntiCheat.GameServiceLauncher.exe", "SecurityHealthSystray.exe", "obs64.exe", "gamebooster.exe"] {
-            assert!(excluded(name, &cfg), "{name} not excluded");
+            assert!(excluded(name, None, &cfg), "{name} not excluded");
         }
         for name in ["chrome.exe", "OneDriveSetup.exe", "Teams.exe", "explorer2.exe"] {
-            assert!(!excluded(name, &cfg), "{name} excluded");
+            assert!(!excluded(name, None, &cfg), "{name} excluded");
+        }
+    }
+
+    #[test]
+    fn publisher_exclusions() {
+        let cfg = Config::parse("lower_others_exclude_publishers = [\"Spotify AB\"]").unwrap();
+        for co in ["NVIDIA Corporation", "Valve Corp.", "Epic Games, Inc.", "spotify ab"] {
+            assert!(excluded("renamed.exe", Some(co), &cfg), "{co} not excluded");
+        }
+        for co in [None, Some(""), Some("Microsoft Corporation"), Some("Google LLC")] {
+            assert!(!excluded("chrome.exe", co, &cfg), "{co:?} excluded");
         }
     }
 
     #[test]
     fn lowers_only_own_normal_processes() {
         let cfg = Config::parse("").unwrap();
-        assert!(should_lower("chrome.exe", true, NORMAL_CLASS, &cfg));
-        assert!(!should_lower("chrome.exe", false, NORMAL_CLASS, &cfg)); // another user / SYSTEM
-        assert!(!should_lower("chrome.exe", true, 0x80, &cfg)); // already High
-        assert!(!should_lower("chrome.exe", true, 0x4000, &cfg)); // already Below normal
-        assert!(!should_lower("steam.exe", true, NORMAL_CLASS, &cfg));
+        assert!(should_lower("chrome.exe", None, true, NORMAL_CLASS, &cfg));
+        assert!(!should_lower("chrome.exe", None, false, NORMAL_CLASS, &cfg)); // another user / SYSTEM
+        assert!(!should_lower("chrome.exe", None, true, 0x80, &cfg)); // already High
+        assert!(!should_lower("chrome.exe", None, true, 0x4000, &cfg)); // already Below normal
+        assert!(!should_lower("steam.exe", None, true, NORMAL_CLASS, &cfg));
     }
 
     #[test]
