@@ -27,7 +27,7 @@ without helping games).
 |---|---|---|
 | Boost: power plan | Switches to a high-performance plan with sleep and screen-off disabled; restores the old one. | useful |
 | Boost: stop services, close programs | Stops listed Windows services and closes chosen background programs; restarts them on Restore. | useful |
-| Boost: lower other programs | Drops your other programs to the lowest CPU priority while boosted. | useful |
+| Boost: lower other programs | Code exists (TPriorityController) but nothing ever calls it, so SGB 6.0 never lowers other programs. gamebooster-rs offers it as its own opt-in `lower_others`. Superseded: earlier said SGB drops them to lowest priority. | dead code |
 | Boost: free RAM | Asks every program to give back memory it isn't using. Helps only when RAM is nearly full. | placebo |
 | Boost: Game Mode, Windows Update | Turns on Windows Game Mode (usually already on) and tries to pause automatic updates (usually locked). | placebo |
 | Boost: clear clipboard | Empties the clipboard. | placebo |
