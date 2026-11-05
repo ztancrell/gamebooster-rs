@@ -77,7 +77,7 @@ OptFailed.ini, Ignore.ini, boottime.dat, disableRate.db, discription.db`) and th
 
 ## CYRI ("Can You Run It") game database
 
-`Database\CYRI.dbd` (16.1 MB) decodes with `../SgbData/dbd/dbd_decode.py`, password `[redacted]`, into
+`Database\CYRI.dbd` (16.1 MB) decodes with `../SgbData/dbd/dbd_decode.py`, password `SMGB5_CYRI`, into
 two entries (not committed, regenerate with the script):
 
 - `CYRI.db` (62.6 MB SQLite): `CYRIGame` 162,942 games (SMGBID, GameName, Name_s, Categories,
@@ -150,7 +150,7 @@ Download lists: `s3.amazonaws.com/myfilelist/list-*`, `storage.googleapis.com/my
 
 ## Cleaners, System Tweak scanner, and who calls TPriorityController (2026-11-05, REA/Ghidra + `dis.py`)
 
-Plain-language version: `docs/sgb/cleaners.md`. Templates: `PriTemp.dbd` (password `[redacted]`) decodes
+Plain-language version: `docs/sgb/cleaners.md`. Templates: `PriTemp.dbd` (password `asc4_2010`) decodes
 with `../SgbData/dbd/dbd_decode.py` into `junkfile.db` (165 INI sections) and `privacy.db` (365); not
 committed, regenerate. `Junk.dbd`, `RZJunk.dbd`, `SDJunk.dbd` are named in code (0x847470…) but not shipped.
 

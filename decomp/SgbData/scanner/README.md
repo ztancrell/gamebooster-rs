@@ -3,7 +3,7 @@
 Static analysis only; no vendor binary was run, nothing was contacted. Addresses are VAs in the
 de-filtered `SgbMain.exe` (`/home/zpt/re/sgb-extract/app/cmAppVer/SgbMain.exe`). Data from
 `/home/zpt/re/sgb-extract-db/data/{app}/6.0.1/`. The raw signature lists are **not** kept in the
-repo; regenerate them with `python3 -I ../dbd/dbd_decode.py Def.dbd [redacted] <outdir>` (outside the repo).
+repo; regenerate them with `python3 -I ../dbd/dbd_decode.py Def.dbd asc4_2010 <outdir>` (outside the repo).
 Plain-language version: [docs/sgb/security-features.md](../../../docs/sgb/security-features.md).
 
 ## 1. Malware scanner ("Account Guard" / "Auto Scan Spyware")
@@ -16,14 +16,14 @@ Plain-language version: [docs/sgb/security-features.md](../../../docs/sgb/securi
 - No third-party engine: the installer ships no engine DLL, and SgbMain has no engine/SDK names
   (Bitdefender, Avira, ClamAV etc. appear only as browser paths or in the AV-detection list below).
   It is the IObit "spyware removal" module from Advanced SystemCare 4–era code: the database password is
-  `[redacted]`, the same as `PriTemp.dbd` (ASC 4, 2010).
+  `asc4_2010`, the same as `PriTemp.dbd` (ASC 4, 2010).
 - Created by the security page loader VA 0x83a508: `TSecurityGuard` (0x83a5c9) and
   `TMalwareScanner` (0x83a6fd), with path `Database\Def.dbd` (0x83a6e9) → VA 0x8250fc, which also reads
   `MalwareIgnore.ini` (`[Malware Scan Ignore]`, keys `PATH, VIRUSNAME, SCANTYPE, DBNAME, INDEX`; VA 0x8224f8).
 
 ### Database: `Database\Def.dbd`
 
-The ordinary `.dbd` container ([../dbd/README.md](../dbd/README.md)), password `[redacted]` (found by trying every
+The ordinary `.dbd` container ([../dbd/README.md](../dbd/README.md)), password `asc4_2010` (found by trying every
 string in SgbMain against the first entry; the literal sits in SgbMain at 0x8d49a0). 17 entries:
 
 | Entry | Lines | Format | What |
@@ -131,7 +131,7 @@ accelerator, right before it loads `iTopClientExt.dll`; that pairs with the mess
 The neighbouring uninstaller unit can run `UninstallString` / `msiexec.exe /x` (0x8f94d4, 0x8f9930), but no
 static call from the AV detector reaches it (calls are virtual; not resolved) and the language file has
 no "uninstall antivirus" text. `UninstallRote.dbd` / `PlugDB.dbd` (IObit Uninstaller databases,
-password `[redacted]`) are not shipped; SgbMain copies them from an installed IObit product ("copy IUDB", VA 0x8ffeac).
+password `asc4_2010`) are not shipped; SgbMain copies them from an installed IObit product ("copy IUDB", VA 0x8ffeac).
 Confidence: medium.
 
 ## 4. Other data files in the install

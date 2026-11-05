@@ -42,8 +42,8 @@ install are described in [`scanner/README.md`](scanner/README.md).
 same 24 bytes (`0008dc3345ab51295f6c147912d70f4b ea5ec653b2d8b74e`), then diverge; entropy is
 8.0 bits/byte and body lengths are not multiples of 8 or 16 (stream cipher or similar over
 compressed data). SgbMain treats each as a password-protected container of named entries
-(`LoadCYRIDataBase` opens `CYRI.dbd` with password-like literal `[redacted]` and extracts
-`ScoreCFG.ini` and `CYRI.db`; `Opt.dbd` uses `[redacted]`, an Advanced SystemCare 6 leftover, and
+(`LoadCYRIDataBase` opens `CYRI.dbd` with password-like literal `SMGB5_CYRI` and extracts
+`ScoreCFG.ini` and `CYRI.db`; `Opt.dbd` uses `asc6_2012_6`, an Advanced SystemCare 6 leftover, and
 holds `Main.ini`). None of them is a Boost list: `CYRI`/`Def` = game database, `Opt` = system
 optimizer, `PriTemp` = junk-file/privacy scanner templates, `SysSpeed` = speed-up items. The
 container reader (VA 0x75793c–0x758c00) was not identified further. `*.sgdt` are also high-entropy

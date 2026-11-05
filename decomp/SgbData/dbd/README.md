@@ -8,11 +8,11 @@ package). It asserts the HAVAL self-test vector copied from SgbMain, each entry'
 
 | File | Password (literal in SgbMain) | Entries |
 |---|---|---|
-| `Opt.dbd` | `[redacted]` (VA 0x8c6671) | 31 INI-style tweak profiles + `Des-ref.txt` |
-| `SysSpeed.dbd` | `[redacted]` | `SysSpeed.ini` (UTF-16), `GB3.ini` |
-| `PriTemp.dbd` | `[redacted]` | `junkfile.db` (165 sections), `privacy.db` (365 sections), both INI text |
-| `Def.dbd` | `[redacted]` (VA 0x83a868 path; same literal as PriTemp) | 17 malware-scanner signature lists, see [`../scanner/README.md`](../scanner/README.md). `Main.db`/`Signature.db` have compression byte 3: encrypted but not zlib-packed (the script handles it); `BHO.db` appears twice (second copy overwrites the first when extracting) |
-| `CYRI.dbd` | `[redacted]` | opens with the same decoder (first block is zlib); not extracted (game DB) |
+| `Opt.dbd` | `asc6_2012_6` (VA 0x8c6671) | 31 INI-style tweak profiles + `Des-ref.txt` |
+| `SysSpeed.dbd` | `asc9_speedup` | `SysSpeed.ini` (UTF-16), `GB3.ini` |
+| `PriTemp.dbd` | `asc4_2010` | `junkfile.db` (165 sections), `privacy.db` (365 sections), both INI text |
+| `Def.dbd` | `asc4_2010` (VA 0x83a868 path; same literal as PriTemp) | 17 malware-scanner signature lists, see [`../scanner/README.md`](../scanner/README.md). `Main.db`/`Signature.db` have compression byte 3: encrypted but not zlib-packed (the script handles it); `BHO.db` appears twice (second copy overwrites the first when extracting) |
+| `CYRI.dbd` | `SMGB5_CYRI` | opens with the same decoder (first block is zlib); not extracted (game DB) |
 
 ## Container format
 
@@ -35,7 +35,7 @@ calls it from VA 0x7586c4, then zlib-inflates via VA 0x7583f0):
      self-test vector (VA 0xa484b0) matches only with that padding.
    - `pw_bytes` = the first `Length(pw)` **bytes** of the UTF-16LE password (`UpdateStr`, VA 0x5eaa00,
      passes a UnicodeString pointer with the character count as the byte count, the usual Delphi-2009 DCPcrypt bug).
-     So `[redacted]` is hashed as `61 00 73 00 63 00 36 00 5f 00 32`.
+     So `asc6_2012_6` is hashed as `61 00 73 00 63 00 36 00 5f 00 32`.
 2. `TDCP_rijndael.Init(key, min(256, 256) bits, IV)`, mode byte +0x34 = 0 = CBC (dispatch VA 0x5eb0fc).
    AES-256-CBC; a trailing partial block is XORed with `E(last ciphertext block)` (DCPcrypt CBC tail).
 3. Output is a zlib stream (`78 9c`).
