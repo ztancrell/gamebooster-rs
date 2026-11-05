@@ -32,6 +32,7 @@ Details, defaults, manual commands and how to measure each one: [docs/tweaks/](d
 The behaviour follows [docs/spec.md](docs/spec.md).
 What Smart Game Booster itself does, feature by feature, with verdicts: [docs/sgb/](docs/sgb/README.md).
 The same for PGWARE GameBoost (registry-only, nothing worth adopting): [docs/pgware/](docs/pgware/README.md).
+The same for Razer Cortex (installer analysed; the Cortex app itself still to do): [docs/razer-cortex/](docs/razer-cortex/README.md).
 
 ## Install and update
 
