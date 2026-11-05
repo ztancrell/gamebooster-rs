@@ -34,3 +34,5 @@ but you lose the early warning from the VRM and charging circuitry. Watch temper
 and turn it back on if anything else misbehaves. gamebooster does not do this itself: it needs a
 kernel driver, which this project never uses (WinRing0 is blocked by Defender, and test-signing
 mode breaks BF6's anti-cheat).
+
+Evidence, ranked workarounds and what gamebooster could automate: [prochot-research.md](prochot-research.md).
