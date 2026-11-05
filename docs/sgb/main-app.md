@@ -32,8 +32,9 @@ Addresses and details: `decomp/SgbMain.exe/features.md`.
   is a paid (SVIP) feature.
 - **Game Desktop** hides all other windows and the desktop icons while you play, leaving only the
   taskbar and tray.
-- **In-game overlay** (`fps.dll`): FPS, CPU/GPU temperature, screenshots and video recording, with
-  hotkeys.
+- **In-game overlay** (`fps.dll`/`FPS64.dll`): FPS, CPU/GPU temperature, screenshots and video
+  recording, with hotkeys. How it gets into games and why it is risky with anti-cheat:
+  `gpu-hud-recording.md`.
 
 ## "Can You Run It" game database
 

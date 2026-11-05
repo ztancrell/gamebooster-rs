@@ -21,7 +21,7 @@ writes are still unknown. Run `capture/` before and after a Boost to fill those 
 | Trigger | Behaviour |
 |---|---|
 | Manual **Boost** button | Runs the Boost sequence (section 3) right away. |
-| "Boost and Launch" or auto-boost when a game from the game list starts | Same sequence, then the game is launched or detected. |
+| "Boost and Launch" or auto-boost when a game from the game list starts | Same sequence, then the game is launched or detected. Auto-boost (SVIP only) is watched by the tray program `SgbTray.exe`, not SgbMain: it spots the game process and tells SgbMain to boost (window message or `/boost`). Superseded: this row implied SgbMain watched for games. |
 | Manual **Restore** button | Runs the Restore sequence (section 4). |
 | Option "Restore to Normal Mode when the game is closed" | Runs Restore when the boosted game's process exits. |
 
@@ -36,17 +36,17 @@ Boost. Items marked "user list" act only on what the user ticked in the Boost co
 
 | # | Action | Boost does | Restore does | Default |
 |---|---|---|---|---|
-| A1 | Monitor preset | Sets the external monitor's DDC/CI picture preset (VCP 0xDC display mode, VCP 0x14 colour preset, brightness, contrast) to the user's "gaming" preset. Saves the originals first. | Writes back the saved preset, brightness, contrast and colour temperature. | Opt-in. Not on XP. |
-| A2 | GPU overclock | Raises GPU core and memory clocks by a level (Basic, Max or Custom) through a vendor overdrive helper. | Resets the clocks. | Opt-in. |
+| A1 | Monitor preset | Sets the external monitor's DDC/CI picture preset (VCP 0xDC display mode, 0x14 colour preset, 0x10 brightness, 0x12 contrast) to the user's "gaming" preset. Saves the originals to `Monitor.ini` (`<id>_original`) first. | Writes back the saved values from `Monitor.ini`. | Opt-in. Not on XP. |
+| A2 | GPU overclock | Raises GPU core and memory clocks by a level (Basic, Max or Custom) through `OverDrive.dll` (exports OverClock, Reset, CanOverClock, GetGPUInfo, GetRange; AMD ADL / NVIDIA NVAPI). Never beyond the range the driver reports; likely unsupported on a Boot Camp Radeon Pro. | `Reset` writes the default clocks back. | Opt-in. |
 | A3 | Stop services | Stops the selected services, dependent services first, with a timeout per service. Records which ones failed to stop. | Starts the services it stopped. | User list, split into "System Services" (Windows) and "Third Services" (non-Microsoft). SGB ships default suggestions per Windows version. |
 | A4 | Close processes | Takes a fresh process list and terminates each selected process (needs SeDebugPrivilege). Saves the full image path of each one to a temp file first. Optionally also terminates `explorer.exe` ("KillExplorer"). | Reads the temp file and starts each process again from its path. Always makes sure `explorer.exe` runs again. Some known apps get a startup argument (see 2.4). | User list, with suggestions from a score database. |
 | A5 | Free RAM | Trims the working set of every process it can open (EmptyWorkingSet). Reports the MB freed. | Nothing (not reversible). | On. |
-| A6 | Clear clipboard | Empties the clipboard. | Nothing. | On. |
+| A6 | Clear clipboard | Empties the clipboard (plain VCL `Clipboard.Clear`; nothing saved). | Nothing. | On. |
 | A7 | Power plan | Switches to a dedicated high-performance plan (section 2.1). | Re-activates the plan that was active before and deletes the game plan. | On. |
 | A8 | Windows automatic updates | Saves the current automatic-update notification level, then sets it to "disabled" (2.5). | Writes back the saved level. | On. |
 | A9 | Windows Game Mode | Sets `HKCU\Software\Microsoft\GameBar` value `AutoGameModeEnabled` (REG_DWORD) to 1. Saves the old value or notes that it was absent. | Writes back the old value, or deletes the value if it was absent. | On. |
 | A10 | Game process priority | When the boosted game runs, sets its priority class to the user's choice: Realtime, High, Above normal, Normal, Below normal or Low. Never changes `steam.exe`, `explorer.exe` or SGB's own processes. | Sets the game back to Normal, or leaves it alone if it has exited. | Per game, opt-in. |
-| A11 | Tidy tray icons | After A4, removes the dead icons that killed processes left in the notification area. | Nothing. | Cosmetic. |
+| A11 | Tidy tray icons | **No-op in SGB 6.0**: only logs "Remove Dead Tray Icons" (`decomp/SgbMain.exe/0x7c7a2e_TBoost_Execute_RemoveDeadTrayIcons_logonly.asm`). Do not implement. Superseded: said it removed dead icons after A4. | Nothing. | Cosmetic. |
 
 Not part of Boost (separate SGB features, do not implement as Boost): the TCP/IP registry tweaks
 (TcpTimedWaitDelay, TcpMaxDupAcks, TcpWindowSize, Nagle, MaxCPS), the SSD/defrag and Windows Search
@@ -197,7 +197,7 @@ action normally does nothing there.
    before changing anything (safer). Superseded: an earlier version of this spec said SGB aborts.
 3. A1 Monitor, A2 Overclock, A3 Services, A4 Processes, A5 RAM, A6 Clipboard, A7 Power plan,
    A8 Windows Update, A9 Game Mode.
-4. A11 Tidy tray icons.
+4. A11 Tidy tray icons (log line only, no-op in 6.0).
 5. Write a boost report (items changed, MB freed), mark the state "boosted" and save a timestamp.
 6. A10 Priority runs when the game process appears or is launched.
 
@@ -270,6 +270,10 @@ Fill these from a `capture/` diff (snapshot before and after Boost on the real m
   SetProcessWorkingSetSize(-1, -1) and skips only the Symantec list (2.4); the GUID
   `{58231417-…}` is only a lookup key. The "protector" that seemed to hide API calls did not exist:
   it was an extraction error, and every API call site can now be traced.
+- Superseded (answered): auto-boost game watching is in `SgbTray.exe` (SVIP), which tells SgbMain to
+  boost; A11 is a no-op; A1 saves VCP 0xDC/0x14/0x10/0x12 to `Monitor.ini`; A2 goes through
+  `OverDrive.dll` within the driver's range; A6 is a plain clear. See `decomp/SgbMain.exe/features.md`
+  and `docs/sgb/`.
 - What triggers TPriorityController's Boost (the boost dispatcher doesn't call it), and whether the
   game is excluded before its process list is built. Also, the only SetPriorityClass call in SgbMain
   sets IDLE or restores a saved class, and no code was found that sets the game to the user's
@@ -289,10 +293,10 @@ Fill these from a `capture/` diff (snapshot before and after Boost on the real m
   SetGamePwrCFG, which uses it only to find an existing plan with that GUID (or the plan name) and
   reuse it. A new plan is duplicated from High performance with a Windows-assigned random GUID. Ours
   can ignore it.
-- SgbAccelerate.dll was still being decompiled, but it is out of scope (section 6).
-- `SgbMain.exe` was only partly analysed (dispatcher, power-plan step, service-list selection,
-  priority, RAM, ChangeServiceConfigW callers).
-  Error handling and timeouts of the other actions are inferred from log strings only.
+- SgbAccelerate.dll is only partly decompiled, on purpose; it is out of scope (section 6).
+- Superseded: "`SgbMain.exe` was only partly analysed". Every feature is now surveyed
+  (`decomp/SgbMain.exe/features.md`), but only Boost/Restore was read in detail; error handling and
+  timeouts of A1, A2, A8 and A9 are inferred from log strings only.
 
 ---
 
@@ -317,12 +321,14 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 | Processes: temp file, kill, restart, explorer, special arguments, protected list | SgbMain strings "ProcessBoost.Boost [Begin KillProcess %s]", "ReadProcessFromTempFile", "StartProcessByPath", "KillExplorer", "UserProcBL.txt", "AcroRd32.exe", "renderer", the restart-argument list, the Symantec process list; imports TerminateProcess |
 | Services | SgbMain strings "Stop Service(Dependent)", "Start Service", "SetServiceStop Time Out", "Services_WIN10", "System Services", "Third Services", "ServiceBoost.ini", "StopServiceFail"; imports OpenSCManagerW, ControlService, StartServiceW, ChangeServiceConfigW |
 | RAM | SgbMain strings "EmptyWorkingSet", "GlobalMemoryStatusEx", "Released RAM"; class TRAMClear |
-| Clipboard | SgbMain strings "TClipbrd.Boost", "Clear unused clipboard"; import EmptyClipboard |
+| Clipboard | SgbMain strings "TClipbrd.Boost", "Clear unused clipboard"; import EmptyClipboard; code 0x7b7bc4 (VCL Clipboard.Clear) |
+| Tray icons no-op | SgbMain 0x7c7ae9: "Remove Dead Tray Icons" only passed to the debug log, `0x7c7a2e_…logonly.asm` |
+| Auto-boost watcher | SgbTray strings `OnProcessStart`, `TGameMonitorInfo`, `FGameMonitorList`, "Upgrade to SVIP"; SgbMain `WMBoost`, `/boost` |
 | Game Mode | SgbMain strings "Software\Microsoft\GameBar", "AutoGameModeEnabled", "GameMode" |
 | Windows Update | SgbMain strings "TUpdateBoost.Boost", "save windows update state to file", "PreviousStaus", "ServiceEnabled Exit", "ReadOnly Exit", "Required Exit"; CLSID_AutomaticUpdates at file offset 0x64aa6c, IID_IAutomaticUpdates at 0x64aa5c, IID_IAutomaticUpdatesSettings at 0x3c17b0 |
 | Priority | SgbMain strings "Process Priority", "PriorityClass", "Realtime/High/Above normal/Normal/Below normal/Low", exclusions "steam.exe", "explorer.exe", "SgbTray.exe", "SgbMain.exe", "SgbMini.exe"; imports SetPriorityClass, GetPriorityClass |
-| Monitor DDC/CI | SgbMain strings "TFrameMonitorDDC.Boost", "VCP_DC", "VCP_14", "Monitor.ini" |
-| Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM" |
+| Monitor DDC/CI | SgbMain strings "TFrameMonitorDDC.Boost", "VCP_DC", "VCP_14", "Monitor.ini"; Boost 0x7c07bc, Restore 0x7c0f7c, VCP get/set 0x7bd5e0 |
+| Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM"; loader 0x7b8da4 (GetProcAddress OverClock/Reset/CanOverClock/GetGPUInfo/GetRange); `decomp/OverDrive.dll/notes.md` |
 | Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/SgbAccelerate.dll/functions (partial); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
 | SgbMain targeted disassembly (method, limits; the "protector" was an extraction error) | decomp/SgbMain.exe/notes.md; decomp/README.md |
 | Boost/Restore dispatch order; temp-file failure only logged | decomp/SgbMain.exe/0x7c6f0c_TBoost_Execute.asm |

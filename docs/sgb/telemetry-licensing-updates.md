@@ -61,7 +61,7 @@ only endpoints that belong to SGB or to code SGB really uses.
 | `https://smgblicense.itopupdate.com/check.php` | Register.dll / SgbMain | activation code, CPU ID, disk serial | activation and periodic re-check |
 | `https://update.gameboosta.com/infofiles/smartgb6/update[_vip|_svip].upt` | SgbUpdater, SgbInit | update manifest download | `UpdateCheckTime` schedule |
 | `http://update.pcgameboost.com/infofiles/smartgb/pub/sgb.upt`, `http://update.superbgameboost.com/…`, `http://www.pcgameboost.com/infofiles/up/param_info.php` (HTTP) | SgbMain | legacy game-database / parameter updates | not traced |
-| `http://f.pcgameboostdrivers.com/drivers/`, `https://s1|s2.driverboosterscan.com/worker.php`, `http://www.cd4o.com/drivers/wlst/v.json` | SgbMain / DDownloader (driver updater) | hardware IDs for driver matching, driver downloads | when driver update runs |
+| `https://s.pcgameboostdrivers.com/scan.php` (fallback `https://s1|s2.driverboosterscan.com/worker.php`), `http://f.pcgameboostdrivers.com/drivers/`, `http://www.cd4o.com/drivers/wlst/v.json` | AutoDriver (Scanner.dll), SgbMain / DDownloader (driver updater) | hardware IDs for driver matching, driver downloads | when driver update runs |
 | `https://goto.gameboosta.com/appgoto?name=smgb&ver=&lan=&type=` (+ `&insday=&insur=&user=&idata=`) | SgbMain | links to buy/renew pages; `idata` = **which other IObit/iTop products you have installed** | when you click a buy/promo link |
 | `https://goto.gameboosta.com/online` | SgbMain | promo/news check | periodic |
 | `https://gamebooster.itopvpn.com/index.php?d=`, Facebook / X share dialogs | SgbMain | "share my PC score" | user action |

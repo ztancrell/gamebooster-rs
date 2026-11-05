@@ -17,6 +17,12 @@ Target: `sgb-extract/app/cmAppVer/SgbMain.exe` (9,008,696 bytes, Delphi 2009 / R
   given stub calls therefore can't be proven statically; a stub's identity is inferred from its
   arguments and the surrounding log strings.
 
+- Delphi class layout (from `features.md`): the VMT self pointer is at **VMT−0x58** (class name at
+  VMT−0x38, parent at VMT−0x30). Scanning with −0x58 finds 1,466 classes. Superseded: an earlier
+  pass used −0x4C, which finds only 113.
+- Superseded: this file covers Boost/Restore only. Every other SgbMain feature (monitor DDC, overclock,
+  clipboard, tray no-op, game detection, CYRI, startup manager, ...) is in `features.md`.
+
 ## Files
 | File | What |
 |---|---|
@@ -25,7 +31,7 @@ Target: `sgb-extract/app/cmAppVer/SgbMain.exe` (9,008,696 bytes, Delphi 2009 / R
 | 0x78754c_ServiceList_PerWinVersion.asm | Picks the INI section of default services by Windows version. |
 | 0x788a58_ServiceBoost_ini_Load_Save.asm | ServiceBoost.ini / "StopServiceFail" bookkeeping. |
 | 0x473324_SysInfo_Win32PrioritySeparation_log.asm | Diagnostics: reads PriorityControl, Memory Management (PagingFiles), SubSystems; logs them. |
-| 0x5458a0_PsAPI_dynamic_loader.asm | Generic PSAPI loader (GetProcAddress of EnumProcesses, EmptyWorkingSet, ...). Not the RAM boost itself. |
+| 0x5458a0_PsAPI_dynamic_loader.asm | 0x5458a0 itself is the debug-log function (UnicodeString → `OutputDebugStringW`, ends ≈0x5458f0); the PSAPI loader (`LoadLibraryW("PSAPI.dll")`, GetProcAddress of EnumProcesses, EmptyWorkingSet, ...) is the next function, ≈0x5458f4. Superseded: this row called 0x5458a0 the PSAPI loader; the file name is kept. Not the RAM boost itself. |
 
 ## Findings
 - **Order** (0x7c6f0c): Boost = Monitor, OverClock, Service, Process, RAM, Clipboard, Power Schemes,
@@ -111,7 +117,8 @@ New files: `0x7c4278_TPriorityController_Boost_Restore_IDLE.asm`, `0x7b7768_RAMC
   smcinst.exe, snac.exe, SRTSP_CA.exe, SylinkDrop.exe, SymCorpUI.exe, WFPUnins.exe,
   WSCSAvNotifier.exe; case-insensitive), and calls OpenProcess(PROCESS_SET_QUOTA 0x100) and
   SetProcessWorkingSetSize(h, -1, -1) on each one. A process that won't open is skipped silently.
-  EmptyWorkingSet is resolved into 0xa5e6a4 by 0x5458a0, but nothing ever reads that pointer.
+  EmptyWorkingSet is resolved into 0xa5e6a4 by the PSAPI loader at ≈0x5458f4 (Superseded: said 0x5458a0,
+  which is the debug-log function), but nothing ever reads that pointer.
 - **GUID {58231417-…} (medium-high confidence): a lookup key, not the new plan's ID.** SgbMain
   0x7b8349 passes it as the 3rd argument of SetGamePwrCFG(name, description, guid, AC brightness,
   DC brightness). In PowerMgr (0x10001050 → 0x100016f0) it is parsed with CLSIDFromString. In the
