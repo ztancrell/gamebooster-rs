@@ -2,9 +2,12 @@
 
 **What it is.** Stops the services listed in `services = [...]` for the session. For each listed
 service that is running, the running services that depend on it are stopped first, then the
-service itself, each with a 30 s timeout. Only services that were running are recorded; restore
-starts exactly those again, in reverse order. The startup type is never changed, so a reboot also
-brings them back.
+service itself, each with a 30 s timeout. The list is a strict allow-list: if a running dependent
+isn't listed too, the service is skipped (with a message) rather than touching an unlisted one.
+Only services that were running are recorded; restore starts exactly those again, in reverse
+order. The startup type is never changed, so a reboot also brings them back.
+
+Superseded: earlier versions also stopped running dependents that weren't listed.
 
 **Windows default.** Many services run all the time: search indexing (`WSearch`), prefetching
 (`SysMain`), telemetry (`DiagTrack`), the print spooler (`Spooler`), plus third-party updaters
@@ -36,7 +39,8 @@ Properties dialog is the key name to put in the config.
 
 ## Measure
 
-- `gamebooster boost --dry-run` lists the exact services (with dependents) that would stop.
+- `gamebooster boost --dry-run` lists the exact services (with dependents) that would stop, and
+  names any it skips because of an unlisted dependent.
 - `sc query <name>` shows STOPPED while boosted.
 - Task Manager > Services tab shows the PID; check that process's CPU use in the Details tab
   before you decide a service is worth stopping.

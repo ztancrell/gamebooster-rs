@@ -17,7 +17,8 @@ game_mode = true
 ram_trim = false
 
 # Services to stop during the boost (service *key* names, as `sc query` shows them, not the
-# display names). Running services that depend on them are stopped too; `--dry-run` lists them.
+# display names). Only listed services are touched: a service with a running dependent that isn't
+# also listed is skipped. `--dry-run` shows what would stop.
 # Empty by default: only add services you recognise. Suggestions:
 #   "WSearch"    Windows Search indexing
 #   "SysMain"    Superfetch / prefetching

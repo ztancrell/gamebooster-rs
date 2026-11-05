@@ -7,7 +7,8 @@ doubles as a way to learn what these "booster" apps actually do.
 
 What a boost does, in this order (restore goes in reverse):
 
-1. **Stop services** you list (running dependents first). Restore starts them again.
+1. **Stop services** you list (running dependents first; a service with a running dependent you
+   didn't list is skipped). Restore starts them again.
 2. **Close apps** you list. Restore relaunches them.
 3. **RAM trim** of all other processes (optional, off by default, not undoable).
 4. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,

@@ -2,6 +2,9 @@
 //!
 //! **What it does.** For each listed service that is *running*, stops the running services that
 //! depend on it first, then the service itself, and waits (up to 30 s each) until it has stopped.
+//! The config list is a strict allow-list: a listed service with a running dependent that is *not*
+//! also listed is skipped, so nothing unlisted is ever touched. (Superseded: earlier versions
+//! stopped unlisted dependents too.)
 //! Only services that were running are recorded, and restore starts exactly those, in reverse
 //! order (a service before the ones that depend on it). The startup type is never changed, so a
 //! reboot also brings everything back.
@@ -18,14 +21,16 @@
 //!
 //! **Safety.** Nothing is stopped unless you list it. Don't list services you don't recognise:
 //! stopping `Audiosrv`, networking or the Boot Camp/Apple keyboard services will break things
-//! until restore. Running dependents are stopped too; `--dry-run` shows them first.
+//! until restore. To stop a service that has running dependents, list those too; `--dry-run`
+//! shows what will stop and what is skipped.
 //!
 //! **Verify / measure.** `sc query WSearch` shows STATE STOPPED while boosted. Watch CPU usage of
 //! the matching `svchost.exe` in Task Manager, and compare BF6 frame-time spikes in CapFrameX with
 //! and without the service stopped.
 
 /// Stop order for the configured services: each running service's running dependents first, then
-/// the service itself, without duplicates. Services that aren't running are left out.
+/// the service itself, without duplicates. Services that aren't running are left out, and so is a
+/// service with a running dependent that isn't configured (the list is a strict allow-list).
 pub fn stop_order(
     configured: &[String],
     is_running: impl Fn(&str) -> bool,
@@ -33,7 +38,12 @@ pub fn stop_order(
 ) -> Vec<String> {
     let mut order: Vec<String> = Vec::new();
     for name in configured.iter().filter(|n| is_running(n)) {
-        for s in running_dependents(name).into_iter().chain([name.clone()]) {
+        let deps = running_dependents(name);
+        if let Some(d) = deps.iter().find(|d| !configured.iter().any(|c| c.eq_ignore_ascii_case(d))) {
+            println!("  skipping service {name}: its running dependent {d} isn't in `services`");
+            continue;
+        }
+        for s in deps.into_iter().chain([name.clone()]) {
             if !order.iter().any(|o| o.eq_ignore_ascii_case(&s)) {
                 order.push(s);
             }
@@ -156,14 +166,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dependents_first_no_duplicates_skip_stopped() {
-        let configured: Vec<String> = ["A", "B", "Stopped"].map(String::from).to_vec();
+    fn dependents_first_no_duplicates_skip_stopped_and_unlisted() {
+        let configured: Vec<String> = ["A", "B", "Stopped", "a-child", "shared", "C"].map(String::from).to_vec();
         let order = stop_order(
             &configured,
             |n| n != "Stopped",
             |n| match n {
                 "A" => vec!["A-child".into(), "Shared".into()],
                 "B" => vec!["shared".into()],
+                "C" => vec!["Unlisted".into()],
                 _ => vec![],
             },
         );
