@@ -266,12 +266,25 @@ fn warn<T>(what: &str, r: Result<T, String>) -> Option<T> {
     r.map_err(|e| println!("  {what} failed: {e}")).ok()
 }
 
+/// What happens to a configured game that isn't running yet. In registry mode Windows sets the
+/// priority at game start; only power throttling off is left for the watcher or a second boost.
+#[cfg(windows)]
+fn no_game_hint(cfg: &Config, watch: bool) -> &'static str {
+    match (cfg.process_priority(), cfg.game_power_throttling_off, watch) {
+        (false, false, _) => "Windows applies the priority when it starts; nothing else to do",
+        (false, true, true) => "Windows applies the priority when it starts; the watcher turns power throttling off",
+        (false, true, false) => "Windows applies the priority when it starts; run `gamebooster boost` again once it runs to turn power throttling off (or use `boost --watch`)",
+        (true, _, true) => "the watcher sets it when one starts",
+        (true, _, false) => "start it, then run `gamebooster boost` again (or use `boost --watch`)",
+    }
+}
+
 #[cfg(windows)]
 fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<(), String> {
     if State::load(state_path)?.is_some() {
         println!("Already boosted (state in {}). Only re-applying game priority and power throttling.", state_path.display());
         if !dry_run && priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority()) == 0 {
-            println!("  no configured game is running{}", if watch { ": the watcher sets it when one starts" } else { "" });
+            println!("  no configured game is running: {}", no_game_hint(cfg, watch));
         }
         return Ok(());
     }
@@ -330,7 +343,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<
             Step::Priority => {
                 priority::write_ifeo(&st.ifeo);
                 if priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority()) == 0 && !cfg.games.is_empty() {
-                    println!("  no configured game is running: {}", if !cfg.process_priority() && !cfg.game_power_throttling_off { "nothing else to do" } else if watch { "the watcher sets it when one starts" } else { "start it, then run `gamebooster boost` again (or use `boost --watch`)" });
+                    println!("  no configured game is running: {}", no_game_hint(cfg, watch));
                 }
             }
         }

@@ -162,7 +162,8 @@ copy the whole window text and send it.
     `lower_others = true` and `lower_others_mode = "dynamic"`. Then `.\gamebooster.exe boost --watch`.
     Look for: under `LowerOthers`, "dynamic: `boost --watch` restrains busy background processes
     while it runs"; under `Priority`, `no configured game is running: the watcher sets it when one
-    starts`; then `Watching once a second ...` and a `lower others (dynamic, 16 logical CPUs):
+    starts` (with `game_priority_method = "registry"`: `Windows applies the priority when it
+    starts; the watcher turns power throttling off`); then `Watching once a second ...` and a `lower others (dynamic, 16 logical CPUs):
     restrain ... >= 10 % busy ... >= 5 % ...` line (12 threads: 10 / 7 %).
     a. Launch BF6 and wait in the main menu. Look for: `Game started:` then `set bf6.exe (pid ...)
        to High` and `bf6.exe: power throttling off` in the watch window; Task Manager > Details
@@ -260,3 +261,22 @@ What each part of `sgb-diff-boost.txt` answers (spec section 8 unless noted):
 | Power settings, line naming `90959d22-...` | The identity of that hidden display setting (Windows prints its name if it has one). The other lines confirm the section 2.1 values, incl. maximum processor state. |
 | Windows Update | Section 2.5: whether `notificationLevel` changes, or `readOnly = True` makes SGB skip it. |
 | Timer resolution, affinity lines | Should be none (ruled out); timer changes are often noise from the game itself. |
+
+## Results on the target Mac
+
+2026-11-05: 2019 MacBook Pro, Boot Camp, Windows, i7 with 12 logical CPUs, BF6 with EA Javelin
+anti-cheat.
+
+| Result | What |
+|---|---|
+| Works | `boost` + `restore` full cycle: power plan (min 5 % / max 99 %), Game Mode, services WSearch / SysMain / Spooler stopped and restarted, state file removed. |
+| Works | Fastest DNS: the router (2–3 ms) beat Cloudflare / Quad9 / Google (~20–48 ms), so it was kept. |
+| Works | `lower_others` once (25 processes lowered) and dynamic in the watcher (thresholds 10 / 7 / 3 % picked for 12 CPUs; game detected). |
+| Works | Power throttling off on `bf6.exe` (the anti-cheat allows it). |
+| Works | Game priority, registry method: IFEO `CpuPriorityClass` written, BF6 launched normally, Task Manager shows High. |
+| Works | Lid / power / sleep button settings correctly reported as absent on Boot Camp. |
+| Works | `ping` (US East ~21 ms); `update` from GitHub releases. |
+| Blocked | Game priority, process method: `SetPriorityClass` refused while BF6 runs (anti-cheat). |
+| Blocked | `bench`: ETW trace sessions refused system-wide (EAAntiCheatService suspected, unconfirmed). |
+| Pending | Accessibility shortcuts always report "left alone": the Shift x5 check is outstanding. |
+| Pending | `max_cpu_mhz` clock cap; `ping --route`; `status` clock check under the new build; `restore` output with the registry method. |

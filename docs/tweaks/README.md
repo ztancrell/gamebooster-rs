@@ -6,23 +6,25 @@ short, is the doc comment at the top of each module in `src/`.
 
 Boost applies them in this order; restore undoes them in reverse.
 
-Measured on the target Mac: to be filled in from `gamebooster bench` runs
-([measuring](../measuring.md)); until then the impact column is an expectation, not a result.
+The last column says what was verified to work on the target Mac (2026-11-05,
+[results](../hardware-test.md#results-on-the-target-mac)), not a measured performance gain: gains
+come from `gamebooster bench` runs ([measuring](../measuring.md)), and until then the impact column
+is an expectation, not a result.
 Measurement is blocked for BF6 for now: its anti-cheat appears to block `bench`'s capture ([measuring](../measuring.md#status)).
 
-| # | Tweak | Config switch | Module | Likely impact on BF6 / Boot Camp | Measured on the target Mac |
+| # | Tweak | Config switch | Module | Likely impact on BF6 / Boot Camp | Verified on the target Mac |
 |---|---|---|---|---|---|
-| 1 | [Stop services](services.md) | `services = [...]` | `src/services.rs` | Medium, depends on what runs | not yet |
+| 1 | [Stop services](services.md) | `services = [...]` | `src/services.rs` | Medium, depends on what runs | works (boost and restore) |
 | 2 | [Close apps](close-apps.md) | `close = [...]` | `src/processes.rs` | Medium, depends on what runs | not yet |
 | 3 | [RAM trim](ram-trim.md) | `ram_trim = true` | `src/ram.rs` | Low; only when RAM is nearly full | not yet |
-| 4 | [Lower other processes](priority.md#lower-other-processes) | `lower_others = true` (default off), `lower_others_class`, `lower_others_exclude` | `src/priority.rs` | Low to medium when background apps use CPU | not yet |
-| 5 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100`, `min_processor_state` (unset = 100) | `src/power.rs` | High: the main one | not yet |
+| 4 | [Lower other processes](priority.md#lower-other-processes) | `lower_others = true` (default off), `lower_others_class`, `lower_others_exclude` | `src/priority.rs` | Low to medium when background apps use CPU | works (25 processes lowered; dynamic mode in the watcher) |
+| 5 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100`, `min_processor_state` (unset = 100) | `src/power.rs` | High: the main one | works (min 5 % / max 99 %, restored) |
 | 5b | [Frequency cap](power-plan.md#optional-frequency-cap) (part of 5) | `max_cpu_mhz` (unset = no cap) | `src/power.rs` | Medium on a Mac that hits BD PROCHOT; none otherwise | not yet |
-| 6 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on | not yet |
-| 7 | [Accessibility shortcuts](accessibility-shortcuts.md) | `accessibility_shortcuts_off = true` | `src/accessibility.rs` | None on FPS; stops Sticky Keys pop-ups | not yet |
-| 8 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping | not yet |
-| 9 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy | not yet |
-| 9b | [Game power throttling off](priority.md#power-throttling-off) (same step as 9) | `game_power_throttling_off = true` | `src/priority.rs` | Low; only when the game is in the background or on battery | not yet |
+| 6 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on | works (restored) |
+| 7 | [Accessibility shortcuts](accessibility-shortcuts.md) | `accessibility_shortcuts_off = true` | `src/accessibility.rs` | None on FPS; stops Sticky Keys pop-ups | not yet (always reports "left alone"; Shift x5 check pending) |
+| 8 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping | works (kept the router: 2–3 ms vs ~20–48 ms) |
+| 9 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy | works with `game_priority_method = "registry"` (Task Manager: High); process method blocked by BF6's anti-cheat |
+| 9b | [Game power throttling off](priority.md#power-throttling-off) (same step as 9) | `game_power_throttling_off = true` | `src/priority.rs` | Low; only when the game is in the background or on battery | works on `bf6.exe` |
 
 Not a tweak: `gamebooster ping` ([network](network.md#ping)) measures latency to cloud regions and
 changes nothing.

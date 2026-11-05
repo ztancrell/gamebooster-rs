@@ -183,6 +183,8 @@ close = []
 #              process access. Takes effect at the next game start (restart a running game).
 #              Restore puts the registry back exactly. Low but nonzero risk that an anti-cheat
 #              objects to IFEO entries: watch for launch errors. realtime is not allowed here.
+#              Recommended for games with a kernel anti-cheat such as BF6: verified there
+#              (BF6 launches normally, Task Manager shows High).
 # game_priority_method = "registry"
 
 # Games to raise in CPU priority while they run. Priority: realtime, high, above_normal, normal,

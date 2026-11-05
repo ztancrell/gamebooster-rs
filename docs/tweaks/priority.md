@@ -43,6 +43,10 @@ Windows forgets the priority when the game exits; that is also an undo.
 (BF6's EA Javelin: boost prints `could not set bf6.exe (pid ...) to High: Access is denied. (os
 error 5)` while power throttling off still works).
 
+**Verified** on the target Mac with BF6, 2026-11-05: the IFEO value was written, BF6 launched
+normally and Task Manager showed High. The process method is blocked there by the anti-cheat
+([results](../hardware-test.md#results-on-the-target-mac)).
+
 **What it does.** On boost, for each `[[game]]`, writes the DWORD
 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<exe>\PerfOptions\CpuPriorityClass`
 (1 = low/Idle, 2 = normal, 3 = high, 5 = below_normal, 6 = above_normal; `realtime` is refused by
