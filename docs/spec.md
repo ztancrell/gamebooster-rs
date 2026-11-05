@@ -114,17 +114,24 @@ longer exists, activate Balanced.
   with a timeout.
 - Only services that were **running** when Boost started are stopped and remembered. Restore starts
   exactly those, in reverse order.
-- The startup type is not changed as far as can be seen: SGB's logs show only "Stop Service" and
-  "Start Service", and no message mentions a start type. It imports ChangeServiceConfig, but the
-  caller could not be traced, so a start-type change still can't be ruled out (see Unknowns). Ours
-  must not change start types.
+- The startup type is never changed. All three ChangeServiceConfigW calls in SGB are outside the
+  service boost: one sets the Task Scheduler service's start type, and two set the firewall
+  (SharedAccess/MpsSvc) and BFE to Automatic before starting them, which is for the network
+  accelerator. Ours must not change start types either.
+  Superseded: earlier versions said the caller could not be traced, so a start-type change couldn't
+  be ruled out.
 - SGB never offers services in its own safe list or protected security-product services. Our
   implementation needs an explicit allow-list, and services not on it are never touched.
 - SGB picks a default list by Windows version, from INI sections named `Services_2000`,
   `Services_XP`, `Services_VISTA`, `Services_WIN7`, `Services_WIN8` and `Services_WIN10` (Windows 11
-  reports itself as 10 and gets the WIN10 list). The list contents are **not** in the installer as
-  plain text: they are in one of its encrypted data files or downloaded. The names are unknown.
-  Ours ships its own explicit list.
+  reports itself as 10 and gets the WIN10 list). The lists are a plain-text INI the installer
+  drops as `%APPDATA%\PCGameBoost\Smart Game Booster\WinSvc.ini`; `SgbInit.exe` copies it to
+  `UserWinSvc.ini`, which the service boost reads. Value 1 = ticked (selected by default), 0 =
+  listed unticked. There is no `Services_2000` section. Win10/11 ticks 61 services (e.g.
+  `RemoteRegistry`, `Fax`, `WerSvc`, `WinRM`, `W32Time`, `FontCache`, `StiSvc`, `PrintNotify`,
+  the `vmic*` Hyper-V guest services); many are legacy and absent on Windows 11. Full lists per
+  version: `decomp/SgbData/README.md`. Ours ships its own explicit list.
+  Superseded: earlier versions said the lists were encrypted or downloaded and the names unknown.
 
 ### 2.3 Processes (A4)
 
@@ -140,12 +147,30 @@ longer exists, activate Balanced.
   running.
 - On restore, some known apps are started with an argument: `SmartDefrag.exe /STARTUP`,
   `ASCTray.exe /auto`, `IOTransfer.exe /autorun`. Everything else is started with no arguments.
+- SGB keeps user-editable lists `UserProcWL.txt` and `UserProcBL.txt` (white- and blacklist) next to
+  `UserWinSvc.ini`. The installer ships no default for either, so SGB has no built-in default
+  kill list from a data file (see `decomp/SgbData/README.md`).
 
 ### 2.4 RAM (A5)
 
-Call EmptyWorkingSet (psapi) on every process that can be opened with PROCESS_SET_QUOTA |
-PROCESS_QUERY_INFORMATION. Measure free physical memory (GlobalMemoryStatusEx) before and after,
-for the report. There is nothing to restore.
+For every process in a Toolhelp snapshot, call SetProcessWorkingSetSize(handle, -1, -1), which
+trims its working set like EmptyWorkingSet, on a handle opened with PROCESS_SET_QUOTA. Skip a
+process that can't be opened, silently. SGB skips only its hard-coded list of 31 Symantec Endpoint
+Protection processes (the same list as in 2.3, compared case-insensitively); ours also skips the
+game. Measure free physical memory (GlobalMemoryStatusEx) before and after, for the report. There is
+nothing to restore.
+Superseded: earlier versions said EmptyWorkingSet on processes opened with PROCESS_SET_QUOTA |
+PROCESS_QUERY_INFORMATION. SGB loads EmptyWorkingSet but never calls it.
+
+### 2.4a Other processes' priority (part of A10)
+
+SGB's TPriorityController lowers **other** processes to IDLE_PRIORITY_CLASS (0x40) while boosted.
+Before changing anything it saves each one's current class, and Restore writes the saved classes back.
+Targets are processes owned by the current user, except: `explorer.exe`, `steam.exe` and every child
+of steam.exe, `SgbTray.exe`, `SgbMain.exe`, `SgbMini.exe`, SGB's own exe, and the 31 Symantec
+processes. Ours should do the same, should also exclude the game, its launcher and their children,
+and should be opt-in. IDLE is aggressive (background apps such as voice chat get very little CPU),
+so a configurable class (default BELOW_NORMAL) is a safer choice than copying SGB.
 
 ### 2.5 Windows automatic updates (A8)
 
@@ -238,24 +263,33 @@ does not use it, and **no kernel driver is needed** for anything in this spec.
 
 Fill these from a `capture/` diff (snapshot before and after Boost on the real machine):
 
-- The contents of the default service list per Windows version (section names are known, the
-  list is encrypted or downloaded), and whether services are also set to Disabled or Manual during a
-  boost (ChangeServiceConfig is imported; its use could not be traced).
-- The default process list (comes from the user's choices and an online score database).
-- Whether A10 also lowers the priority of other processes ("TPriorityController" exists; its
-  calls are behind the protector).
-- Whether A5 uses EmptyWorkingSet or SetProcessWorkingSetSize(-1, -1) (both are available; same
-  effect) and exactly which processes it skips.
-- Registry values written beyond `AutoGameModeEnabled`: none found, but calls behind the protector
-  can't be fully excluded. Timer resolution, affinity, MMCSS and network throttling are ruled out
+- Superseded (answered by static analysis, see decomp/SgbMain.exe/notes.md, second pass): services
+  are never set to Disabled or Manual (2.2); A10 lowers other processes to IDLE (2.4a); A5 uses
+  SetProcessWorkingSetSize(-1, -1) and skips only the Symantec list (2.4); the GUID
+  `{58231417-…}` is only a lookup key. The "protector" that seemed to hide API calls did not exist:
+  it was an extraction error, and every API call site can now be traced.
+- What triggers TPriorityController's Boost (the boost dispatcher doesn't call it), and whether the
+  game is excluded before its process list is built. Also, the only SetPriorityClass call in SgbMain
+  sets IDLE or restores a saved class, and no code was found that sets the game to the user's
+  chosen class (A10). That may happen in another binary or through another API; unknown.
+- Superseded: the default service list per Windows version
+  is now known (plain-text `WinSvc.ini`, see 2.2 and `decomp/SgbData/README.md`).
+- The default process list. The installer ships no default `ProcWL.txt`/`ProcBL.txt` (SgbInit would
+  copy them to `UserProcWL.txt`/`UserProcBL.txt`), so it comes from the user's choices and possibly
+  a download or online score database.
+- Registry values written beyond `AutoGameModeEnabled`: none found (the registry writers were
+  not audited one by one). Timer resolution, affinity, MMCSS and network throttling are ruled out
   (no API or string for them).
 - Superseded: the sleep timeout S is now known (0), see 2.1; `Win32PrioritySeparation` is confirmed
   read-only.
 - The exact identity of power setting `90959d22-d6a1-49b9-af93-bce885ad335b`.
-- The role of GUID `{58231417-2B7B-4575-8231-96CB9CF58B36}`, which appears next to the power-plan log
-  messages. It may be a fixed ID for the game plan.
+- Superseded (answered): GUID `{58231417-2B7B-4575-8231-96CB9CF58B36}` is passed to PowerMgr's
+  SetGamePwrCFG, which uses it only to find an existing plan with that GUID (or the plan name) and
+  reuse it. A new plan is duplicated from High performance with a Windows-assigned random GUID. Ours
+  can ignore it.
 - SgbAccelerate.dll was still being decompiled, but it is out of scope (section 6).
-- `SgbMain.exe` was only partly analysed (dispatcher, power-plan step, service-list selection).
+- `SgbMain.exe` was only partly analysed (dispatcher, power-plan step, service-list selection,
+  priority, RAM, ChangeServiceConfigW callers).
   Error handling and timeouts of the other actions are inferred from log strings only.
 
 ---
@@ -288,10 +322,15 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 | Monitor DDC/CI | SgbMain strings "TFrameMonitorDDC.Boost", "VCP_DC", "VCP_14", "Monitor.ini" |
 | Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM" |
 | Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/SgbAccelerate.dll/functions (partial); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
-| SgbMain targeted disassembly (method, limits, protector) | decomp/SgbMain.exe/notes.md; decomp/README.md |
+| SgbMain targeted disassembly (method, limits; the "protector" was an extraction error) | decomp/SgbMain.exe/notes.md; decomp/README.md |
 | Boost/Restore dispatch order; temp-file failure only logged | decomp/SgbMain.exe/0x7c6f0c_TBoost_Execute.asm |
 | Power step order; display and sleep timeouts 0; GUID {58231417-…} passed to SetGamePwrCFG | decomp/SgbMain.exe/0x7b81f4_PowerSch_Boost.asm (VA 0x7b82f8 and 0x7b830b push 0); decomp/PowerMgr.dll/functions/0x10001090.c, 0x100010a0.c |
 | Default service INI sections per Windows version | decomp/SgbMain.exe/0x78754c_ServiceList_PerWinVersion.asm |
+| Default service lists (plain-text WinSvc.ini, copied to UserWinSvc.ini by SgbInit.exe VA 0x6575e0); no default ProcWL/ProcBL in the installer; .dbd files are not Boost data | decomp/SgbData/README.md, decomp/SgbData/winsvc_lists.py |
 | Win32PrioritySeparation is read only (diagnostics) | decomp/SgbMain.exe/0x473324_SysInfo_Win32PrioritySeparation_log.asm |
 | No timer-resolution, affinity, MMCSS, network-throttling APIs or strings | SgbMain import table and string tables (searched for timeBeginPeriod, NtSetTimerResolution, SetProcessAffinityMask, SystemProfile, NetworkThrottlingIndex, SystemResponsiveness, SetSystemFileCacheSize) |
+| Other processes lowered to IDLE (0x40), saved class restored; exclusions | decomp/SgbMain.exe/0x7c4278_TPriorityController_Boost_Restore_IDLE.asm (0x7c42e1 mov ecx,0x40 → SetPriorityClass at 0x7c34d5; list built at 0x7c3a9c) |
+| RAM: SetProcessWorkingSetSize(-1,-1), Symantec skip list; EmptyWorkingSet never called | decomp/SgbMain.exe/0x7b7768_RAMClear_SetProcessWorkingSetSize.asm (0x7b781f; table 0xa4b7b0; pointer 0xa5e6a4 written only) |
+| No start-type change in service boost | decomp/SgbMain.exe/0x5bf498_ChangeServiceConfigW_callers_not_boost.asm (all 3 call sites: 0x5bf498, 0x81c667, 0x9c63b2) |
+| GUID {58231417-…} is a lookup key | decomp/SgbMain.exe/0x7b8349_GameScheme_GUID_PowerMgr_lookup.asm (CLSIDFromString 0x100017ab, compare 0x10002250, duplicate with NULL GUID 0x10001950) |
 | Win32PrioritySeparation is only logged | SgbMain strings: it appears next to "PagingFiles=" and "MB(free/total)" diagnostic text |

@@ -43,9 +43,10 @@ Target: `sgb-extract/app/cmAppVer/SgbMain.exe` (9,008,696 bytes, Delphi 2009 / R
   display timeout = 0, high confidence. The GUID is passed to PowerMgr as a parameter of SetGamePwrCFG.
 - **Default services** (0x78754c): one INI section per OS name: Windows 2000 → `Services_2000`,
   XP → `Services_XP`, Vista → `Services_VISTA`, 7 → `Services_WIN7`, 8 → `Services_WIN8`,
-  10 → `Services_WIN10` (Windows 11 reports as 10). The INI text is in no extracted file in plain
-  text (only `Database/startupService.db`, the startup manager's DB, names services). The encrypted
-  `Database/*.dbd` / `*.sgdt` files or a download are the likely source; not decoded.
+  10 → `Services_WIN10` (Windows 11 reports as 10). The INI is `UserWinSvc.ini`, read at VA
+  0x7885d0. Superseded: this note said the INI text was in no extracted file; it is the plain-text
+  `WinSvc.ini` installed to `%APPDATA%` (the earlier extraction missed that user-file entry), see
+  `../SgbData/README.md`.
 - **Service start type**: ChangeServiceConfigW is imported, but its callers are behind the
   protector stubs; no log string mentions a start-type change. Still unknown.
 - **Win32PrioritySeparation**: only read (diagnostic log together with PagingFiles and the
@@ -56,3 +57,65 @@ Target: `sgb-extract/app/cmAppVer/SgbMain.exe` (9,008,696 bytes, Delphi 2009 / R
 - **RAM**: EmptyWorkingSet (via dynamically loaded PSAPI) and SetProcessWorkingSetSize are both
   available; which one the RAM boost calls and on which processes is behind the protector. Unknown.
 - **Other-process priority**: SetPriorityClass callers are behind the protector. Unknown.
+
+## Second pass (2026-11-05): correct re-extraction; priority, RAM, services, GUID answered
+
+**Superseded: the "protector" finding above was wrong.** The first copy of SgbMain.exe had wrong
+`E8`/`E9` call targets, most likely because Inno Setup's call-instruction filter was not undone (or
+was undone wrongly) when it was extracted. The supposed stubs at 0xb4xxxx–0xb8xxxx were bogus call
+targets (old `0x7b81f4` listing: `call 0xb6f5df`; correct copy: `call 0x7b7eb4` →
+GetCurrentDisplayBrightness). The copy used now was carved by `decomp/inno_carve.py` (raw LZMA1 solid
+chunk, then the inverse Inno call filter in 64 KiB blocks). It is
+`/home/zpt/re/sgb-extract/app/cmAppVer/SgbMain.exe`, 9,008,696 bytes, sha256 `060f6621…d16f`. In it,
+every API call goes straight to its `FF 25` import thunk, and only 2 `E8` calls in the whole of
+.text land in 0xb4xxxx–0xb8xxxx. The six earlier `.asm` files were regenerated from this copy, so
+their call targets are now right. With this copy, Ghidra via REA finished auto-analysis in 183 s
+(startup limit raised to 90 min, but it wasn't needed).
+
+Direct callers per import (E8 → thunk): SetPriorityClass 1 (0x7c34d5), SetProcessWorkingSetSize 1
+(0x7b781f), ChangeServiceConfigW 3 (0x5bf498, 0x81c667, 0x9c63b2), ControlService 1 (0x7874ab),
+TerminateProcess 12, OpenSCManagerW 11, StartServiceW 4, EmptyClipboard 4.
+
+New files: `0x7c4278_TPriorityController_Boost_Restore_IDLE.asm`, `0x7b7768_RAMClear_SetProcessWorkingSetSize.asm`,
+`0x5bf498_ChangeServiceConfigW_callers_not_boost.asm`, `0x7b8349_GameScheme_GUID_PowerMgr_lookup.asm`.
+
+- **Service start types (high confidence): Boost never changes them.** There are only three
+  ChangeServiceConfigW calls. 0x5bf498 is a generic set-start-type helper (fn ~0x5bf360, dwServiceType
+  0x110), called only for the Task Scheduler service `"Schedule"` (0x5bef80, 0x5befb9). 0x81c667
+  (SharedAccess/MpsSvc, i.e. the firewall) and 0x9c63b2 (BFE) both push start type 2
+  (SERVICE_AUTO_START) followed by StartServiceW. Those are "make sure the firewall is running"
+  helpers, for the accelerator. The service Boost unit (OpenSCManagerW at 0x787250…0x787af2,
+  ControlService 0x7874ab, StartServiceW 0x78739d) has no ChangeServiceConfigW call. Nothing passes
+  "ChangeServiceConfigW" to GetProcAddress either: the only runtime-resolved name is
+  ChangeServiceConfig2W, used for descriptions.
+- **Priority (high confidence): Boost lowers other processes to IDLE.** TPriorityController
+  (VMT 0x7c4454) is a subclass of TPsPriorityBoost (VMT 0x7c33cc) with the same virtual methods.
+  TBoost.Create stores it at TBoost+0xa0 (0x7c676f). Boost 0x7c4278 builds the list (0x7c3a9c), saves
+  it (0x7c38b4, category "Priority"), then for each entry calls `SetPriorityClass(OpenProcess(0x1F0FFF, pid), 0x40)`
+  (`mov ecx,0x40` at 0x7c42e1 → 0x7c34b4). That is IDLE_PRIORITY_CLASS. Restore 0x7c4358 reloads the
+  list (0x7c37a8) and writes each saved class back (entry+8, read with GetPriorityClass at
+  collection time, 0x7c3484). Which processes (0x7c3a9c, Toolhelp snapshot): those whose owner equals
+  the current user (0x7c34ec opens with 0x400 and gets the owner, compared against GetUserNameW at
+  0x7c368c). It skips the 31 Symantec names (0x786eac), `explorer.exe`, a name taken from the
+  application object (most likely SGB's own exe), `steam.exe`, `SgbTray.exe`, `SgbMain.exe`,
+  `SgbMini.exe`, and every child of steam.exe (parent PID == steam PID, 0x7c3a90/0x7c3984). The game
+  itself is not explicitly excluded in this function. Unknown: whether the game is filtered out
+  before this point (for example by A10 running before the game starts), and who triggers the
+  virtual Boost (TBoost.Execute does not touch +0xa0; only settings load/save do, at 0x7c8acc–0x7c8b1d).
+- **RAM (high confidence): SetProcessWorkingSetSize(h, -1, -1), not EmptyWorkingSet.** TRAMClear Boost
+  0x7b78a4 → 0x7b7768. It walks every process in a Toolhelp snapshot, skips the 31 Symantec names
+  (table 0xa4b7b0: BHCA.exe, ccSvcHst.exe, Checksum.exe, ControlAP.exe, DevViewer.exe, DoScan.exe,
+  dot1xtray.exe, DWHWizrd.exe, EFAInst.exe, FixExtend.exe, installTeefer.exe, Luawrap.exe,
+  MigrateUserScans.exe, nlnhook.exe, PatchWrap.exe, ProtectionUtilSurrogate.exe, RtvStart.exe,
+  SavUI.exe, SepLiveUpdate.exe, SepStub.exe, Sevinst.exe, sisnat.exe, Smc.exe, SmcGui.exe,
+  smcinst.exe, snac.exe, SRTSP_CA.exe, SylinkDrop.exe, SymCorpUI.exe, WFPUnins.exe,
+  WSCSAvNotifier.exe; case-insensitive), and calls OpenProcess(PROCESS_SET_QUOTA 0x100) and
+  SetProcessWorkingSetSize(h, -1, -1) on each one. A process that won't open is skipped silently.
+  EmptyWorkingSet is resolved into 0xa5e6a4 by 0x5458a0, but nothing ever reads that pointer.
+- **GUID {58231417-…} (medium-high confidence): a lookup key, not the new plan's ID.** SgbMain
+  0x7b8349 passes it as the 3rd argument of SetGamePwrCFG(name, description, guid, AC brightness,
+  DC brightness). In PowerMgr (0x10001050 → 0x100016f0) it is parsed with CLSIDFromString. In the
+  PowerEnumerate loop, a scheme whose GUID equals it, or whose friendly name equals the plan name, is
+  reused. Otherwise High performance is duplicated with a NULL destination GUID (0x10001950), so
+  Windows assigns a new random GUID. Because Boost deletes plans by name first, normally a new plan
+  with a random GUID is created.
