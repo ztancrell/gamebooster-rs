@@ -1,9 +1,13 @@
 //! Network: the `ping` command and the optional fastest-DNS boost step.
 //!
-//! **`ping`.** Times TCP connects (port 443, median of [`SAMPLES`]) to public cloud region
-//! endpoints and prints them fastest first. EA doesn't publish per-region pingable endpoints for
+//! **`ping`.** Times `ping_samples` TCP connects (port 443) to public cloud region endpoints, in
+//! parallel per host, and prints median, p90, jitter and loss per region, fastest first. EA doesn't publish per-region pingable endpoints for
 //! BF6, so these are AWS regional DynamoDB endpoints: an approximation of "how far is each region",
 //! not the game server itself. Changes nothing. BF6 picks its region in its own settings.
+//!
+//! **`ping --route [host]`.** mtr/pathping-style path check (Windows only, no admin): finds the hops
+//! with ICMP echoes of increasing TTL (`IcmpSendEcho2`), then pings each hop `ping_samples` times
+//! for median and loss, and says where persisting loss starts (router, ISP, far network).
 //!
 //! **Fastest DNS** (`fastest_dns = true`). Times DNS lookups (UDP, median of [`SAMPLES`]) against
 //! the active adapter's current IPv4 DNS server and Cloudflare, Google and Quad9. If a public one is
@@ -88,10 +92,92 @@ fn timed(mut f: impl FnMut(usize) -> Result<(), String>) -> Result<f64, String> 
     median(ok).ok_or(err)
 }
 
-/// Median TCP connect time to `host:443`. The name is resolved once, before timing.
-pub fn tcp_ms(host: &str) -> Result<f64, String> {
+/// Summary of N probes.
+#[derive(Debug, PartialEq)]
+pub struct Stats {
+    pub median: f64,
+    pub p90: f64,
+    /// Mean absolute difference between consecutive successful samples (RFC 3550-style), ms.
+    pub jitter: f64,
+    pub lost: usize,
+    pub sent: usize,
+}
+
+impl Stats {
+    /// Worth a mark in the output: any loss, or jitter above 10 ms.
+    pub fn flagged(&self) -> bool {
+        self.lost > 0 || self.jitter > 10.0
+    }
+}
+
+/// Nearest-rank percentile (p in 0..=100).
+pub fn percentile(v: &[f64], p: f64) -> Option<f64> {
+    let mut v = v.to_vec();
+    v.sort_by(|a, b| a.total_cmp(b));
+    let rank = ((p / 100.0 * v.len() as f64).ceil() as usize).clamp(1, v.len().max(1));
+    v.get(rank - 1).copied()
+}
+
+pub fn jitter(v: &[f64]) -> f64 {
+    if v.len() < 2 {
+        return 0.0;
+    }
+    v.windows(2).map(|w| (w[1] - w[0]).abs()).sum::<f64>() / (v.len() - 1) as f64
+}
+
+/// Stats of samples in send order (None = lost), or None if all were lost.
+pub fn stats(samples: &[Option<f64>]) -> Option<Stats> {
+    let ok: Vec<f64> = samples.iter().flatten().copied().collect();
+    Some(Stats { p90: percentile(&ok, 90.0)?, jitter: jitter(&ok), median: median(ok.clone())?, lost: samples.len() - ok.len(), sent: samples.len() })
+}
+
+/// Lost count per hop (None = hop never answered, skipped). Returns the index of the hop where loss
+/// starts and persists through the last answering hop, or None if the last answering hop has none.
+pub fn loss_from(lost: &[Option<usize>]) -> Option<usize> {
+    let mut start = None;
+    for (i, l) in lost.iter().enumerate() {
+        match l {
+            Some(0) => start = None,
+            Some(_) => _ = start.get_or_insert(i),
+            None => {}
+        }
+    }
+    start
+}
+
+/// Whose network hop number `hop` (1-based) usually is.
+pub fn hop_owner(hop: usize) -> &'static str {
+    match hop {
+        1 => "your router: Wi-Fi or home network",
+        2..=4 => "the first hops after your router: your ISP",
+        _ => "further along the path: the ISP's upstream or the remote network",
+    }
+}
+
+/// `n` TCP connect times to `host:443` in ms, None = failed or timed out. The name is resolved once.
+pub fn tcp_samples(host: &str, n: usize) -> Result<Vec<Option<f64>>, String> {
     let addr = (host, 443).to_socket_addrs().map_err(|e| e.to_string())?.next().ok_or("no address")?;
-    timed(|_| TcpStream::connect_timeout(&addr, TIMEOUT).map(drop).map_err(|e| e.to_string()))
+    Ok((0..n)
+        .map(|_| {
+            let t = Instant::now();
+            TcpStream::connect_timeout(&addr, TIMEOUT).ok().map(|_| t.elapsed().as_secs_f64() * 1000.0)
+        })
+        .collect())
+}
+
+/// Every host measured in parallel, fastest median first; failures last.
+fn measure_all(hosts: &[String], n: usize) -> Vec<(&String, Result<Option<Stats>, String>)> {
+    let mut res: Vec<_> = std::thread::scope(|s| {
+        let threads: Vec<_> = hosts.iter().map(|h| (h, s.spawn(move || tcp_samples(h, n).map(|v| stats(&v))))).collect();
+        threads.into_iter().map(|(h, t)| (h, t.join().unwrap())).collect()
+    });
+    let key = |r: &Result<Option<Stats>, String>| r.as_ref().ok().and_then(Option::as_ref).map_or(f64::INFINITY, |s| s.median);
+    res.sort_by(|a, b| key(&a.1).total_cmp(&key(&b.1)));
+    res
+}
+
+fn label(host: &str) -> &'static str {
+    DEFAULT_PING_HOSTS.iter().find(|(h, _)| *h == host).map_or("", |(_, l)| l)
 }
 
 /// A DNS query for an A record (recursion desired).
@@ -125,21 +211,22 @@ pub fn dns_ms(server: Ipv4Addr) -> Result<f64, String> {
 }
 
 /// `gamebooster ping`: measure every host in parallel, print fastest first.
-pub fn ping(hosts: &[String]) {
-    println!("Latency to cloud regions (game servers are hosted near these), median of {SAMPLES} TCP connects:");
-    let mut res: Vec<(&String, Result<f64, String>)> =
-        std::thread::scope(|s| hosts.iter().map(|h| (h, s.spawn(|| tcp_ms(h)))).collect::<Vec<_>>().into_iter().map(|(h, t)| (h, t.join().unwrap())).collect());
-    res.sort_by(|a, b| match (&a.1, &b.1) {
-        (Ok(x), Ok(y)) => x.total_cmp(y),
-        (a, b) => b.is_ok().cmp(&a.is_ok()),
-    });
-    for (host, r) in res {
-        let label = DEFAULT_PING_HOSTS.iter().find(|(h, _)| h == host).map_or("", |(_, l)| l);
+pub fn ping(hosts: &[String], samples: usize) {
+    println!("Latency to cloud regions (game servers are hosted near these), {samples} TCP connects each:");
+    println!("  {:>9} {:>5} {:>6} {:>5}", "median", "p90", "jitter", "loss");
+    for (host, r) in measure_all(hosts, samples) {
+        let label = label(host);
         match r {
-            Ok(ms) => println!("  {ms:6.0} ms  {label:26} {host}"),
+            Ok(Some(s)) => {
+                let mark = if s.flagged() { "  <- unstable" } else { "" };
+                println!("  {:6.0} ms {:5.0} {:6.1} {:>2}/{:<2} {label:26} {host}{mark}", s.median, s.p90, s.jitter, s.lost, s.sent);
+            }
+            Ok(None) => println!("  {:>9} {:>12} {samples:>2}/{samples:<2} {label:26} {host} (no connect succeeded)", "failed", ""),
             Err(e) => println!("  {:>9}  {label:26} {host} ({e})", "failed"),
         }
     }
+    println!("p90: 9 in 10 connects were this fast or faster. Jitter: average change between connects (ms).");
+    println!("Loss: failed or timed-out connects. \"<- unstable\" = any loss or jitter above 10 ms.");
     println!("This is an approximation, not BF6's servers. BF6 picks its server region in the game's own settings.");
 }
 
@@ -266,6 +353,177 @@ mod sys {
         println!("  {}: DNS {} (cache flushed)", s.adapter, s.previous_static.as_deref().unwrap_or("from DHCP"));
         Ok(())
     }
+
+    /// An ICMP handle (`IcmpCreateFile`), closed on drop.
+    struct Icmp(windows_sys::Win32::Foundation::HANDLE);
+
+    impl Icmp {
+        fn new() -> Result<Icmp, String> {
+            let h = unsafe { IcmpCreateFile() };
+            if h == windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE {
+                return Err(format!("IcmpCreateFile failed (error {})", unsafe { windows_sys::Win32::Foundation::GetLastError() }));
+            }
+            Ok(Icmp(h))
+        }
+
+        /// One echo to `ip` with `ttl`: the replying address, whether it's the target itself (not a
+        /// TTL-expired router), and the round trip in ms. None = no reply within `timeout_ms`.
+        fn echo(&self, ip: Ipv4Addr, ttl: u8, timeout_ms: u32) -> Option<(Ipv4Addr, bool, f64)> {
+            let data = *b"gamebooster ping";
+            let opts = IP_OPTION_INFORMATION { Ttl: ttl, ..Default::default() };
+            let mut buf = [0u64; 64]; // >= sizeof(ICMP_ECHO_REPLY) + data + 8, 8-byte aligned
+            let t = Instant::now();
+            unsafe {
+                IcmpSendEcho2(self.0, std::ptr::null_mut(), None, std::ptr::null(), u32::from_ne_bytes(ip.octets()), data.as_ptr() as _, data.len() as u16, &opts,
+                    buf.as_mut_ptr() as _, std::mem::size_of_val(&buf) as u32, timeout_ms);
+            }
+            let ms = t.elapsed().as_secs_f64() * 1000.0;
+            // Read the reply whatever the return value: TTL-expired replies come back as a "failure".
+            let r = unsafe { &*(buf.as_ptr() as *const ICMP_ECHO_REPLY) };
+            let from = Ipv4Addr::from(r.Address.to_ne_bytes());
+            match r.Status {
+                IP_SUCCESS | IP_TTL_EXPIRED_TRANSIT if !from.is_unspecified() => Some((from, r.Status == IP_SUCCESS, ms)),
+                _ => None,
+            }
+        }
+    }
+
+    impl Drop for Icmp {
+        fn drop(&mut self) {
+            unsafe { IcmpCloseHandle(self.0) };
+        }
+    }
+
+    /// Reverse DNS name, None if there is none (or WinSock isn't up).
+    fn reverse_dns(ip: Ipv4Addr) -> Option<String> {
+        use windows_sys::Win32::Networking::WinSock::*;
+        let sa = SOCKADDR_IN { sin_family: AF_INET, sin_port: 0, sin_addr: IN_ADDR { S_un: IN_ADDR_0 { S_addr: u32::from_ne_bytes(ip.octets()) } }, sin_zero: [0; 8] };
+        let mut buf = [0u8; 1025];
+        let e = unsafe {
+            getnameinfo(&sa as *const _ as *const SOCKADDR, std::mem::size_of::<SOCKADDR_IN>() as i32, buf.as_mut_ptr(), buf.len() as u32, std::ptr::null_mut(), 0, NI_NAMEREQD as i32)
+        };
+        (e == 0).then(|| std::ffi::CStr::from_bytes_until_nul(&buf).ok().map(|c| c.to_string_lossy().into_owned())).flatten()
+    }
+
+    /// "Wi-Fi" / "Ethernet" for the adapter that routes to `ip`, None if unknown.
+    fn link_kind(ip: Ipv4Addr) -> Option<&'static str> {
+        unsafe {
+            let mut row: MIB_IF_ROW2 = std::mem::zeroed();
+            if GetBestInterface(u32::from_ne_bytes(ip.octets()), &mut row.InterfaceIndex) != 0 || GetIfEntry2(&mut row) != ERROR_SUCCESS {
+                return None;
+            }
+            match row.Type {
+                IF_TYPE_IEEE80211 => Some("Wi-Fi"),
+                IF_TYPE_ETHERNET_CSMACD => Some("Ethernet"),
+                _ => None,
+            }
+        }
+    }
+
+    /// `gamebooster ping --route [host]`: per-hop latency and loss to `host`, or to the fastest of
+    /// `hosts` from a quick ping run.
+    pub fn route(hosts: &[String], host: Option<&str>, samples: usize) -> Result<(), String> {
+        unsafe {
+            let mut d = std::mem::zeroed();
+            windows_sys::Win32::Networking::WinSock::WSAStartup(0x202, &mut d); // for getnameinfo
+        }
+        let host = match host {
+            Some(h) => h.to_string(),
+            None => {
+                println!("Finding the fastest region (3 TCP connects each)...");
+                let first = measure_all(hosts, 3).into_iter().find(|(_, r)| matches!(r, Ok(Some(_))));
+                first.map(|(h, _)| h.clone()).ok_or("no ping_hosts host answered; give one: gamebooster ping --route <host>")?
+            }
+        };
+        let ip = (host.as_str(), 0)
+            .to_socket_addrs()
+            .map_err(|e| format!("{host}: {e}"))?
+            .find_map(|a| match a.ip() {
+                std::net::IpAddr::V4(v) => Some(v),
+                _ => None,
+            })
+            .ok_or_else(|| format!("{host} has no IPv4 address"))?;
+        println!("Route to {host} ({ip}), {samples} ICMP echoes per hop:");
+        let icmp = Icmp::new()?;
+        // Discover hops: up to 2 tries per TTL; stop at the target or after 4 silent hops in a row.
+        let (mut hops, mut reached) = (Vec::<Option<Ipv4Addr>>::new(), false);
+        for ttl in 1..=30u8 {
+            let r = icmp.echo(ip, ttl, 1000).or_else(|| icmp.echo(ip, ttl, 1000));
+            hops.push(r.map(|(a, _, _)| a));
+            if r.is_some_and(|(_, done, _)| done) {
+                reached = true;
+                break;
+            }
+            if hops.len() >= 4 && hops[hops.len() - 4..].iter().all(Option::is_none) {
+                break;
+            }
+        }
+        while hops.last() == Some(&None) {
+            hops.pop();
+        }
+        // Measure each answering hop in parallel (direct echoes, 200 ms apart), names alongside.
+        let measured: Vec<Option<(Ipv4Addr, Vec<Option<f64>>, Option<String>)>> = std::thread::scope(|s| {
+            let threads: Vec<_> = hops
+                .iter()
+                .map(|h| {
+                    h.map(|a| {
+                        s.spawn(move || {
+                            let (tx, rx) = std::sync::mpsc::channel();
+                            std::thread::spawn(move || tx.send(reverse_dns(a)));
+                            let v = Icmp::new().map_or(vec![None; samples], |icmp| {
+                                (0..samples)
+                                    .map(|i| {
+                                        if i > 0 {
+                                            std::thread::sleep(Duration::from_millis(200));
+                                        }
+                                        icmp.echo(a, 64, 1000).filter(|r| r.1).map(|r| r.2)
+                                    })
+                                    .collect()
+                            });
+                            (a, v, rx.recv_timeout(Duration::from_millis(500)).ok().flatten())
+                        })
+                    })
+                })
+                .collect();
+            threads.into_iter().map(|t| t.map(|t| t.join().unwrap())).collect()
+        });
+        println!("  {:>3} {:>9} {:>5} {:>5}  address", "hop", "median", "p90", "loss");
+        let mut lost = vec![];
+        for (i, m) in measured.iter().enumerate() {
+            let Some((a, v, name)) = m else {
+                println!("  {:>3} {:>9}                    no answer", i + 1, "*");
+                lost.push(None);
+                continue;
+            };
+            let st = stats(v);
+            lost.push(Some(st.as_ref().map_or(samples, |s| s.lost)));
+            let name = name.as_deref().map_or(String::new(), |n| format!(" {n}"));
+            let mut note = String::new();
+            if i == 0 {
+                note = format!("  your router{}", link_kind(ip).map_or(String::new(), |k| format!(" ({k})")));
+            }
+            if reached && i + 1 == measured.len() {
+                note += "  (destination)";
+            }
+            match st {
+                Some(s) => println!("  {:>3} {:6.0} ms {:5.0} {:>2}/{:<2}  {a}{name}{note}", i + 1, s.median, s.p90, s.lost, s.sent),
+                None => println!("  {:>3} {:>9} {:>5} {samples:>2}/{samples:<2}  {a}{name}{note}", i + 1, "lost", ""),
+            }
+        }
+        if !reached {
+            println!("The destination didn't answer ICMP: many cloud endpoints drop it. Judge by the last hops that answer.");
+        }
+        match loss_from(&lost) {
+            Some(i) if reached => println!("Loss starts at hop {} and persists to the end: {}.", i + 1, hop_owner(i + 1)),
+            _ if lost.iter().flatten().any(|&l| l > 0) => {
+                println!("Loss only at some intermediate hops, not through to the end: usually routers rate-limiting ICMP replies, not real loss.")
+            }
+            _ => println!("No loss on the path."),
+        }
+        println!("Loss or latency that starts at a hop and persists to the end points at that hop: hop 1 = your Wi-Fi/LAN,");
+        println!("the next few = your ISP, far hops = the remote network. See docs/tweaks/network.md.");
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -299,7 +557,32 @@ mod tests {
     #[ignore]
     fn live_network() {
         println!("1.1.1.1 dns: {:?}", dns_ms("1.1.1.1".parse().unwrap()));
-        ping(&default_ping_hosts());
+        ping(&default_ping_hosts(), 10);
+    }
+
+    #[test]
+    fn stats_jitter_loss_percentiles() {
+        assert_eq!(jitter(&[10.0, 20.0, 15.0]), 7.5);
+        assert_eq!(jitter(&[10.0]), 0.0);
+        assert_eq!(percentile(&[5.0, 1.0, 4.0, 2.0, 3.0, 6.0, 7.0, 8.0, 9.0, 10.0], 90.0), Some(9.0));
+        assert_eq!(percentile(&[3.0], 90.0), Some(3.0));
+        assert_eq!(percentile(&[], 90.0), None);
+        let s = stats(&[Some(10.0), None, Some(30.0), Some(20.0)]).unwrap();
+        assert_eq!(s, Stats { median: 20.0, p90: 30.0, jitter: 15.0, lost: 1, sent: 4 });
+        assert!(s.flagged());
+        assert!(!stats(&[Some(10.0), Some(12.0)]).unwrap().flagged());
+        assert!(stats(&[Some(10.0), Some(25.0)]).unwrap().flagged()); // jitter 15 ms
+        assert_eq!(stats(&[None, None]), None);
+    }
+
+    #[test]
+    fn persisting_loss() {
+        assert_eq!(loss_from(&[Some(0), Some(2), Some(1), Some(3)]), Some(1));
+        assert_eq!(loss_from(&[Some(0), Some(5), Some(0)]), None); // rate-limiting at hop 2 only
+        assert_eq!(loss_from(&[Some(1), None, Some(2)]), Some(0)); // silent hops don't break it
+        assert_eq!(loss_from(&[Some(0), Some(0)]), None);
+        assert_eq!(loss_from(&[]), None);
+        assert!(hop_owner(1).contains("router") && hop_owner(3).contains("ISP") && hop_owner(9).contains("remote"));
     }
 
     #[test]

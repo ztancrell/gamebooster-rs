@@ -34,6 +34,10 @@ Windows via Boot Camp, playing BF6.
 - 2026-11-05: No copy of SGB's network accelerator (vendor relay servers + packet driver). Instead:
   a `ping` command that reports latency to game-server regions (changes nothing), and an optional
   "fastest DNS" step on boost that restore undoes.
+- 2026-11-05: `ping` reports jitter and loss per region (`ping_samples`, default 10), and
+  `ping --route [host]` does an mtr/pathping-style per-hop check (ICMP via `IcmpSendEcho2`, no
+  admin, no driver) to tell router vs ISP vs far end. From the ExitLag research
+  (docs/exitlag/README.md, adoption items 1-2).
 - 2026-11-05: Lower other processes (SGB's TPriorityController, spec 2.4a), opt-in
   (`lower_others`), Below normal by default, only the user's own Normal-priority processes.
 - 2026-11-05: `lower_others` also skips by publisher (exe version-info CompanyName substrings,

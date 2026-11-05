@@ -55,6 +55,10 @@ fastest_dns = false
 #   "dynamodb.ap-southeast-2.amazonaws.com",
 # ]
 
+# Probes per host for `gamebooster ping` (TCP connects) and per hop for `gamebooster ping --route`
+# (ICMP echoes). More samples catch more loss and jitter but take longer. 1 to 100.
+ping_samples = 10
+
 # Opt the running game out of Windows power throttling (EcoQoS) while boosted, so Windows can't slow
 # it down when it's behind another window or on battery. Restore hands it back to Windows. Needs
 # Windows 10 1709+. Applied with the game priority, so the game must be running (see [[game]]).

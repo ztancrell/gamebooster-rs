@@ -29,8 +29,9 @@ What a boost does, in this order (restore goes in reverse):
    the old static list or DHCP.
 9. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
 
-Separately, `gamebooster ping` measures latency to cloud regions near game servers and changes
-nothing. See [network](docs/tweaks/network.md).
+Separately, `gamebooster ping` measures latency, jitter and loss to cloud regions near game
+servers, and `gamebooster ping --route` checks each hop on the way (your router, your ISP, the far
+end). Both change nothing. See [network](docs/tweaks/network.md).
 
 Separately, `gamebooster bench` records the game's frame times with Intel PresentMon and
 `bench compare` tells a real difference from run-to-run noise. See [Measuring](#measuring).
@@ -97,6 +98,7 @@ gamebooster boost
 gamebooster status
 gamebooster restore
 gamebooster ping
+gamebooster ping --route
 ```
 
 | Command | What it does |
@@ -104,7 +106,8 @@ gamebooster ping
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority and power throttling off (use this after starting the game). |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal (and power throttling to Windows). |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
-| `ping` | Measures latency (median of 5 TCP connects) to `ping_hosts`, AWS regional endpoints by default, and prints them fastest first. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
+| `ping` | Times `ping_samples` (10) TCP connects to each of `ping_hosts`, AWS regional endpoints by default, and prints median, p90, jitter and loss per region, fastest first; marks a region with any loss or jitter above 10 ms. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
+| `ping --route [host]` | Per-hop path check like `pathping`: finds the hops to `host` (default: the fastest region) with ICMP, pings each hop `ping_samples` times and prints median and loss, hop 1 labelled as your router (Wi-Fi or Ethernet), plus a hint where persisting loss starts. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#route-check). |
 | `init` | Writes the built-in example config as `gamebooster.toml` next to `gamebooster.exe` (or `--config <file>`). Never overwrites an existing file. |
 | `update` | Downloads the latest `gamebooster.exe` from the `latest` release and replaces this one; prints old -> new version. No admin needed if you can write to the exe's folder. |
 | `snapshot <out.json>` | Saves a read-only snapshot of system state (runs the built-in copy of [capture/snapshot.ps1](capture/snapshot.ps1) with Windows PowerShell). See [capture](capture/README.md). |
@@ -161,6 +164,7 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `lower_others_exclude_publishers` | `[]` | Extra publishers to leave alone: case-insensitive substrings of the exe's CompanyName (file Properties > Details), on top of the built-in list. |
 | `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
 | `ping_hosts` | 12 AWS regional endpoints | Hosts `gamebooster ping` measures (TCP port 443). |
+| `ping_samples` | `10` | Probes per host for `ping` and per hop for `ping --route` (1 to 100). |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). The example file has a commented-out suggested list from SGB, pruned; see [services](docs/tweaks/services.md#suggested-list-from-sgb-pruned). |
 | `close` | `[]` | Process image names to close (e.g. `"OneDrive.exe"`). |
 | `[[game]]` `exe`, `priority` | example: `bf6.exe`, `high` | Games to raise; priority is `realtime`, `high`, `above_normal`, `normal`, `below_normal` or `low`. |

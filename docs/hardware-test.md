@@ -142,8 +142,20 @@ copy the whole window text and send it.
     at or just under 2.8 GHz (not 4+ GHz, not 0.8 GHz), and *Limits* should not light up `PROCHOT`.
     Failure: `skipped (not on this machine)` on that line, or the clock above the cap.
     `.\gamebooster.exe restore`, then remove the two lines (or comment them out).
-17. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
-    folder and the console text of steps 9, 12, 13 and 16.
+17. Ping and route check (no admin needed, BF6 can be closed): `.\gamebooster.exe ping`, then
+    `.\gamebooster.exe ping --route`.
+    Look for, from `ping`: one line per region with `median`, `p90`, `jitter` and `loss` columns
+    (e.g. `19 ms    20    0.5  0/10 US East (N. Virginia)`), sorted fastest first.
+    From `--route`: `Finding the fastest region ...`, `Route to <host> (<ip>), 10 ICMP echoes per
+    hop:`, then numbered hops; hop 1 is your router's address with `your router (Wi-Fi)` (or
+    `(Ethernet)`), some hops may show their names. The last lines: either `(destination)` on the last
+    hop or `The destination didn't answer ICMP ...`, then one of `No loss on the path.`,
+    `Loss only at some intermediate hops ...` or `Loss starts at hop N ...`.
+    Failure: `IcmpCreateFile failed`, every hop `*` / `no answer` (ICMP blocked by a firewall), or
+    hop 1 not being your router's address (`ipconfig`, *Default Gateway*).
+    Also try `.\gamebooster.exe ping --route 1.1.1.1`: it should reach the destination.
+18. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
+    folder and the console text of steps 9, 12, 13, 16 and 17.
 
 ## Recovery
 

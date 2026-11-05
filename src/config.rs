@@ -54,6 +54,9 @@ pub struct Config {
     /// Hosts `gamebooster ping` measures (TCP port 443).
     #[serde(default = "crate::network::default_ping_hosts")]
     pub ping_hosts: Vec<String>,
+    /// Probes per host for `ping` (TCP connects) and per hop for `ping --route` (ICMP echoes).
+    #[serde(default = "ten")]
+    pub ping_samples: usize,
     #[serde(default, rename = "game")]
     pub games: Vec<Game>,
 }
@@ -93,6 +96,10 @@ fn yes() -> bool {
 fn full() -> u32 {
     100
 }
+fn ten() -> usize {
+    10
+}
+
 fn high() -> Priority {
     Priority::High
 }
@@ -130,6 +137,9 @@ impl Config {
         if let Some(mhz) = cfg.max_cpu_mhz.filter(|mhz| !(800..=6000).contains(mhz)) {
             return Err(format!("max_cpu_mhz = {mhz} is out of range: use 800 to 6000, or 0 for no cap"));
         }
+        if !(1..=100).contains(&cfg.ping_samples) {
+            return Err(format!("ping_samples = {} is out of range: use 1 to 100", cfg.ping_samples));
+        }
         for name in cfg.close.iter().chain(cfg.games.iter().map(|g| &g.exe)) {
             if is_protected(name) {
                 return Err(format!("{name} is a protected process and can't be closed or re-prioritised"));
@@ -160,6 +170,8 @@ mod tests {
         let cfg = Config::parse(include_str!("../gamebooster.example.toml")).unwrap();
         assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim && !cfg.fastest_dns);
         assert_eq!(cfg.ping_hosts.len(), crate::network::DEFAULT_PING_HOSTS.len());
+        assert_eq!(cfg.ping_samples, 10);
+        assert!(Config::parse("ping_samples = 0").is_err());
         assert!(cfg.services.is_empty() && cfg.close.is_empty());
         assert!(!cfg.lower_others && cfg.lower_others_class == LowerClass::BelowNormal && cfg.lower_others_exclude.is_empty());
         assert_eq!(Config::parse("lower_others_class = \"idle\"").unwrap().lower_others_class, LowerClass::Idle);

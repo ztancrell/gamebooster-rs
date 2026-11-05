@@ -28,7 +28,8 @@ usage: gamebooster <command> [--dry-run] [--config <file>]
   boost      apply the tweaks enabled in the config (if already boosted: re-apply game priority and power throttling off)
   restore    undo everything the last boost changed
   status     show whether a boost is active and what it changed
-  ping       measure latency to cloud regions near game servers, fastest first (changes nothing)
+  ping       latency, jitter and loss to cloud regions near game servers, fastest first (changes nothing)
+  ping --route [host]  per-hop latency and loss to host (default: the fastest region): router, ISP or far end?
   init       write the example config as gamebooster.toml next to gamebooster.exe (never overwrites)
   update     download the latest gamebooster.exe from GitHub and replace this one
   snapshot <out.json>                save a read-only snapshot of system state (capture/snapshot.ps1)
@@ -68,17 +69,22 @@ struct Args {
     /// `bench` duration and label.
     seconds: Option<u64>,
     label: Option<String>,
+    /// `ping --route [host]`.
+    route: bool,
+    host: Option<String>,
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     let mut it = args.into_iter();
     let (mut command, mut dry_run, mut config, mut files) = (None, false, None, Vec::new());
-    let (mut seconds, mut label) = (None, None);
+    let (mut seconds, mut label, mut route, mut host) = (None, None, false, None);
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dry-run" => dry_run = true,
             "--config" => config = Some(PathBuf::from(it.next().ok_or("--config needs a file")?)),
             "--label" => label = Some(it.next().ok_or("--label needs a name")?),
+            "--route" if command.as_deref() == Some("ping") => route = true,
+            _ if route && host.is_none() && !a.starts_with('-') => host = Some(a),
             "--version" | "-V" if command.is_none() => command = Some("version".to_string()),
             "boost" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" if command.is_none() => command = Some(a),
             "compare" if command.as_deref() == Some("bench") && seconds.is_none() => command = Some("bench compare".into()),
@@ -94,7 +100,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
         ("bench compare", n) if n != 2 => Err("usage: gamebooster bench compare <a.json> <b.json>".into()),
         ("bench", _) if seconds.is_some_and(|s| !(10..=3600).contains(&s)) => Err("bench seconds: use 10 to 3600".into()),
         (c, _) if c != "bench" && label.is_some() => Err("--label only goes with bench".into()),
-        _ => Ok(Args { command, dry_run, config, files, seconds, label }),
+        _ => Ok(Args { command, dry_run, config, files, seconds, label, route, host }),
     }
 }
 
@@ -211,7 +217,8 @@ fn run(args: Args) -> Result<(), String> {
     match args.command.as_str() {
         "boost" => boost(&cfg, &state_path, args.dry_run),
         "restore" => restore(&cfg, &state_path, args.dry_run),
-        "ping" => Ok(network::ping(&cfg.ping_hosts)),
+        "ping" if args.route => network::route(&cfg.ping_hosts, args.host.as_deref(), cfg.ping_samples),
+        "ping" => Ok(network::ping(&cfg.ping_hosts, cfg.ping_samples)),
         "bench" => bench::run(&cfg, &dir, state_path.exists(), args.seconds.unwrap_or(60), args.label.as_deref()),
         _ => status(&cfg, &state_path),
     }
@@ -469,6 +476,12 @@ mod tests {
         assert!(parse_args(["bench", "5"].map(String::from)).is_err());
         assert!(parse_args(["bench", "30", "40"].map(String::from)).is_err());
         assert!(parse_args(["boost", "--label", "x"].map(String::from)).is_err());
+        let p = parse_args(["ping", "--route", "example.com"].map(String::from)).unwrap();
+        assert_eq!((p.route, p.host.as_deref()), (true, Some("example.com")));
+        assert_eq!(parse_args(["ping", "--route"].map(String::from)).unwrap().host, None);
+        assert!(parse_args(["ping", "example.com"].map(String::from)).is_err());
+        assert!(parse_args(["boost", "--route"].map(String::from)).is_err());
+        assert!(parse_args(["ping", "--route", "a", "b"].map(String::from)).is_err());
     }
 
     #[test]

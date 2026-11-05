@@ -135,10 +135,13 @@ fundamental limit: it can only help when your ISP's route is the problem.
 
 ## Worth adopting (reversible, driver-free)
 
-1. **Loss and jitter in `gamebooster ping`.** Today it reports a median TCP connect time. Add the
+1. **Loss and jitter in `gamebooster ping`.** (Built 2026-11-05: median, p90, jitter and loss of
+   `ping_samples` connects, see [network](../tweaks/network.md#ping).) Before, it reported a
+   median TCP connect time only. Add the
    spread (min/max or p90) and how many of the connects failed or timed out, so a lossy or spiky
    path shows up. Still no admin, no driver.
-2. **A route check (`gamebooster ping --route <host>`).** A traceroute/MTR-style probe: send probes
+2. **A route check (`gamebooster ping --route <host>`).** (Built 2026-11-05 with ICMP via
+   `IcmpSendEcho2`, see [network](../tweaks/network.md#route-check).) A traceroute/MTR-style probe: send probes
    with increasing TTL (or run Windows' own `pathping`/`tracert` and summarise), and report per-hop
    latency and loss, plus the first hop (the router) separately. That answers the real question
    ExitLag sells against: "is my problem Wi-Fi/home, my ISP, or the far end?". If the first hop
