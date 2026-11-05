@@ -17,7 +17,13 @@ What a boost does, in this order (restore goes in reverse):
    reactivates your old plan and deletes ours.
 5. **Game Mode** on (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1`). Restore writes back
    the old value.
-6. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
+6. **Fastest DNS** (optional, off by default): if Cloudflare, Google or Quad9 answers DNS lookups
+   clearly faster than your current server, sets it on the active adapter (IPv4). Restore puts back
+   the old static list or DHCP.
+7. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
+
+Separately, `gamebooster ping` measures latency to cloud regions near game servers and changes
+nothing. See [network](docs/tweaks/network.md).
 
 Details, defaults, manual commands and how to measure each one: [docs/tweaks/](docs/tweaks/README.md).
 The behaviour follows [docs/spec.md](docs/spec.md).
@@ -48,6 +54,7 @@ gamebooster boost --dry-run
 gamebooster boost
 gamebooster status
 gamebooster restore
+gamebooster ping
 ```
 
 | Command | What it does |
@@ -55,6 +62,7 @@ gamebooster restore
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority (use this after starting the game). |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal. |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
+| `ping` | Measures latency (median of 5 TCP connects) to `ping_hosts`, AWS regional endpoints by default, and prints them fastest first. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
 | `--dry-run` | With `boost` or `restore`: print the plan, change nothing. |
 | `--config <file>` | Use another config file. |
 
@@ -72,6 +80,8 @@ Copy [gamebooster.example.toml](gamebooster.example.toml) to `gamebooster.toml` 
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
+| `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
+| `ping_hosts` | 12 AWS regional endpoints | Hosts `gamebooster ping` measures (TCP port 443). |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). The example file has a commented-out suggested list from SGB, pruned; see [services](docs/tweaks/services.md#suggested-list-from-sgb-pruned). |
 | `close` | `[]` | Process image names to close (e.g. `"OneDrive.exe"`). |
 | `[[game]]` `exe`, `priority` | example: `bf6.exe`, `high` | Games to raise; priority is `realtime`, `high`, `above_normal`, `normal`, `below_normal` or `low`. |
@@ -85,15 +95,16 @@ check Task Manager > Details while the game runs.
 
 - Before the first change, boost writes everything restore needs to
   `gamebooster-state.json` next to `gamebooster.exe` (previous power plan, the services it stops,
-  the full paths of the apps it closes, the old Game Mode value). If that write fails, nothing is
+  the full paths of the apps it closes, the old Game Mode value, the old DNS setting). If that write fails, nothing is
   changed. The file's presence means "boosted"; boosting again doesn't overwrite it.
 - After a crash, a power cut or a reboot, just run `gamebooster restore`. Restore is idempotent:
   running services, running apps and an already-deleted plan are fine. If starting a service,
-  restoring the power plan or writing Game Mode fails, the state
+  restoring the power plan, writing Game Mode or restoring DNS fails, the state
   file is kept so you can run restore again; it is deleted only after a clean restore.
 - Nothing is permanent: service startup types aren't touched, so a reboot restarts services too.
   Power plan by hand: `powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e` (Balanced) and
   `powercfg /delete a2921d59-9c60-439e-b61a-21c441a0df53`.
+  DNS by hand: `netsh interface ip set dns "<adapter>" dhcp`.
 - Each tweak is independent: one failing is printed and the others still run.
 
 ## Limitations
@@ -104,6 +115,6 @@ check Task Manager > Details while the game runs.
 - The power plan values follow the spec; the sleep timeout is 0 (never), an assumption.
 - `AutoGameModeEnabled` is per user: run elevated from your own account.
 - Not implemented (on purpose): GPU overclock, monitor presets, clipboard clearing, Windows Update
-  changes, network acceleration, tray icon cleanup, killing `explorer.exe`.
+  changes, network acceleration (relay servers; `ping` and fastest DNS are the substitute), tray icon cleanup, killing `explorer.exe`.
 - Tested only by unit tests and a cross-compile; not yet run on real hardware. First-run checklist:
   [docs/hardware-test.md](docs/hardware-test.md).

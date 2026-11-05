@@ -20,6 +20,29 @@ max_processor_state = 100
 # Make sure Windows Game Mode is on (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1).
 game_mode = true
 
+# On boost, time DNS lookups against your current DNS server and Cloudflare (1.1.1.1), Google
+# (8.8.8.8) and Quad9 (9.9.9.9). If a public one is more than 10 ms and 20 % faster, use it on the
+# active network adapter (IPv4) until restore. Faster lookups, not lower in-game ping.
+# See docs/tweaks/network.md.
+fastest_dns = false
+
+# Hosts `gamebooster ping` measures. Default: these AWS regional endpoints (game servers are often
+# hosted near cloud regions; this is an approximation, not BF6's own servers).
+# ping_hosts = [
+#   "dynamodb.us-east-1.amazonaws.com",
+#   "dynamodb.us-west-1.amazonaws.com",
+#   "dynamodb.us-west-2.amazonaws.com",
+#   "dynamodb.ca-central-1.amazonaws.com",
+#   "dynamodb.sa-east-1.amazonaws.com",
+#   "dynamodb.eu-west-1.amazonaws.com",
+#   "dynamodb.eu-west-2.amazonaws.com",
+#   "dynamodb.eu-central-1.amazonaws.com",
+#   "dynamodb.me-central-1.amazonaws.com",
+#   "dynamodb.ap-northeast-1.amazonaws.com",
+#   "dynamodb.ap-southeast-1.amazonaws.com",
+#   "dynamodb.ap-southeast-2.amazonaws.com",
+# ]
+
 # Trim the RAM of every non-game process once. Only useful when RAM is nearly full. Not undoable.
 ram_trim = false
 

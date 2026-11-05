@@ -14,6 +14,9 @@ pub struct State {
     pub processes: Vec<String>,
     pub power: Option<PowerState>,
     pub game_mode: Option<GameModeState>,
+    /// Fastest-DNS change (absent in state files from older versions).
+    #[serde(default)]
+    pub dns: Option<crate::network::DnsState>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -67,6 +70,7 @@ mod tests {
             processes: vec![r"C:\Apps\OneDrive.exe".into()],
             power: Some(PowerState { previous_scheme: "381b4222-f694-41f0-9685-ff5bb260df2e".into(), brightness: Some((100, 75)) }),
             game_mode: Some(GameModeState { previous: None }),
+            dns: Some(crate::network::DnsState { adapter_guid: "{4D36E972-E325-11CE-BFC1-08002BE10318}".into(), adapter: "Wi-Fi".into(), previous_static: None, server: "1.1.1.1".into() }),
         };
         st.save(&path).unwrap();
         assert_eq!(State::load(&path).unwrap(), Some(st));

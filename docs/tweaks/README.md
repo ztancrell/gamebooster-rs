@@ -13,7 +13,11 @@ Boost applies them in this order; restore undoes them in reverse.
 | 3 | [RAM trim](ram-trim.md) | `ram_trim = true` | `src/ram.rs` | Low; only when RAM is nearly full |
 | 4 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100`, `min_processor_state` (unset = 100) | `src/power.rs` | High: the main one |
 | 5 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on |
-| 6 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy |
+| 6 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping |
+| 7 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy |
+
+Not a tweak: `gamebooster ping` ([network](network.md#ping)) measures latency to cloud regions and
+changes nothing.
 
 Not a tweak, but related: [Stuck at 800 MHz (BD PROCHOT)](prochot.md), the problem `gamebooster
 status` warns about, and how to fix it.

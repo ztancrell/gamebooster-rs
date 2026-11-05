@@ -2,7 +2,7 @@
 name = "gamebooster"
 version = "0.1.0"
 edition = "2021"
-description = "Small Windows game booster (power plan, services, processes, priority, Game Mode, RAM trim) with full restore"
+description = "Small Windows game booster (power plan, services, processes, priority, Game Mode, RAM trim, DNS, ping) with full restore"
 license = "MIT"
 
 [dependencies]
@@ -13,6 +13,8 @@ toml = "0.8"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
     "Win32_Security",
     "Win32_System_Diagnostics_ToolHelp",
     "Win32_System_Performance",

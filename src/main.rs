@@ -7,6 +7,7 @@
 
 mod config;
 mod game_mode;
+mod network;
 mod power;
 mod priority;
 mod processes;
@@ -19,11 +20,12 @@ use state::{GameModeState, State};
 use std::path::{Path, PathBuf};
 
 const USAGE: &str = "\
-usage: gamebooster <boost|restore|status> [--dry-run] [--config <file>]
+usage: gamebooster <boost|restore|status|ping> [--dry-run] [--config <file>]
 
   boost     apply the tweaks enabled in the config (if already boosted: re-apply game priority)
   restore   undo everything the last boost changed
   status    show whether a boost is active and what it changed
+  ping      measure latency to cloud regions near game servers, fastest first (changes nothing)
   --dry-run print what boost/restore would do, change nothing (no admin needed)
   --config  config file (default: gamebooster.toml next to gamebooster.exe)";
 
@@ -34,11 +36,12 @@ enum Step {
     Ram,
     PowerPlan,
     GameMode,
+    Dns,
     Priority,
 }
 
 /// Boost order, as in the spec. Restore walks it backwards.
-const BOOST_ORDER: [Step; 6] = [Step::Services, Step::Processes, Step::Ram, Step::PowerPlan, Step::GameMode, Step::Priority];
+const BOOST_ORDER: [Step; 7] = [Step::Services, Step::Processes, Step::Ram, Step::PowerPlan, Step::GameMode, Step::Dns, Step::Priority];
 
 fn restore_order() -> impl Iterator<Item = Step> {
     BOOST_ORDER.into_iter().rev()
@@ -57,7 +60,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
         match a.as_str() {
             "--dry-run" => dry_run = true,
             "--config" => config = Some(PathBuf::from(it.next().ok_or("--config needs a file")?)),
-            "boost" | "restore" | "status" if command.is_none() => command = Some(a),
+            "boost" | "restore" | "status" | "ping" if command.is_none() => command = Some(a),
             _ => return Err(format!("unexpected argument `{a}`")),
         }
     }
@@ -85,6 +88,11 @@ fn describe(st: &State, cfg: &Config) -> String {
     match &st.game_mode {
         Some(g) => out += &format!("  Game Mode: {} = {} -> 1\n", game_mode::VALUE, g.previous.map_or("(absent)".into(), |v| v.to_string())),
         None => out += "  Game Mode: off\n",
+    }
+    match &st.dns {
+        Some(d) => out += &format!("  DNS ({}): {} -> {}\n", d.adapter, d.previous_static.as_deref().unwrap_or("from DHCP"), d.server),
+        None if cfg.fastest_dns => out += "  DNS: keep current (no public resolver meaningfully faster)\n",
+        None => out += "  DNS: off\n",
     }
     for g in &cfg.games {
         out += &format!("  priority: {} -> {:?} while running\n", g.exe, g.priority);
@@ -120,12 +128,13 @@ fn run(args: Args) -> Result<(), String> {
         format!("{e}\n(copy gamebooster.example.toml to {} and edit it)", dir.join("gamebooster.toml").display())
     })?;
     let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
-    if args.command != "status" && !args.dry_run && !admin {
+    if !matches!(args.command.as_str(), "status" | "ping") && !args.dry_run && !admin {
         return Err("boost and restore need administrator rights: right-click your terminal, \"Run as administrator\"".into());
     }
     match args.command.as_str() {
         "boost" => boost(&cfg, &state_path, args.dry_run),
         "restore" => restore(&cfg, &state_path, args.dry_run),
+        "ping" => Ok(network::ping(&cfg.ping_hosts)),
         _ => status(&cfg, &state_path),
     }
 }
@@ -156,6 +165,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
         } else {
             None
         },
+        dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
     };
     if dry_run {
         println!("Boost would do (dry run, nothing changed):\n{}", describe(&st, cfg));
@@ -178,6 +188,11 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::GameMode => {
                 if st.game_mode.is_some() {
                     warn("Game Mode", game_mode::write(Some(1)));
+                }
+            }
+            Step::Dns => {
+                if let Some(d) = &st.dns {
+                    warn("DNS", network::boost(d));
                 }
             }
             Step::Priority => {
@@ -213,6 +228,11 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
             Step::GameMode => {
                 if let Some(g) = &st.game_mode {
                     check("Game Mode", game_mode::write(g.previous));
+                }
+            }
+            Step::Dns => {
+                if let Some(d) = &st.dns {
+                    check("DNS", network::restore(d));
                 }
             }
             Step::PowerPlan => {
@@ -309,7 +329,7 @@ mod tests {
             ..Default::default()
         };
         let d = describe(&st, &cfg);
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

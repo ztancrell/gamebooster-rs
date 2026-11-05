@@ -57,6 +57,7 @@ copy the whole window text and send it.
      `skipped (not on this machine)` is fine for the AMD PowerPlay, Wi-Fi and "unidentified hidden
      display" lines; anywhere else, note it.
    - `GameMode` / `  AutoGameModeEnabled = 1`
+   - `Dns` (nothing under it; `fastest_dns` is off by default)
    - `Priority` / `  set bf6.exe (pid ...) to High`. `could not set` means BF6's anti-cheat blocks it:
      note it, not fatal.
    - `Boosted. Run ...`
@@ -85,6 +86,7 @@ copy the whole window text and send it.
 13. Back to the BF6 main menu (keep the game running), Alt-Tab, then `.\gamebooster.exe restore`.
     Look for:
     - `Priority` / `  set bf6.exe (pid ...) to Normal`
+    - `Dns` (nothing under it)
     - `GameMode` / `  AutoGameModeEnabled = <old value>` (or `(deleted)` if it was absent)
     - `PowerPlan` / `  reactivated plan <the GUID from step 5>` / `  deleted plan gamebooster`
     - `Processes` / `  relaunched C:\...\OneDrive.exe`

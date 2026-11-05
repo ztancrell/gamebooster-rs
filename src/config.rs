@@ -27,6 +27,12 @@ pub struct Config {
     /// Process image names (e.g. "OneDrive.exe"), closed during a boost and relaunched on restore.
     #[serde(default)]
     pub close: Vec<String>,
+    /// On boost, switch the active adapter's IPv4 DNS to a public resolver if it's clearly faster.
+    #[serde(default)]
+    pub fastest_dns: bool,
+    /// Hosts `gamebooster ping` measures (TCP port 443).
+    #[serde(default = "crate::network::default_ping_hosts")]
+    pub ping_hosts: Vec<String>,
     #[serde(default, rename = "game")]
     pub games: Vec<Game>,
 }
@@ -117,7 +123,8 @@ mod tests {
     #[test]
     fn example_config_parses() {
         let cfg = Config::parse(include_str!("../gamebooster.example.toml")).unwrap();
-        assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim);
+        assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim && !cfg.fastest_dns);
+        assert_eq!(cfg.ping_hosts.len(), crate::network::DEFAULT_PING_HOSTS.len());
         assert!(cfg.services.is_empty() && cfg.close.is_empty());
         assert_eq!(cfg.games[0].exe, "bf6.exe");
         assert_eq!(cfg.games[0].priority, Priority::High);
