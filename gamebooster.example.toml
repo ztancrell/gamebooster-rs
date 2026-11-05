@@ -1,0 +1,36 @@
+# gamebooster config. Copy this file to gamebooster.toml next to gamebooster.exe and edit it.
+# Every tweak can be switched off on its own, so you can measure each one separately.
+# See docs/tweaks/ for what each tweak does and how to measure it.
+
+# Switch to the "gamebooster" power plan (copy of High performance) during a boost.
+power_plan = true
+
+# Make sure Windows Game Mode is on (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1).
+game_mode = true
+
+# Trim the RAM of every non-game process once. Only useful when RAM is nearly full. Not undoable.
+ram_trim = false
+
+# Services to stop during the boost (service *key* names, as `sc query` shows them, not the
+# display names). Running services that depend on them are stopped too; `--dry-run` lists them.
+# Empty by default: only add services you recognise. Suggestions:
+#   "WSearch"    Windows Search indexing
+#   "SysMain"    Superfetch / prefetching
+#   "DiagTrack"  Connected User Experiences and Telemetry
+#   "Spooler"    Print Spooler (if you don't print while playing)
+#   "wuauserv"   Windows Update (it may start again by itself)
+services = []
+
+# Apps to close during the boost (image names, as in Task Manager's Details tab). They are started
+# again on restore. Unsaved work in them is lost. Empty by default. Suggestions:
+#   "OneDrive.exe", "Dropbox.exe", "iCloudServices.exe", "Teams.exe", "Spotify.exe"
+# Launchers (EADesktop.exe, steam.exe), explorer.exe and Windows core processes are refused.
+close = []
+
+# Games to raise in CPU priority while they run. Priority: realtime, high, above_normal, normal,
+# below_normal, low. Use high; realtime can freeze input and audio.
+[[game]]
+# Battlefield 6. UNCERTAIN: bf6.exe is the expected name; check Task Manager's Details tab while
+# the game runs and fix this line if it differs.
+exe = "bf6.exe"
+priority = "high"
