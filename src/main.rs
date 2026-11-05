@@ -76,6 +76,8 @@ fn describe(st: &State, cfg: &Config) -> String {
             for (_, _, v, meaning) in power::SETTINGS {
                 out += &format!("      {meaning} (= {v})\n");
             }
+            let min = cfg.min_processor_state.unwrap_or(100);
+            out += &format!("      minimum processor state {min} % (= {min})\n");
             out += &format!("      {} (= {})\n", power::max_state_meaning(cfg.max_processor_state), cfg.max_processor_state);
         }
         None => out += "  power plan: off\n",
@@ -170,7 +172,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::Ram => println!("  off"),
             Step::PowerPlan => {
                 if let Some(p) = &st.power {
-                    warn("power plan", power::boost(p, cfg.max_processor_state));
+                    warn("power plan", power::boost(p, cfg.min_processor_state.unwrap_or(100), cfg.max_processor_state));
                 }
             }
             Step::GameMode => {
@@ -241,6 +243,15 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
     let active = power::active_scheme()?;
     println!("Active power plan: {active}{}", if active == power::OUR_PLAN { " (gamebooster)" } else { "" });
     println!("{}: {}", game_mode::VALUE, game_mode::read()?.map_or("(absent, Windows default = on)".into(), |v| v.to_string()));
+    match power::clock_under_load_mhz() {
+        Ok(mhz) => {
+            println!("CPU clock under load: {mhz:.0} MHz");
+            if power::looks_locked(mhz) {
+                println!("  warning: the CPU looks locked at its minimum clock, likely BD PROCHOT. See docs/tweaks/prochot.md");
+            }
+        }
+        Err(e) => println!("CPU clock under load: couldn't measure ({e})"),
+    }
     Ok(())
 }
 
@@ -298,7 +309,7 @@ mod tests {
             ..Default::default()
         };
         let d = describe(&st, &cfg);
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

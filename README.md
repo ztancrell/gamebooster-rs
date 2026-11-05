@@ -13,7 +13,7 @@ What a boost does, in this order (restore goes in reverse):
 3. **RAM trim** of all other processes (optional, off by default, not undoable).
 4. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
    active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; optionally
-   maximum 99 % to turn Intel Turbo Boost off). Restore
+   maximum 99 % to turn Intel Turbo Boost off, and a lower minimum for less heat). Restore
    reactivates your old plan and deletes ours.
 5. **Game Mode** on (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1`). Restore writes back
    the old value.
@@ -54,7 +54,7 @@ gamebooster restore
 |---|---|
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority (use this after starting the game). |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal. |
-| `status` | Prints the saved state (if boosted), the active power plan GUID and `AutoGameModeEnabled`. |
+| `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `--dry-run` | With `boost` or `restore`: print the plan, change nothing. |
 | `--config <file>` | Use another config file. |
 
@@ -69,6 +69,7 @@ Copy [gamebooster.example.toml](gamebooster.example.toml) to `gamebooster.toml` 
 |---|---|---|
 | `power_plan` | `true` | Use the gamebooster power plan. |
 | `max_processor_state` | `100` | Maximum processor state (%) in that plan, 5 to 100. `99` turns Intel Turbo Boost off (less heat and throttling, lower peak clocks); see [power plan](docs/tweaks/power-plan.md#optional-turbo-boost-off). |
+| `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). |

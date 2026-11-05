@@ -28,6 +28,13 @@
 //! Verify with `powercfg /query <guid> SUB_PROCESSOR PROCTHROTTLEMAX` (0x63 = 99) and HWiNFO's
 //! core clocks; see docs/tweaks/power-plan.md.
 //!
+//! **Optional: low minimum state.** The minimum processor state is 100 % unless the config sets
+//! `min_processor_state`. A low value (5) with `max_processor_state = 99` is the low-power combo for
+//! a Mac that gets stuck at 800 MHz by BD PROCHOT; see docs/tweaks/prochot.md.
+//!
+//! **800 MHz check.** `status` measures the real clock under one busy thread, like Task Manager:
+//! PDH `Processor Frequency` × `% Processor Performance` / 100. No driver needed.
+//!
 //! **How we do it.** We shell out to `powercfg.exe` instead of calling `powrprof.dll` directly:
 //! it is less code, the same commands are what you'd type by hand (see docs/tweaks/power-plan.md),
 //! and a setting the machine doesn't have simply makes `powercfg` fail, which we report as
@@ -51,11 +58,11 @@ const SUB_VIDEO: &str = "7516b95f-f776-4464-8c53-06167f40cc99";
 const VIDEO_BRIGHTNESS: &str = "aded5e82-b909-4619-9949-f5d71dac0bcb";
 const SUB_PROCESSOR: &str = "54533251-82be-4824-96c1-47b60b740d00";
 const PROC_MAX: &str = "bc5038f7-23e0-4960-96da-33abaf5935ec";
+const PROC_MIN: &str = "893dee8e-2bef-41e0-89c6-b55d0929964c";
 
-/// (subgroup, setting, value, meaning). Written for both AC and DC. The maximum processor state
-/// comes from the config instead, see [`max_state_meaning`].
+/// (subgroup, setting, value, meaning). Written for both AC and DC. The minimum and maximum
+/// processor states come from the config instead, see [`max_state_meaning`].
 pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
-    (SUB_PROCESSOR, "893dee8e-2bef-41e0-89c6-b55d0929964c", 100, "minimum processor state 100 %"),
     (SUB_PROCESSOR, "94d3a615-a899-4ac5-ae2b-e4d8f634367f", 1, "cooling policy: active (fans before throttling)"),
     ("501a4d13-42af-4429-9fd1-a8218c268e20", "ee12f906-d277-404b-b6da-e5fa1a576df5", 0, "PCIe link state power management off"),
     ("f693fb01-e858-4f00-b20f-f30e12ac06d6", "191f65b5-d45c-4a4f-8aae-1ab8bfd980e6", 1, "AMD ATI PowerPlay: maximize performance (AMD only)"),
@@ -76,6 +83,54 @@ pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
 /// How boost and --dry-run describe the maximum processor state.
 pub fn max_state_meaning(pct: u32) -> String {
     format!("maximum processor state {pct} %{}", if pct < 100 { " (Turbo Boost off)" } else { "" })
+}
+
+/// Under load the CPU should run far above its 800 MHz minimum; below this it looks locked there
+/// (BD PROCHOT on a Boot Camp MacBook Pro).
+pub fn looks_locked(mhz: f64) -> bool {
+    mhz < 1000.0
+}
+
+/// Real CPU clock in MHz while one thread busy-spins for about a second, as Task Manager computes
+/// it: `Processor Frequency` × `% Processor Performance` / 100 (PDH, no driver).
+#[cfg(windows)]
+pub fn clock_under_load_mhz() -> Result<f64, String> {
+    use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+    use windows_sys::Win32::System::Performance::*;
+    let ok = |what: &str, r: u32| if r == 0 { Ok(()) } else { Err(format!("{what} failed (PDH error 0x{r:08x})")) };
+    let stop = AtomicBool::new(false);
+    std::thread::scope(|sc| {
+        sc.spawn(|| {
+            while !stop.load(Relaxed) {
+                std::hint::spin_loop();
+            }
+        });
+        // SAFETY: plain PDH calls with valid out-pointers; the query is closed before returning.
+        // No `?` out of this block: the spinner must be stopped below or the scope never ends.
+        let r = unsafe {
+            let mut q = std::ptr::null_mut();
+            let r = ok("PdhOpenQuery", PdhOpenQueryW(std::ptr::null(), 0, &mut q)).and_then(|()| {
+                let mut c = [std::ptr::null_mut(); 2];
+                for (i, path) in [r"\Processor Information(_Total)\Processor Frequency", r"\Processor Information(_Total)\% Processor Performance"].iter().enumerate() {
+                    ok(path, PdhAddEnglishCounterW(q, crate::wide(path).as_ptr(), 0, &mut c[i]))?;
+                }
+                ok("PdhCollectQueryData", PdhCollectQueryData(q))?; // % Performance is a rate: needs two samples
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                ok("PdhCollectQueryData", PdhCollectQueryData(q))?;
+                let mut v = [PDH_FMT_COUNTERVALUE::default(); 2];
+                for i in 0..2 {
+                    ok("PdhGetFormattedCounterValue", PdhGetFormattedCounterValue(c[i], PDH_FMT_DOUBLE, std::ptr::null_mut(), &mut v[i]))?;
+                }
+                Ok(v[0].Anonymous.doubleValue * v[1].Anonymous.doubleValue / 100.0)
+            });
+            if !q.is_null() {
+                PdhCloseQuery(q);
+            }
+            r
+        };
+        stop.store(true, Relaxed);
+        r
+    })
 }
 
 /// First GUID in `powercfg` output, lowercased (e.g. from "Power Scheme GUID: 381b...  (Balanced)").
@@ -135,15 +190,16 @@ pub fn plan() -> Result<PowerState, String> {
 }
 
 #[cfg(windows)]
-pub fn boost(st: &PowerState, max_state: u32) -> Result<(), String> {
+pub fn boost(st: &PowerState, min_state: u32, max_state: u32) -> Result<(), String> {
     delete_ours()?;
     if powercfg(&["/duplicatescheme", HIGH_PERFORMANCE, OUR_PLAN]).is_err() {
         println!("  High performance plan missing, copying Balanced instead");
         powercfg(&["/duplicatescheme", BALANCED, OUR_PLAN])?;
     }
     powercfg(&["/changename", OUR_PLAN, "gamebooster", "Temporary plan created by gamebooster; removed by `gamebooster restore`."])?;
-    let max_meaning = max_state_meaning(max_state);
+    let (min_meaning, max_meaning) = (format!("minimum processor state {min_state} %"), max_state_meaning(max_state));
     let mut values: Vec<(&str, &str, u32, u32, &str)> = SETTINGS.iter().map(|&(g, s, v, m)| (g, s, v, v, m)).collect();
+    values.push((SUB_PROCESSOR, PROC_MIN, min_state, min_state, &min_meaning));
     values.push((SUB_PROCESSOR, PROC_MAX, max_state, max_state, &max_meaning));
     if let Some((ac, dc)) = st.brightness {
         values.push((SUB_VIDEO, VIDEO_BRIGHTNESS, ac, dc, "keep current display brightness"));
@@ -214,11 +270,17 @@ mod tests {
         }
         assert_eq!(parse_guid(OUR_PLAN).as_deref(), Some(OUR_PLAN));
         assert_eq!(parse_guid(PROC_MAX).as_deref(), Some(PROC_MAX));
+        assert_eq!(parse_guid(PROC_MIN).as_deref(), Some(PROC_MIN));
     }
 
     #[test]
     fn max_state_says_turbo_off_below_100() {
         assert_eq!(max_state_meaning(100), "maximum processor state 100 %");
         assert_eq!(max_state_meaning(99), "maximum processor state 99 % (Turbo Boost off)");
+    }
+
+    #[test]
+    fn clock_lock_threshold() {
+        assert!(looks_locked(798.0) && !looks_locked(2300.0) && !looks_locked(1000.0));
     }
 }

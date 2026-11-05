@@ -10,6 +10,13 @@ power_plan = true
 # throttling on a hot MacBook Pro, often steadier frame times. Range 5-100.
 max_processor_state = 100
 
+# Minimum processor state (%) in that plan, 0-100, never above max_processor_state. Unset = 100:
+# cores never clock down (lowest latency, most heat). If `gamebooster status` warns that the CPU is
+# locked at 800 MHz (BD PROCHOT, see docs/tweaks/prochot.md), try the low-power combo:
+#   min_processor_state = 5
+#   max_processor_state = 99
+# min_processor_state = 5
+
 # Make sure Windows Game Mode is on (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1).
 game_mode = true
 

@@ -22,7 +22,7 @@ The cost: more heat, more fan noise, shorter battery life. That's why restore sw
 
 | Subgroup | Setting | Value |
 |---|---|---|
-| Processor `54533251-82be-4824-96c1-47b60b740d00` | Minimum processor state `893dee8e-2bef-41e0-89c6-b55d0929964c` | 100 |
+| Processor `54533251-82be-4824-96c1-47b60b740d00` | Minimum processor state `893dee8e-2bef-41e0-89c6-b55d0929964c` | `min_processor_state` from the config, default 100 ([low-power combo](#optional-low-minimum-state)) |
 | Processor | Maximum processor state `bc5038f7-23e0-4960-96da-33abaf5935ec` | `max_processor_state` from the config, default 100 ([Turbo Boost off](#optional-turbo-boost-off) below 100) |
 | Processor | System cooling policy `94d3a615-a899-4ac5-ae2b-e4d8f634367f` | 1 (active) |
 | PCI Express `501a4d13-42af-4429-9fd1-a8218c268e20` | Link state power management `ee12f906-d277-404b-b6da-e5fa1a576df5` | 0 (off) |
@@ -118,3 +118,24 @@ powercfg /setactive SCHEME_CURRENT
 - CapFrameX in the same BF6 scene, 3 runs at 100 and 3 at 99 (change the config value, then
   `gamebooster restore` and `gamebooster boost`): compare the 1 % lows and the frame-time graph,
   not only the average FPS.
+
+## Optional: low minimum state
+
+**What it is.** `min_processor_state` (0 to 100, never above `max_processor_state`) replaces the
+100 % minimum above. Unset keeps 100 %, as SGB does. A low minimum lets idle cores clock down and
+park again, which cuts heat and power draw between frames.
+
+**When to use it.** If `gamebooster status` warns that the CPU looks locked at its minimum clock
+(about 800 MHz under load, usually BD PROCHOT on a Boot Camp MacBook Pro, see
+[prochot.md](prochot.md)), the low-power combo draws the least power while boosted:
+
+```toml
+min_processor_state = 5
+max_processor_state = 99   # Turbo Boost off
+```
+
+**Trade-off.** Clocks ramp up per burst again, so frame-time spikes can come back; this is for a
+machine that overheats or hits PROCHOT, not for one that runs fine at 100 %.
+
+**Try and undo by hand:** as for Turbo Boost above, with `PROCTHROTTLEMIN 5` (undo: `100`); check
+with `powercfg /query SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN` (0x05 = 5).
