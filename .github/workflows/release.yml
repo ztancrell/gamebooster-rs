@@ -6,6 +6,8 @@ name: release
 on:
   push:
     branches: [main]
+    # Only rebuild when something inside the exe changed (docs/decomp pushes don't).
+    paths: [src/**, build.rs, Cargo.toml, Cargo.lock, capture/*.ps1, gamebooster.example.toml, .github/workflows/release.yml]
   workflow_dispatch:
 
 permissions:
