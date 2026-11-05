@@ -4,6 +4,33 @@ Every tweak has to earn its place on the target Mac (DESIGN.md): `gamebooster be
 game's frame times, and `gamebooster bench compare` says whether two runs really differ or only
 by run-to-run noise.
 
+## Status
+
+Not complete: `bench` does not work yet on the target Mac. First Windows test, 2026-11-05 (Boot Camp
+MacBook Pro, elevated PowerShell, account in Administrators and Performance Log Users):
+
+- `gamebooster bench` fails: PresentMon 2.6.0 reports `failed to start trace session: access denied`.
+- Running PresentMon directly fails the same way, with BF6 running and also when targeting
+  explorer.exe. A fresh `--session_name` doesn't help, and no stuck PresentMon session exists
+  (`logman query -ets`).
+- Even Windows' own `logman start gbprobe -p Microsoft-Windows-DxgKrnl -ets` is refused with
+  "Access is denied" in the elevated window.
+- `EAAntiCheatService` (EA Javelin) was still running with BF6 closed.
+
+Suspected cause, not yet confirmed: the EA anti-cheat blocks new ETW trace sessions system-wide
+while its service runs. Confirmation test (pending): in an elevated PowerShell,
+`Stop-Service EAAntiCheatService`, then retry the `logman` probe above and PresentMon.
+
+If confirmed, no ETW-based tool (PresentMon, CapFrameX, FrameView) can measure BF6 while it runs.
+Options under consideration:
+
+- BF6's own performance overlay, read by eye.
+- Counting screen updates via Desktop Duplication (capped at the display refresh, 60 Hz on the
+  MacBook).
+- Measuring a game without this anti-cheat.
+
+The rest of this page describes `bench` as built; it works only where ETW capture is allowed.
+
 ## Commands
 
 Run as administrator (PresentMon reads Windows' ETW events, which needs admin), with the game

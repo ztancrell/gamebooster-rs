@@ -34,6 +34,8 @@ nothing. See [network](docs/tweaks/network.md).
 
 Separately, `gamebooster bench` records the game's frame times with Intel PresentMon and
 `bench compare` tells a real difference from run-to-run noise. See [Measuring](#measuring).
+Status: not working yet on the target Mac (BF6's anti-cheat appears to block the capture); see
+[docs/measuring.md](docs/measuring.md).
 
 Details, defaults, manual commands and how to measure each one: [docs/tweaks/](docs/tweaks/README.md).
 The behaviour follows [docs/spec.md](docs/spec.md).
@@ -105,7 +107,7 @@ gamebooster ping
 | `update` | Downloads the latest `gamebooster.exe` from the `latest` release and replaces this one; prints old -> new version. No admin needed if you can write to the exe's folder. |
 | `snapshot <out.json>` | Saves a read-only snapshot of system state (runs the built-in copy of [capture/snapshot.ps1](capture/snapshot.ps1) with Windows PowerShell). See [capture](capture/README.md). |
 | `compare <before.json> <after.json>` | Prints what changed between two snapshots (built-in [capture/compare.ps1](capture/compare.ps1)). |
-| `bench [seconds] [--label <name>]` | Records the first running `[[game]]` for 60 s (10 to 3600) with PresentMon and saves `bench\<date>_<time>_<label>.json` (stats, per-10-s FPS, boosted or not, config) and the raw CSV next to gamebooster.exe. Admin. Downloads PresentMon once into `tools\`. See [Measuring](#measuring). |
+| `bench [seconds] [--label <name>]` | Records the first running `[[game]]` for 60 s (10 to 3600) with PresentMon and saves `bench\<date>_<time>_<label>.json` (stats, per-10-s FPS, boosted or not, config) and the raw CSV next to gamebooster.exe. Admin. Downloads PresentMon once into `tools\`. See [Measuring](#measuring). Not working yet on the target Mac (see Measuring). |
 | `bench compare <a.json> <b.json>` | Prints two bench runs side by side, the config keys that differ, and whether the avg FPS and 1 % low differences are real or within run-to-run noise. |
 | `--version` | Prints the version and the git commit it was built from. |
 | `--dry-run` | With `boost` or `restore`: print the plan, change nothing. |
@@ -116,6 +118,9 @@ Boost and restore without `--dry-run`, and bench, refuse to run without administ
 ## Measuring
 
 Every tweak should show a measurable gain on the target Mac, or be documented as not helping.
+Status: not working yet on the target Mac (BF6's anti-cheat appears to block the capture); see
+[docs/measuring.md](docs/measuring.md).
+
 With the game running in a match, in an administrator terminal:
 
 ```bat

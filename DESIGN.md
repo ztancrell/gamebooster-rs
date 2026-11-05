@@ -15,6 +15,8 @@ Windows via Boot Camp, playing BF6.
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
 - Automatic boost mode (boost when a configured game starts, restore when the last one exits)?
   Deferred 2026-11-05.
+- How to measure BF6 when its anti-cheat blocks ETW capture (bench incomplete, 2026-11-05): confirm
+  the cause, then choose BF6 overlay / screen-update counting / another game.
 
 ## Decided
 
@@ -41,7 +43,7 @@ Windows via Boot Camp, playing BF6.
   DC) from the previous plan, like brightness, instead of SGB's "lid does nothing".
 - 2026-11-05: Every tweak must be measurable: keep what helps on the target Mac, document what
   doesn't. `gamebooster bench` records frame times (PresentMon, no injection) and compares runs
-  with run-to-run noise accounted for.
+  with run-to-run noise accounted for. (Status: incomplete, see Open questions)
 - 2026-11-05: While boosted, opt the running game out of Windows power throttling (EcoQoS)
   (`game_power_throttling_off`, default on: harmless and process-scoped, nothing stored). Applied
   with game priority; restore hands control back to Windows. No timer-resolution flag. From the

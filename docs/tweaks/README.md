@@ -8,6 +8,7 @@ Boost applies them in this order; restore undoes them in reverse.
 
 Measured on the target Mac: to be filled in from `gamebooster bench` runs
 ([measuring](../measuring.md)); until then the impact column is an expectation, not a result.
+Measurement is blocked for BF6 for now: its anti-cheat appears to block `bench`'s capture ([measuring](../measuring.md#status)).
 
 | # | Tweak | Config switch | Module | Likely impact on BF6 / Boot Camp | Measured on the target Mac |
 |---|---|---|---|---|---|

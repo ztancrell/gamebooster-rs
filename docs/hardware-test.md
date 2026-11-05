@@ -93,6 +93,9 @@ copy the whole window text and send it.
     - Timer resolution and Memory changes are noise; ignore them.
 12. Play a round or two. Note: does it feel the same as with SGB boosted, better or worse? Any
     crash or anti-cheat kick?
+    Currently fails (2026-11-05): PresentMon reports `failed to start trace session: access
+    denied`; BF6's anti-cheat (EAAntiCheatService) appears to block ETW capture, see
+    [measuring](measuring.md#status). Run the step anyway and copy the output.
     Then, in a match, measure (see [measuring](measuring.md)): Alt-Tab, run
     `.\gamebooster.exe bench 30`, switch back to the game within a couple of seconds and keep
     playing the same way until it finishes. The first time it downloads PresentMon into
@@ -125,7 +128,7 @@ copy the whole window text and send it.
     registry, BCD and Windows Update. Under Processes, OneDrive and SearchIndexer show as `stopped`
     and `started` with new pids (they were restarted); that's fine. Anything else under Power, Services or Registry is a
     failure.
-    Optional, for a first comparison: back in a match, run `.\gamebooster.exe bench 30` once
+    Optional (blocked like step 12 for now), for a first comparison: back in a match, run `.\gamebooster.exe bench 30` once
     more (now unboosted, labelled `normal`), then
     `.\gamebooster.exe bench compare bench\<the normal .json> bench\<the boosted .json>`.
     Look for: the side-by-side table and two `B - A = ...` lines. One pair of runs is only a smoke
