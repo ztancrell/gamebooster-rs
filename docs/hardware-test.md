@@ -159,7 +159,7 @@ What each part of `sgb-diff-boost.txt` answers (spec section 8 unless noted):
 | Services, `Running -> Stopped` | The default service list. |
 | Services, part after `/` changes (e.g. `Auto -> Manual` or `(delayed)`) | Whether SGB changes start types (ChangeServiceConfig). Also check `sgb-diff-restore.txt`: is it undone? |
 | Processes, `stopped:` | The default process list. |
-| Processes, `priority:` lines for anything but BF6 | Whether A10 lowers other processes (TPriorityController). |
+| Processes, `priority:` lines for anything but BF6 | Not expected: TPriorityController is never called (spec 2.4a). Any such line would contradict that. |
 | Processes, BF6 `priority:` line | Which priority SGB actually sets. |
 | Memory | Only that the RAM trim ran. EmptyWorkingSet vs SetProcessWorkingSetSize and the skip list can't be seen here. |
 | Registry, any line other than `AutoGameModeEnabled` | Registry values written beyond Game Mode. MMCSS (`SystemProfile`, incl. `SystemResponsiveness`, `NetworkThrottlingIndex`) and `PriorityControl :: Win32PrioritySeparation` should stay unchanged (spec says ruled out). |

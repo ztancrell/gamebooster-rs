@@ -54,7 +54,8 @@ Processes that have exited are skipped. Boost and restore print one line each, f
 `lowered 23 processes to below normal (4 skipped: access denied)`; failures never stop the boost.
 `--dry-run` lists the processes it would lower.
 
-Smart Game Booster does the same with Idle (spec 2.4a). Idle is aggressive: an Idle app only runs
+Smart Game Booster 6.0 has code that would do the same with Idle, but never calls it (spec 2.4a;
+Superseded: this page said SGB does it). Idle is aggressive: an Idle app only runs
 when nothing else wants the CPU, so voice chat, music or a stream can stutter while the game is
 busy. Below normal still yields to the game but keeps those apps responsive.
 

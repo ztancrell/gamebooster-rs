@@ -147,3 +147,55 @@ hardware upload, `gethot.php`), `ascstats.pcgameboost.com/active.php`, `ascstats
 Geo-IP: `ip-api.com/json/`, `ipinfo.io`. Updates: `update.pcgameboost.com`, `update.superbgameboost.com`.
 Download lists: `s3.amazonaws.com/myfilelist/list-*`, `storage.googleapis.com/myfilelist/list-*`
 (lists for other iTop/IObit products: itop, ivc, pdf, dpm, ied, smgb).
+
+## Cleaners, System Tweak scanner, and who calls TPriorityController (2026-11-05, REA/Ghidra + `dis.py`)
+
+Plain-language version: `docs/sgb/cleaners.md`. Templates: `PriTemp.dbd` (password `[redacted]`) decodes
+with `../SgbData/dbd/dbd_decode.py` into `junkfile.db` (165 INI sections) and `privacy.db` (365); not
+committed, regenerate. `Junk.dbd`, `RZJunk.dbd`, `SDJunk.dbd` are named in code (0x847470…) but not shipped.
+
+**TPriorityController.Boost has no caller** (`0x7c8acc_TPriorityController_no_Boost_caller.asm`). The dword
+0x7c4278 appears only in the VMTs of TPsPriorityBoost (0x7c33d4) and TPriorityController (0x7c445c),
+which share every slot. The only instance is TBoost+0xa0 (created 0x7c676a). Every read of +0xa0 is the
+destructor, the stop-flag setters (0x7c6dc9, 0x7c6e5d), the callback setter (0x7c88fe) and three
+accessors used only by the Boost settings dialog (0x7cf4c8, 0x7cf51b, 0x7d26ff): `[Boost] Priority`
+(on/off, default 1) and `[Boost] PriorityClass` (default 3). TBoost.Execute dispatches +0x84…+0x9c,
++0xa4, +0xa8 and skips +0xa0. So the "lower others to IDLE" code is dead and the game-exclusion
+question is moot (the list builder 0x7c3a9c has no game exclusion anyway). SgbTray.exe imports
+SetPriorityClass/GetPriorityClass and reads the same two keys (strings, `-db` copy): most likely where
+the game's own class is set. Not read in code.
+
+**Junk / privacy engine** (`TJunkfilesThread`, `TPrivacyThread`; same structure).
+
+| Step | Code | What |
+|---|---|---|
+| Template | parser strings 0x859200… (junk), 0x885af4… (privacy) | Per section: `KindID` (tree group), `Recommended`, `CheckFile`/`CheckReg` (is the app present), `DelFile` (`dir|mask[|RECURSE]`), `DelReg` (key or value), `ExcludeFile`, `SpecialChecked`/`SpecialDelete` (built-in handlers such as `WIN_RECYCLEBIN`, `GC_SAVEPASSWORDS`), `DllName/DllScan/DllFix` (only `DriverClean.dll`), `WarnSec`. |
+| Scan | `SelfScan` 0x84787c, `AnalyzeAndScan` ~0x849d00 | Enumerates the template paths (32-bit and, separately, x64 views), records files with sizes and existing keys/values. Browser history/cookies are cleaned with SQL (`delete from urls/visits/cookies/moz_places…`, 0x87ad14–0x88356c). No call to `Random` (0x40372c, 36 callers) anywhere in 0x841000–0x88a000; the `Sleep`s there are 10–100 ms waits in loops. |
+| Fix | `SelfFix` 0x848244 → `FixItem` 0x84866c (`0x848244_…`, `0x84866c_…asm`) | Enables SeBackup/SeRestore and loads **other users' `ntuser.dat` hives** (0x82b97c, RegLoadKeyW) so their keys are cleaned too. Files: skipped if gone or excluded; if in use (0x8346e4, exclusive CreateFileW) → `MoveFileExW(DELAY_UNTIL_REBOOT)` (0x834270) and the "(Delete on Restart)" list; else delete (0x834da8, optional overwrite passes = "Secure Deletion"), failure → reboot list. Keys/values: if a backup stream is open, exported as `.reg` text first (0x8405a0, 0x840d18), then deleted; failures go to a fail list. |
+| Report | 0x85da60 (`0x85da60_JunkResult_fixed_count.asm`) | "N items fixed" = number of ticked result rows (0x85db3d); size = sum of scan-time sizes of the ticked results (0x85db8f). Not reduced by failures or reboot-deferred files. |
+
+Inflation, precisely: (1) the post-clean "fixed" count and size are the selection, not a measured
+result; (2) files in use are counted as cleaned although they are only queued for the next reboot
+(labelled "(Delete on Restart)" in the list); (3) registry `DelReg` items (MRU lists, UserAssist,
+tray/menu caches) are counted as items alongside files. No evidence of invented items or of a scan that
+does not look at the disk. Template defaults (`Recommended`): junk 140 of 164 = 1, including
+`WindowsDownloadsFolder` (`WIN_Downloads`, scan 0x850cb8 not read in detail) and `WinInstaller`
+("Windows Installer Unused Files"); privacy: every cookies, saved-passwords and saved-form-data item = 0
+(except `Edge - Session` and `TD - Session` = 1). Whether `Recommended` sets the initial tick was not
+traced in UI code.
+
+**Registry cleaner**: none. No invalid-reference scanner strings (SharedDLLs, MUICache, ActiveX/COM,
+"invalid entries"); the only registry deletions are the cleaner templates above.
+
+**System Tweak scanner** (`TSysSpeedBusiness`, data `SysSpeed.ini`/`GB3.ini` from `SysSpeed.dbd`):
+
+- Issue test 0x8a1bd0 (`0x8a1bd0_TSysSpeedBusiness_IsNotOptimized.asm`): open the key with
+  `TRegistry.OpenKey(key, CanCreate=True)` (`mov cl,1` 0x8a1da5; 0x4abcb0 → RegCreateKeyExW), so **the scan
+  creates missing keys**. Value missing → issue unless `OptVal=Delete`. `CompareStr`: issue if current ≠
+  OptVal. `CompareMath`: issue if OptVal < current. So any value left at Windows' default (usually absent)
+  counts as an issue.
+- Backup 0x8a4d90 (`0x8a4d90_…asm`): before writing, the current value (or `NULL` if absent, 0x8a3420) is
+  saved as `OptValBefore` in `Tweaks.ini`. Restore 0x8a477c writes it back via 0x8a4be4 → 0x8a65c4
+  (`NULL`/`Delete` → DeleteValue). Internet Booster and Startup Manager keep their own records
+  (`Internet Booster\Config.ini`, `Startup Manager\OptimizeRecord.ini`, `TTweaksFrame.Restore` 0x90fbbc).
+- `Logs\Registry.log` (0x6cbcbc, fn ~0x6cbb10) is a log, not a backup.

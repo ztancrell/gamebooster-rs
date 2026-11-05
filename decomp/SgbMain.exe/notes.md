@@ -108,6 +108,8 @@ New files: `0x7c4278_TPriorityController_Boost_Restore_IDLE.asm`, `0x7b7768_RAMC
   itself is not explicitly excluded in this function. Unknown: whether the game is filtered out
   before this point (for example by A10 running before the game starts), and who triggers the
   virtual Boost (TBoost.Execute does not touch +0xa0; only settings load/save do, at 0x7c8acc–0x7c8b1d).
+  Superseded: answered in `features.md` (Cleaners section): nothing calls it. Boost/Restore of
+  TPriorityController are dead code; the object only stores `[Boost] Priority`/`PriorityClass`.
 - **RAM (high confidence): SetProcessWorkingSetSize(h, -1, -1), not EmptyWorkingSet.** TRAMClear Boost
   0x7b78a4 → 0x7b7768. It walks every process in a Toolhelp snapshot, skips the 31 Symantec names
   (table 0xa4b7b0: BHCA.exe, ccSvcHst.exe, Checksum.exe, ControlAP.exe, DevViewer.exe, DoScan.exe,

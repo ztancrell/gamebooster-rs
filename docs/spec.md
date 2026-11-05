@@ -164,15 +164,22 @@ PROCESS_QUERY_INFORMATION. SGB loads EmptyWorkingSet but never calls it.
 
 ### 2.4a Other processes' priority (part of A10)
 
-SGB's TPriorityController lowers **other** processes to IDLE_PRIORITY_CLASS (0x40) while boosted.
-Before changing anything it saves each one's current class, and Restore writes the saved classes back.
-Targets are processes owned by the current user, except: `explorer.exe`, `steam.exe` and every child
-of steam.exe, `SgbTray.exe`, `SgbMain.exe`, `SgbMini.exe`, SGB's own exe, and the 31 Symantec
-processes. Ours should do the same, should also exclude the game, its launcher and their children,
-and should be opt-in. IDLE is aggressive (background apps such as voice chat get very little CPU),
-so a configurable class (default BELOW_NORMAL) is a safer choice than copying SGB.
+SGB 6.0 contains code (TPriorityController) that would lower **other** processes to
+IDLE_PRIORITY_CLASS (0x40), saving each one's class first so Restore can write it back. Its targets
+would be processes owned by the current user, except `explorer.exe`, `steam.exe` and every child of
+steam.exe, `SgbTray.exe`, `SgbMain.exe`, `SgbMini.exe`, SGB's own exe and the 31 Symantec processes;
+the game is **not** excluded. But **nothing in SgbMain ever calls it**: Boost dispatch skips the
+object, and the object is only used by the Boost settings dialog to store `[Boost] Priority` (on/off)
+and `[Boost] PriorityClass` (default 3), the "Set the priority of game when running" option (evidence:
+`decomp/SgbMain.exe/0x7c8acc_TPriorityController_no_Boost_caller.asm`). The game-priority setting is
+probably applied by `SgbTray.exe`, which imports SetPriorityClass and reads the same two keys (strings
+only). So lowering other processes is **not** something SGB does; ours is an extra.
+Ours: opt-in, a configurable class (default BELOW_NORMAL, IDLE starves voice chat and similar), and it
+excludes the game, its launcher and their children.
 Implemented as `lower_others` (opt-in, only processes at NORMAL, PID-reuse-safe restore); see
 [docs/tweaks/priority.md](tweaks/priority.md#lower-other-processes).
+Superseded: this section used to say SGB lowers other processes to IDLE while boosted. The code
+exists but has no caller (decomp/SgbMain.exe/notes.md, second pass, left that open).
 
 ### 2.5 Windows automatic updates (A8)
 
@@ -266,7 +273,7 @@ does not use it, and **no kernel driver is needed** for anything in this spec.
 Fill these from a `capture/` diff (snapshot before and after Boost on the real machine):
 
 - Superseded (answered by static analysis, see decomp/SgbMain.exe/notes.md, second pass): services
-  are never set to Disabled or Manual (2.2); A10 lowers other processes to IDLE (2.4a); A5 uses
+  are never set to Disabled or Manual (2.2); A10's "lower other processes to IDLE" code is never called (2.4a, superseded); A5 uses
   SetProcessWorkingSetSize(-1, -1) and skips only the Symantec list (2.4); the GUID
   `{58231417-…}` is only a lookup key. The "protector" that seemed to hide API calls did not exist:
   it was an extraction error, and every API call site can now be traced.
@@ -274,10 +281,10 @@ Fill these from a `capture/` diff (snapshot before and after Boost on the real m
   boost; A11 is a no-op; A1 saves VCP 0xDC/0x14/0x10/0x12 to `Monitor.ini`; A2 goes through
   `OverDrive.dll` within the driver's range; A6 is a plain clear. See `decomp/SgbMain.exe/features.md`
   and `docs/sgb/`.
-- What triggers TPriorityController's Boost (the boost dispatcher doesn't call it), and whether the
-  game is excluded before its process list is built. Also, the only SetPriorityClass call in SgbMain
-  sets IDLE or restores a saved class, and no code was found that sets the game to the user's
-  chosen class (A10). That may happen in another binary or through another API; unknown.
+- Superseded (answered): nothing calls TPriorityController's Boost; it is dead code, and the game was
+  never excluded from its list (2.4a). Still open: where the game's own class (A10, `[Boost]
+  PriorityClass`) is applied. SgbMain's only SetPriorityClass call is in the dead code, so most likely
+  in `SgbTray.exe` (imports SetPriorityClass, reads the same keys; not read in code).
 - Superseded: the default service list per Windows version
   is now known (plain-text `WinSvc.ini`, see 2.2 and `decomp/SgbData/README.md`).
 - The default process list. The installer ships no default `ProcWL.txt`/`ProcBL.txt` (SgbInit would
@@ -338,6 +345,7 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 | Win32PrioritySeparation is read only (diagnostics) | decomp/SgbMain.exe/0x473324_SysInfo_Win32PrioritySeparation_log.asm |
 | No timer-resolution, affinity, MMCSS, network-throttling APIs or strings | SgbMain import table and string tables (searched for timeBeginPeriod, NtSetTimerResolution, SetProcessAffinityMask, SystemProfile, NetworkThrottlingIndex, SystemResponsiveness, SetSystemFileCacheSize) |
 | Other processes lowered to IDLE (0x40), saved class restored; exclusions | decomp/SgbMain.exe/0x7c4278_TPriorityController_Boost_Restore_IDLE.asm (0x7c42e1 mov ecx,0x40 → SetPriorityClass at 0x7c34d5; list built at 0x7c3a9c) |
+| ...but that Boost has no caller (dead code); the object only stores `[Boost] Priority`/`PriorityClass` | decomp/SgbMain.exe/0x7c8acc_TPriorityController_no_Boost_caller.asm (VMT refs only; TBoost+0xa0 never dispatched by 0x7c6f0c) |
 | RAM: SetProcessWorkingSetSize(-1,-1), Symantec skip list; EmptyWorkingSet never called | decomp/SgbMain.exe/0x7b7768_RAMClear_SetProcessWorkingSetSize.asm (0x7b781f; table 0xa4b7b0; pointer 0xa5e6a4 written only) |
 | No start-type change in service boost | decomp/SgbMain.exe/0x5bf498_ChangeServiceConfigW_callers_not_boost.asm (all 3 call sites: 0x5bf498, 0x81c667, 0x9c63b2) |
 | GUID {58231417-…} is a lookup key | decomp/SgbMain.exe/0x7b8349_GameScheme_GUID_PowerMgr_lookup.asm (CLSIDFromString 0x100017ab, compare 0x10002250, duplicate with NULL GUID 0x10001950) |
