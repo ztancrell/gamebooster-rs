@@ -1,7 +1,7 @@
 //! The TOML config file: which games to prioritise, which services to stop, which apps to close,
 //! and on/off switches for each tweak (so you can measure them one at a time).
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -60,8 +60,20 @@ pub struct Config {
     /// Probes per host for `ping` (TCP connects) and per hop for `ping --route` (ICMP echoes).
     #[serde(default = "ten")]
     pub ping_samples: usize,
+    /// How game priority is set: `process` (SetPriorityClass on the running game) or `registry`
+    /// (IFEO `PerfOptions\CpuPriorityClass`, applied by Windows when the game starts).
+    #[serde(default)]
+    pub game_priority_method: PriorityMethod,
     #[serde(default, rename = "game")]
     pub games: Vec<Game>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PriorityMethod {
+    #[default]
+    Process,
+    Registry,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,7 +84,7 @@ pub struct Game {
     pub priority: Priority,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Priority {
     Realtime,
@@ -162,6 +174,9 @@ impl Config {
                 return Err(format!("{name} is a protected process and can't be closed or re-prioritised"));
             }
         }
+        if let Some(g) = cfg.games.iter().find(|g| cfg.game_priority_method == PriorityMethod::Registry && crate::priority::cpu_priority_class(g.priority).is_none()) {
+            return Err(format!("{}: priority = \"realtime\" can't be set with game_priority_method = \"registry\" (Windows ignores it there)", g.exe));
+        }
         if let Some(g) = cfg.close.iter().find(|c| cfg.is_game(c)) {
             return Err(format!("{g} is listed both as a game and under `close`"));
         }
@@ -171,6 +186,11 @@ impl Config {
     pub fn load(path: &std::path::Path) -> Result<Config, String> {
         let text = std::fs::read_to_string(path).map_err(|e| format!("can't read config {}: {e}", path.display()))?;
         Config::parse(&text).map_err(|e| format!("config {}: {e}", path.display()))
+    }
+
+    /// Process method: SetPriorityClass on the running game (registry method: Windows does it).
+    pub fn process_priority(&self) -> bool {
+        self.game_priority_method == PriorityMethod::Process
     }
 
     pub fn is_game(&self, exe: &str) -> bool {
@@ -198,6 +218,11 @@ mod tests {
         assert!(Config::parse("lower_others_mode = \"always\"").is_err());
         assert_eq!(cfg.games[0].exe, "bf6.exe");
         assert_eq!(cfg.games[0].priority, Priority::High);
+        assert_eq!(cfg.game_priority_method, PriorityMethod::Process);
+        assert_eq!(Config::parse("game_priority_method = \"registry\"").unwrap().game_priority_method, PriorityMethod::Registry);
+        assert!(Config::parse("game_priority_method = \"ifeo\"").is_err());
+        assert!(Config::parse("game_priority_method = \"registry\"\n[[game]]\nexe = \"x.exe\"\npriority = \"realtime\"").is_err());
+        assert!(Config::parse("[[game]]\nexe = \"x.exe\"\npriority = \"realtime\"").is_ok());
     }
 
     /// The commented-out suggested `services` block parses once uncommented as its header says.

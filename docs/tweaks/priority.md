@@ -37,6 +37,38 @@ Task Manager > Details > right-click `bf6.exe` > Set priority > High. Or in Powe
 
 Windows forgets the priority when the game exits; that is also an undo.
 
+## Registry method
+
+`game_priority_method = "registry"`. For anti-cheats that refuse `SetPriorityClass` from outside
+(BF6's EA Javelin: boost prints `could not set bf6.exe (pid ...) to High: Access is denied. (os
+error 5)` while power throttling off still works).
+
+**What it does.** On boost, for each `[[game]]`, writes the DWORD
+`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<exe>\PerfOptions\CpuPriorityClass`
+(1 = low/Idle, 2 = normal, 3 = high, 5 = below_normal, 6 = above_normal; `realtime` is refused by
+the config). Windows applies it itself when the game starts, so nothing opens the game process.
+It takes effect the next time the game starts: if the game is running at boost, restart it.
+The process method's `SetPriorityClass` is skipped; power throttling off still applies to the
+running game.
+
+**Restore.** The state file records, per game, whether the `<exe>` key and `PerfOptions` existed and
+the old value. Restore writes the old value back (or deletes it), then deletes `PerfOptions` and
+the `<exe>` key only if boost created them and they are empty. Other IFEO values (Debugger,
+MitigationOptions, ...) are never touched. A running game keeps its priority until it exits.
+
+**Risk.** Low but nonzero: IFEO is also where debuggers and mitigations are configured, and an
+anti-cheat could object to any entry for its game. Watch for launch errors; if BF6 won't start,
+run `gamebooster restore`.
+
+**By hand.**
+
+```
+reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\bf6.exe\PerfOptions" /v CpuPriorityClass /t REG_DWORD /d 3 /f
+reg delete "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\bf6.exe\PerfOptions" /f
+```
+
+(The delete removes the whole `PerfOptions` key; only use it if it didn't exist before.)
+
 ## Measure
 
 - Task Manager > Details, column "Base priority" (right-click a column header > Select columns).

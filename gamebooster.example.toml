@@ -175,6 +175,16 @@ services = []
 # Launchers (EADesktop.exe, steam.exe), explorer.exe and Windows core processes are refused.
 close = []
 
+# How game priority is set:
+#   "process"  (default) SetPriorityClass on the running game. Some anti-cheats (BF6's EA Javelin)
+#              refuse it: boost then prints "could not set bf6.exe ... Access is denied".
+#   "registry" writes HKLM\...\Image File Execution Options\<exe>\PerfOptions\CpuPriorityClass on
+#              boost; Windows applies it when the game starts, so the anti-cheat never sees a
+#              process access. Takes effect at the next game start (restart a running game).
+#              Restore puts the registry back exactly. Low but nonzero risk that an anti-cheat
+#              objects to IFEO entries: watch for launch errors. realtime is not allowed here.
+# game_priority_method = "registry"
+
 # Games to raise in CPU priority while they run. Priority: realtime, high, above_normal, normal,
 # below_normal, low. Use high; realtime can freeze input and audio.
 [[game]]

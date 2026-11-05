@@ -286,6 +286,7 @@ mod sys {
             "lower_others_class": crate::priority::lower_class_name(cfg.lower_others_class),
             "fastest_dns": cfg.fastest_dns,
             "game_power_throttling_off": cfg.game_power_throttling_off,
+            "game_priority_method": format!("{:?}", cfg.game_priority_method).to_lowercase(),
             "games": cfg.games.iter().map(|g| format!("{} {:?}", g.exe, g.priority)).collect::<Vec<_>>(),
         })
     }

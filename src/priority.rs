@@ -29,8 +29,60 @@
 //! priority or a choice you made in Task Manager. Verify in Task Manager > Details > Base priority.
 //! With `lower_others_mode = "dynamic"` boost lowers nothing; `boost --watch` restrains busy
 //! candidates instead (`watch.rs`).
+//!
+//! **Registry method (`game_priority_method = "registry"`).** Some anti-cheats (EA Javelin in BF6)
+//! refuse `SetPriorityClass` from outside. Instead, boost writes `HKLM\SOFTWARE\Microsoft\Windows
+//! NT\CurrentVersion\Image File Execution Options\<exe>\PerfOptions\CpuPriorityClass` (DWORD, see
+//! [`cpu_priority_class`]) and Windows itself applies it the next time the game starts, so nothing
+//! opens the game process. The state file records whether the `<exe>` and `PerfOptions` keys existed
+//! and the old value; restore puts the old value back (or deletes it) and deletes only keys it
+//! created that are now empty. Other IFEO values (Debugger etc.) are never touched.
 
 use crate::config::{LowerClass, Priority};
+
+/// IFEO key of an exe (under HKLM) and its `PerfOptions` subkey.
+pub const IFEO: &str = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options";
+pub const CPU_PRIORITY_CLASS: &str = "CpuPriorityClass";
+
+/// IFEO `CpuPriorityClass` for a priority: 1 Idle, 2 Normal, 3 High, 5 Below normal, 6 Above normal.
+/// None for Realtime (4), which Windows ignores there and we never set.
+pub fn cpu_priority_class(p: Priority) -> Option<u32> {
+    match p {
+        Priority::Low => Some(1),
+        Priority::Normal => Some(2),
+        Priority::High => Some(3),
+        Priority::BelowNormal => Some(5),
+        Priority::AboveNormal => Some(6),
+        Priority::Realtime => None,
+    }
+}
+
+/// One game's IFEO entry before the boost: enough for restore to put it back exactly.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Ifeo {
+    pub exe: String,
+    /// The priority boost writes.
+    pub priority: Priority,
+    /// `IFEO\<exe>` and `IFEO\<exe>\PerfOptions` existed before the boost.
+    pub key_existed: bool,
+    pub perf_existed: bool,
+    /// The old `CpuPriorityClass`, or None if it was absent.
+    pub previous: Option<u32>,
+}
+
+/// What restore does for one entry: write `set` back (None = delete the value), then delete
+/// `PerfOptions` / the `<exe>` key if we created them (only when they are empty by then).
+#[derive(Debug, PartialEq)]
+pub struct IfeoUndo {
+    pub set: Option<u32>,
+    pub delete_perf: bool,
+    pub delete_key: bool,
+}
+
+pub fn ifeo_undo(e: &Ifeo) -> IfeoUndo {
+    IfeoUndo { set: e.previous, delete_perf: !e.perf_existed, delete_key: !e.key_existed }
+}
+
 use serde::{Deserialize, Serialize};
 
 /// Built-in exclusions for `lower_others` (case-insensitive; a trailing `*` matches any rest).
@@ -267,30 +319,180 @@ fn set_throttling(h: windows_sys::Win32::Foundation::HANDLE, reset: bool) -> Res
 
 /// Set every running process of each game to its priority (or to Normal when `reset`), and, with
 /// `throttling_off`, opt it out of power throttling (EcoQoS; `reset` hands it back to Windows).
+/// With `set_priority` false (registry method) only power throttling is touched.
 /// Restore matches by exe name, like priority: the masks it sets are Windows' default, so a game
 /// relaunched since the boost (or a reused pid, which can't be a game exe) is left as Windows has it.
 /// Returns how many processes were found.
 #[cfg(windows)]
-pub fn apply(games: &[crate::config::Game], reset: bool, throttling_off: bool) -> usize {
+pub fn apply(games: &[crate::config::Game], reset: bool, throttling_off: bool, set_priority: bool) -> usize {
     use crate::processes::{list, Process};
     use windows_sys::Win32::System::Threading::{SetPriorityClass, PROCESS_SET_INFORMATION};
+    let err = || std::io::Error::last_os_error().to_string();
     let mut found = 0;
     for p in list() {
         let Some(game) = games.iter().find(|g| g.exe.eq_ignore_ascii_case(&p.name)) else { continue };
         found += 1;
         let want = if reset { Priority::Normal } else { game.priority };
         let h = Process::open(p.pid, PROCESS_SET_INFORMATION);
-        let ok = h.as_ref().is_some_and(|h| unsafe { SetPriorityClass(h.0, class(want)) } != 0);
-        println!("  {} {} (pid {}) to {want:?}", if ok { "set" } else { "could not set" }, p.name, p.pid);
+        let open_err = if h.is_none() { err() } else { String::new() };
+        if set_priority {
+            let r = match &h {
+                Some(h) if unsafe { SetPriorityClass(h.0, class(want)) } != 0 => Ok(()),
+                Some(_) => Err(err()),
+                None => Err(open_err.clone()),
+            };
+            match r {
+                Ok(()) => println!("  set {} (pid {}) to {want:?}", p.name, p.pid),
+                Err(e) => {
+                    println!("  could not set {} (pid {}) to {want:?}: {e}", p.name, p.pid);
+                    if !reset {
+                        println!("  hint: an anti-cheat may block this; try game_priority_method = \"registry\"");
+                    }
+                }
+            }
+        }
         if throttling_off {
             let what = if reset { "power throttling handed back to Windows" } else { "power throttling off" };
-            match h.as_ref().map_or_else(|| Err(std::io::Error::last_os_error().to_string()), |h| set_throttling(h.0, reset)) {
+            match h.as_ref().map_or_else(|| Err(open_err.clone()), |h| set_throttling(h.0, reset)) {
                 Ok(()) => println!("  {}: {what}", p.name),
                 Err(e) => println!("  {}: {what} failed: {e}", p.name),
             }
         }
     }
     found
+}
+
+/// Read-only: each game's IFEO entry as it is now (registry method). A game whose entry can't be
+/// read is skipped with a message.
+#[cfg(windows)]
+pub fn plan_ifeo(games: &[crate::config::Game]) -> Vec<Ifeo> {
+    use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
+    games
+        .iter()
+        .filter(|g| cpu_priority_class(g.priority).is_some())
+        .filter_map(|g| {
+            let key = format!(r"{IFEO}\{}", g.exe);
+            let perf = format!(r"{key}\PerfOptions");
+            let previous = crate::reg_dword(HKEY_LOCAL_MACHINE, &perf, CPU_PRIORITY_CLASS)
+                .map_err(|e| println!("  {}: IFEO not read, skipped: {e}", g.exe)).ok()?;
+            Some(Ifeo { exe: g.exe.clone(), priority: g.priority, key_existed: reg::exists(&key), perf_existed: reg::exists(&perf), previous })
+        })
+        .collect()
+}
+
+/// Boost (registry method): write each game's `CpuPriorityClass`.
+#[cfg(windows)]
+pub fn write_ifeo(entries: &[Ifeo]) {
+    let running: Vec<String> = crate::processes::list().into_iter().map(|p| p.name).collect();
+    for e in entries {
+        let Some(v) = cpu_priority_class(e.priority) else { continue };
+        match reg::set(&format!(r"{IFEO}\{}\PerfOptions", e.exe), Some(v)) {
+            Ok(()) => {
+                println!("  {}: IFEO {CPU_PRIORITY_CLASS} = {v} ({:?}): Windows applies it the next time the game starts", e.exe, e.priority);
+                if running.iter().any(|n| n.eq_ignore_ascii_case(&e.exe)) {
+                    println!("  {} is running now: restart the game to apply", e.exe);
+                }
+            }
+            Err(err) => println!("  {}: IFEO write failed: {err}", e.exe),
+        }
+    }
+}
+
+/// Restore (registry method): put each entry back as it was. Err if any entry failed.
+#[cfg(windows)]
+pub fn restore_ifeo(entries: &[Ifeo]) -> Result<(), String> {
+    let mut failed = Vec::new();
+    for e in entries {
+        let key = format!(r"{IFEO}\{}", e.exe);
+        let perf = format!(r"{key}\PerfOptions");
+        let u = ifeo_undo(e);
+        let r = reg::set(&perf, u.set).and_then(|()| {
+            let mut removed = Vec::new();
+            if u.delete_perf && reg::delete_if_empty(&perf)? {
+                removed.push("PerfOptions");
+            }
+            if u.delete_key && reg::delete_if_empty(&key)? {
+                removed.push("key");
+            }
+            Ok(removed)
+        });
+        match r {
+            Ok(removed) => println!("  {}: IFEO {CPU_PRIORITY_CLASS} {}{}; a running game keeps its priority until it exits", e.exe,
+                u.set.map_or("deleted".into(), |v| format!("restored to {v}")),
+                if removed.is_empty() { String::new() } else { format!(", removed {}", removed.join(" and ")) }),
+            Err(err) => failed.push(format!("{}: {err}", e.exe)),
+        }
+    }
+    if failed.is_empty() { Ok(()) } else { Err(failed.join("; ")) }
+}
+
+/// HKLM key helpers for the IFEO entries (64-bit view: gamebooster is a 64-bit exe).
+#[cfg(windows)]
+mod reg {
+    use crate::wide;
+    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
+    use windows_sys::Win32::System::Registry::*;
+
+    fn open(path: &str, access: REG_SAM_FLAGS) -> Result<Option<HKEY>, u32> {
+        let mut h = std::ptr::null_mut();
+        match unsafe { RegOpenKeyExW(HKEY_LOCAL_MACHINE, wide(path).as_ptr(), 0, access, &mut h) } {
+            ERROR_SUCCESS => Ok(Some(h)),
+            ERROR_FILE_NOT_FOUND => Ok(None),
+            e => Err(e),
+        }
+    }
+
+    pub fn exists(path: &str) -> bool {
+        let Ok(Some(h)) = open(path, KEY_READ) else { return false };
+        unsafe { RegCloseKey(h) };
+        true
+    }
+
+    /// Write `Some(v)` as `CpuPriorityClass` (creating the key path), or delete the value for None.
+    pub fn set(path: &str, value: Option<u32>) -> Result<(), String> {
+        let name = wide(super::CPU_PRIORITY_CLASS);
+        let err = unsafe {
+            match value {
+                Some(v) => {
+                    let mut h = std::ptr::null_mut();
+                    match RegCreateKeyExW(HKEY_LOCAL_MACHINE, wide(path).as_ptr(), 0, std::ptr::null(), REG_OPTION_NON_VOLATILE,
+                        KEY_SET_VALUE, std::ptr::null(), &mut h, std::ptr::null_mut()) {
+                        ERROR_SUCCESS => {
+                            let e = RegSetValueExW(h, name.as_ptr(), 0, REG_DWORD, &v as *const u32 as *const u8, 4);
+                            RegCloseKey(h);
+                            e
+                        }
+                        e => e,
+                    }
+                }
+                None => match RegDeleteKeyValueW(HKEY_LOCAL_MACHINE, wide(path).as_ptr(), name.as_ptr()) {
+                    ERROR_FILE_NOT_FOUND => ERROR_SUCCESS,
+                    e => e,
+                },
+            }
+        };
+        if err == ERROR_SUCCESS { Ok(()) } else { Err(format!("can't write HKLM\\{path}\\{} (error {err})", super::CPU_PRIORITY_CLASS)) }
+    }
+
+    /// Delete the key if it has no values and no subkeys. Ok(true) if deleted (or already gone).
+    pub fn delete_if_empty(path: &str) -> Result<bool, String> {
+        let fail = |e: u32| format!("can't check or delete HKLM\\{path} (error {e})");
+        let Some(h) = open(path, KEY_READ).map_err(fail)? else { return Ok(true) };
+        let (mut subkeys, mut values) = (0u32, 0u32);
+        let n = std::ptr::null_mut::<u32>;
+        let e = unsafe { RegQueryInfoKeyW(h, std::ptr::null_mut(), n(), std::ptr::null(), &mut subkeys, n(), n(), &mut values, n(), n(), n(), std::ptr::null_mut()) };
+        unsafe { RegCloseKey(h) };
+        if e != ERROR_SUCCESS {
+            return Err(fail(e));
+        }
+        if subkeys > 0 || values > 0 {
+            return Ok(false);
+        }
+        match unsafe { RegDeleteKeyW(HKEY_LOCAL_MACHINE, wide(path).as_ptr()) } {
+            ERROR_SUCCESS | ERROR_FILE_NOT_FOUND => Ok(true),
+            e => Err(fail(e)),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -336,6 +538,29 @@ mod tests {
         assert_eq!(summary(23, 0, 4, Some(LowerClass::BelowNormal)), "lowered 23 processes to below normal (4 skipped: access denied)");
         assert_eq!(summary(5, 2, 0, None), "restored the old priority of 5 processes (2 exited)");
         assert_eq!(summary(1, 0, 0, Some(LowerClass::Idle)), "lowered 1 processes to idle");
+    }
+
+    #[test]
+    fn ifeo_classes() {
+        assert_eq!(cpu_priority_class(Priority::Low), Some(1));
+        assert_eq!(cpu_priority_class(Priority::Normal), Some(2));
+        assert_eq!(cpu_priority_class(Priority::High), Some(3));
+        assert_eq!(cpu_priority_class(Priority::BelowNormal), Some(5));
+        assert_eq!(cpu_priority_class(Priority::AboveNormal), Some(6));
+        assert_eq!(cpu_priority_class(Priority::Realtime), None);
+    }
+
+    #[test]
+    fn ifeo_restore_decision() {
+        let e = |key_existed, perf_existed, previous| Ifeo { exe: "bf6.exe".into(), priority: Priority::High, key_existed, perf_existed, previous };
+        // Nothing existed: delete the value, PerfOptions and the key (if empty).
+        assert_eq!(ifeo_undo(&e(false, false, None)), IfeoUndo { set: None, delete_perf: true, delete_key: true });
+        // Key existed (e.g. a Debugger or MitigationOptions value): keep it, drop only what we added.
+        assert_eq!(ifeo_undo(&e(true, false, None)), IfeoUndo { set: None, delete_perf: true, delete_key: false });
+        // PerfOptions existed without our value: delete the value only.
+        assert_eq!(ifeo_undo(&e(true, true, None)), IfeoUndo { set: None, delete_perf: false, delete_key: false });
+        // An old value: write it back.
+        assert_eq!(ifeo_undo(&e(true, true, Some(6))), IfeoUndo { set: Some(6), delete_perf: false, delete_key: false });
     }
 
     #[test]

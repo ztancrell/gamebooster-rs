@@ -30,6 +30,9 @@ What a boost does, in this order (restore goes in reverse):
    clearly faster than your current server, sets it on the active adapter (IPv4). Restore puts back
    the old static list or DHCP.
 9. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
+   With `game_priority_method = "registry"` (for anti-cheats that block it, like BF6's) it writes the
+   game's IFEO `CpuPriorityClass` instead, which Windows applies at the next game start; restore
+   puts the registry back exactly.
 
 Separately, `gamebooster ping` measures latency, jitter and loss to cloud regions near game
 servers, and `gamebooster ping --route` checks each hop on the way (your router, your ISP, the far
@@ -163,6 +166,7 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `accessibility_shortcuts_off` | `true` | Turn off the Sticky / Filter / Toggle Keys hotkeys while boosted; see [accessibility shortcuts](docs/tweaks/accessibility-shortcuts.md). |
 | `game_power_throttling_off` | `true` | Opt each running `[[game]]` out of Windows power throttling (EcoQoS) while boosted; restore hands it back to Windows. See [game priority](docs/tweaks/priority.md#power-throttling-off). |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
+| `game_priority_method` | `"process"` | How game priority is set: `"process"` (on the running game) or `"registry"` (IFEO `PerfOptions\CpuPriorityClass`, applied by Windows at the next game start; for anti-cheats that block the process way; no `realtime`). See [game priority](docs/tweaks/priority.md#registry-method). |
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
 | `lower_others_mode` | `"once"` | `"once"`: boost lowers them all. `"dynamic"`: boost lowers nothing; `boost --watch` restrains only busy ones, ProBalance-style (Below normal only). See [Watch mode](#watch-mode). |
 | `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. Once mode only; dynamic mode always uses Below normal. |
@@ -222,7 +226,7 @@ still undoes it. If you run `restore` in another window, the watcher notices and
 
 ## Limitations
 
-- Game priority is set only on games already running when you boost. Start the game first, or run
+- Game priority (process method) is set only on games already running when you boost. Start the game first, or run
   `boost` again once it's running, or use `boost --watch`. The watcher only runs while its
   console is open; there is no service or automatic boost.
 - Closed apps are relaunched without their original command-line arguments.

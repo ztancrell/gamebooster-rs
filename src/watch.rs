@@ -263,7 +263,7 @@ mod sys {
             let running: HashSet<u32> = list.iter().filter(|p| cfg.is_game(&p.name)).map(|p| p.pid).collect();
             if running.iter().any(|p| !games.contains(p)) {
                 println!("Game started:");
-                priority::apply(&cfg.games, false, cfg.game_power_throttling_off);
+                priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority());
             }
             if games.iter().any(|p| !running.contains(p)) && running.is_empty() {
                 println!("Game exited (its priority and power throttling ended with it).");

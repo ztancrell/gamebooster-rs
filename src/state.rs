@@ -23,6 +23,9 @@ pub struct State {
     /// Accessibility shortcut hotkeys turned off (absent in state files from older versions).
     #[serde(default)]
     pub accessibility: Option<AccessibilityState>,
+    /// IFEO entries the registry priority method wrote (absent in state files from older versions).
+    #[serde(default)]
+    pub ifeo: Vec<crate::priority::Ifeo>,
 }
 
 /// Original `dwFlags` of each feature whose hotkey boost turns off; None = left alone.
@@ -91,6 +94,7 @@ mod tests {
             dns: Some(crate::network::DnsState { adapter_guid: "{4D36E972-E325-11CE-BFC1-08002BE10318}".into(), adapter: "Wi-Fi".into(), previous_static: None, server: "1.1.1.1".into() }),
             lowered: vec![crate::priority::Lowered { pid: 1234, exe: "chrome.exe".into(), created: 133_000_000_000_000_000, old_class: 0x20 }],
             accessibility: Some(AccessibilityState { sticky_keys: Some(0x1fe), filter_keys: None, toggle_keys: Some(0x3e) }),
+            ifeo: vec![crate::priority::Ifeo { exe: "bf6.exe".into(), priority: crate::config::Priority::High, key_existed: false, perf_existed: false, previous: None }],
         };
         st.save(&path).unwrap();
         assert_eq!(State::load(&path).unwrap(), Some(st));
@@ -100,7 +104,7 @@ mod tests {
     #[test]
     fn old_state_without_new_fields_loads() {
         let st: State = serde_json::from_str(r#"{"boosted_at":1,"services":[],"processes":[],"power":null,"game_mode":null}"#).unwrap();
-        assert!(st.lowered.is_empty() && st.dns.is_none() && st.accessibility.is_none());
+        assert!(st.lowered.is_empty() && st.dns.is_none() && st.accessibility.is_none() && st.ifeo.is_empty());
         let p: PowerState = serde_json::from_str(r#"{"previous_scheme":"x","brightness":null}"#).unwrap();
         assert!(p.kept.is_empty());
     }

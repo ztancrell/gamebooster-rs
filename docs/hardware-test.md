@@ -42,6 +42,7 @@ copy the whole window text and send it.
    Look for: `Boost would do (dry run, nothing changed):`, then your service, your app's full
    path, `lower other processes to below normal (old class restored): N processes: <names>`
    (your apps, none of explorer.exe, Discord, Steam, EA app), the power plan list and
+   `game priority method: process (SetPriorityClass on the running game)`,
    `priority: bf6.exe -> High while running` and
    `game power throttling (EcoQoS): off while running (handed back to Windows on restore)`.
    Failure: an `error:` line (usually a config typo; the message says which key).
@@ -68,8 +69,9 @@ copy the whole window text and send it.
      `  Toggle Keys shortcut off` (`left alone (feature on or shortcut already off)` is fine).
      Then press Shift five times: no Sticky Keys dialog.
    - `Dns` (nothing under it; `fastest_dns` is off by default)
-   - `Priority` / `  set bf6.exe (pid ...) to High`. `could not set` means BF6's anti-cheat blocks it:
-     note it, not fatal. Then `  bf6.exe: power throttling off` (`... failed: <reason>` is not fatal;
+   - `Priority` / `  set bf6.exe (pid ...) to High`. `could not set bf6.exe (pid ...) to High: <OS
+     error>` plus a `hint:` line means BF6's anti-cheat blocks it: note it, not fatal (step 18b tries
+     the registry method). Then `  bf6.exe: power throttling off` (`... failed: <reason>` is not fatal;
      note the reason). Windows 11: Task Manager > Details, "Power throttling" column says Disabled.
    - `Boosted. Run ...`
 10. `.\gamebooster.exe status`
@@ -109,7 +111,7 @@ copy the whole window text and send it.
 13. Back to the BF6 main menu (keep the game running), Alt-Tab, then `.\gamebooster.exe restore`.
     Look for:
     - `Priority` / `  set bf6.exe (pid ...) to Normal` and `  bf6.exe: power throttling handed back to Windows`
-    - `Dns` (nothing under it)
+    - `Dns` / `  nothing to undo`
     - `Accessibility` / `  Sticky Keys flags restored (0x...)` (one line per shortcut boost turned off)
     - `GameMode` / `  AutoGameModeEnabled = <old value>` (or `(deleted)` if it was absent)
     - `PowerPlan` / `  reactivated plan <the GUID from step 5>` / `  deleted plan gamebooster`
@@ -182,8 +184,20 @@ copy the whole window text and send it.
     after Ctrl+C, the watch window printing a status line more than every 10 s, or Windows
     reporting the watch window as not responding. Set `lower_others_mode = "once"` (or
     `lower_others = false`) again afterwards.
+18b. Registry priority method (if step 9 printed `could not set`). Quit BF6. Add
+    `game_priority_method = "registry"` to gamebooster.toml, then `.\gamebooster.exe boost`.
+    Look for: `Priority` / `  bf6.exe: IFEO CpuPriorityClass = 3 (High): Windows applies it the next
+    time the game starts`. Then:
+    a. `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\bf6.exe\PerfOptions"`
+       shows `CpuPriorityClass    REG_DWORD    0x3`.
+    b. Start BF6 and wait in the main menu. Task Manager > Details > right-click bf6.exe > Set
+       priority shows High. Failure: BF6 refuses to start or shows an anti-cheat error (note the
+       exact message, then `restore`).
+    c. `.\gamebooster.exe restore`. Look for `  bf6.exe: IFEO CpuPriorityClass deleted, removed
+       PerfOptions and key` (if the bf6.exe key didn't exist before), then `Restored.`; the
+       `reg query` from (a) now says the key can't be found. Quit BF6 and remove the config line.
 19. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
-    folder and the console text of steps 9, 12, 13, 16, 17 and 18.
+    folder and the console text of steps 9, 12, 13, 16, 17, 18 and 18b.
 
 ## Recovery
 
@@ -203,7 +217,12 @@ If `restore` keeps failing, undo by hand in the same administrator PowerShell. O
    out or rebooting brings them back (or turn them on in Settings > Accessibility > Keyboard).
 6. Game priority and lowered processes (`"lowered"`, including the watcher's dynamic restraints) need nothing for safety; priorities end when
    each app quits; so does the game's power-throttling opt-out. To put one back now: Task Manager > Details > right-click > Set priority > Normal.
-7. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority and power throttling off).
+7. IFEO (registry method): for each entry under `"ifeo"`: if `"previous"` is a number N,
+   `reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\<exe>\PerfOptions" /v CpuPriorityClass /t REG_DWORD /d N /f`;
+   if it is `null`, `reg delete "<same key>" /v CpuPriorityClass /f`, then, if `"perf_existed"` is
+   false, `reg delete "<same key>" /f` (and, if `"key_existed"` is false and `reg query` of the
+   `<exe>` key shows nothing else, delete that key too).
+8. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority and power throttling off).
 
 A reboot also brings the services back (their start type is never changed), but not the power plan
 or the Game Mode value.

@@ -62,6 +62,11 @@ Windows via Boot Camp, playing BF6.
   Lasso's per-CPU-count thresholds, Below normal only, never the foreground app). Each restraint is
   journalled in the state file; stopping the watcher releases them, `restore` undoes the rest.
   Measure with bench (off / once / dynamic) before keeping dynamic.
+- 2026-11-05: `game_priority_method = "registry"` (default `"process"`): BF6's anti-cheat blocks
+  `SetPriorityClass` from outside, so boost can instead write the game's IFEO
+  `PerfOptions\CpuPriorityClass`, which Windows applies at game start. Recorded in the state file
+  (key / PerfOptions existed, old value) and put back exactly; other IFEO values never touched;
+  never Realtime. Low but nonzero risk that an anti-cheat objects to IFEO entries.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

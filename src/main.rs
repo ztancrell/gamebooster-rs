@@ -174,11 +174,27 @@ fn describe(st: &State, cfg: &Config) -> String {
         None if cfg.fastest_dns => out += "  DNS: keep current (no public resolver meaningfully faster)\n",
         None => out += "  DNS: off\n",
     }
-    for g in &cfg.games {
-        out += &format!("  priority: {} -> {:?} while running\n", g.exe, g.priority);
+    out += &format!("  game priority method: {}\n", priority_method_text(cfg));
+    if cfg.process_priority() {
+        for g in &cfg.games {
+            out += &format!("  priority: {} -> {:?} while running\n", g.exe, g.priority);
+        }
+    }
+    for e in &st.ifeo {
+        out += &format!("  priority: {} -> {:?} via IFEO {} ({} -> {}{})\n", e.exe, e.priority, priority::CPU_PRIORITY_CLASS,
+            e.previous.map_or("absent".into(), |v| v.to_string()), priority::cpu_priority_class(e.priority).unwrap_or(0),
+            if e.key_existed { "" } else { "; IFEO key created, removed on restore" });
     }
     out += &format!("  game power throttling (EcoQoS): {}\n", if cfg.game_power_throttling_off { "off while running (handed back to Windows on restore)" } else { "left to Windows" });
     out
+}
+
+fn priority_method_text(cfg: &Config) -> &'static str {
+    if cfg.process_priority() {
+        "process (SetPriorityClass on the running game)"
+    } else {
+        "registry (IFEO CpuPriorityClass: Windows applies it when the game starts)"
+    }
 }
 
 fn main() {
@@ -254,7 +270,7 @@ fn warn<T>(what: &str, r: Result<T, String>) -> Option<T> {
 fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<(), String> {
     if State::load(state_path)?.is_some() {
         println!("Already boosted (state in {}). Only re-applying game priority and power throttling.", state_path.display());
-        if !dry_run && priority::apply(&cfg.games, false, cfg.game_power_throttling_off) == 0 {
+        if !dry_run && priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority()) == 0 {
             println!("  no configured game is running{}", if watch { ": the watcher sets it when one starts" } else { "" });
         }
         return Ok(());
@@ -273,6 +289,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<
         accessibility: if cfg.accessibility_shortcuts_off { warn("reading accessibility shortcuts", accessibility::plan()) } else { None },
         dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
         lowered: if cfg.lower_others && !cfg.dynamic_lowering() { priority::plan_lower(cfg) } else { Vec::new() },
+        ifeo: if cfg.process_priority() { Vec::new() } else { priority::plan_ifeo(&cfg.games) },
     };
     if dry_run {
         println!("Boost would do (dry run, nothing changed):\n{}", describe(&st, cfg));
@@ -311,8 +328,9 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<
                 None => println!("  off"),
             },
             Step::Priority => {
-                if priority::apply(&cfg.games, false, cfg.game_power_throttling_off) == 0 && !cfg.games.is_empty() {
-                    println!("  no configured game is running: {}", if watch { "the watcher sets it when one starts" } else { "start it, then run `gamebooster boost` again (or use `boost --watch`)" });
+                priority::write_ifeo(&st.ifeo);
+                if priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority()) == 0 && !cfg.games.is_empty() {
+                    println!("  no configured game is running: {}", if !cfg.process_priority() && !cfg.game_power_throttling_off { "nothing else to do" } else if watch { "the watcher sets it when one starts" } else { "start it, then run `gamebooster boost` again (or use `boost --watch`)" });
                 }
             }
         }
@@ -326,7 +344,7 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
     let Some(st) = State::load(state_path)? else {
         println!("Not boosted (no {}). Resetting game priority and power throttling only.", state_path.display());
         if !dry_run {
-            priority::apply(&cfg.games, true, cfg.game_power_throttling_off);
+            priority::apply(&cfg.games, true, cfg.game_power_throttling_off, cfg.process_priority());
         }
         return Ok(());
     };
@@ -339,22 +357,25 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
     for step in restore_order() {
         println!("{step:?}");
         match step {
-            Step::Priority => { priority::apply(&cfg.games, true, cfg.game_power_throttling_off); }
+            Step::Priority => {
+                check("IFEO", priority::restore_ifeo(&st.ifeo));
+                if priority::apply(&cfg.games, true, cfg.game_power_throttling_off, cfg.process_priority()) == 0 && st.ifeo.is_empty() {
+                    println!("  nothing to undo");
+                }
+            }
             Step::GameMode => {
                 if let Some(g) = &st.game_mode {
                     check("Game Mode", game_mode::write(g.previous));
                 }
             }
-            Step::Accessibility => {
-                if let Some(a) = &st.accessibility {
-                    check("accessibility shortcuts", accessibility::restore(a));
-                }
-            }
-            Step::Dns => {
-                if let Some(d) = &st.dns {
-                    check("DNS", network::restore(d));
-                }
-            }
+            Step::Accessibility => match &st.accessibility {
+                Some(a) if accessibility::entries(a).iter().any(|(_, saved)| saved.is_some()) => check("accessibility shortcuts", accessibility::restore(a)),
+                _ => println!("  nothing to undo"),
+            },
+            Step::Dns => match &st.dns {
+                Some(d) => check("DNS", network::restore(d)),
+                None => println!("  nothing to undo"),
+            },
             Step::PowerPlan => {
                 if let Some(p) = &st.power {
                     check("power plan", power::restore(p));
@@ -382,6 +403,7 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
         Some(st) => println!("Boosted (since unix time {}). Restore will undo:\n{}", st.boosted_at, describe(&st, cfg)),
         None => println!("Not boosted."),
     }
+    println!("Game priority method: {}", priority_method_text(cfg));
     let active = power::active_scheme()?;
     println!("Active power plan: {active}{}", if active == power::OUR_PLAN { " (gamebooster)" } else { "" });
     println!("{}: {}", game_mode::VALUE, game_mode::read()?.map_or("(absent, Windows default = on)".into(), |v| v.to_string()));
@@ -519,6 +541,14 @@ mod tests {
             ..Default::default()
         };
         let d = describe(&st, &cfg);
+        assert!(d.contains("game priority method: process"), "{d}");
+        let reg = Config::parse("game_priority_method = \"registry\"\n[[game]]\nexe = \"bf6.exe\"").unwrap();
+        let ifeo = State { ifeo: vec![priority::Ifeo { exe: "bf6.exe".into(), priority: config::Priority::High, key_existed: false, perf_existed: false, previous: None }], ..Default::default() };
+        let r = describe(&ifeo, &reg);
+        for needle in ["game priority method: registry", "bf6.exe -> High via IFEO CpuPriorityClass (absent -> 3; IFEO key created, removed on restore)"] {
+            assert!(r.contains(needle), "missing {needle} in:\n{r}");
+        }
+        assert!(!r.contains("-> High while running"), "{r}");
         for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off", "keep current lid close action (AC = 1, DC = 0)", "skipped (not on this machine) keep current power button action", "skipped (not on this machine) keep current display brightness", "Sticky Keys shortcut off (flags 0x1fe restored)", "Filter Keys left alone"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
