@@ -44,6 +44,7 @@ The same for PGWARE GameBoost (registry-only, nothing worth adopting): [docs/pgw
 The same for Smart PC Utilities' PC Game Booster (temporary Game Mode, loads the WinRing0 driver for sensors): [docs/smartpcutilities-gb/](docs/smartpcutilities-gb/README.md).
 The same for Razer Cortex: [docs/razer-cortex/](docs/razer-cortex/README.md).
 The same for Hone (server-driven tweak catalogue, encrypted engine, temporary Game Mode): [docs/hone/](docs/hone/README.md).
+The same for ISLC, Intelligent Standby List Cleaner (standby purge and timer resolution, both placebo or harmful on Windows 10/11): [docs/islc/](docs/islc/README.md).
 
 ## Install and update
 
