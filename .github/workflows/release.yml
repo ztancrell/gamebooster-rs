@@ -15,11 +15,12 @@ permissions:
 
 concurrency:
   group: release
-  cancel-in-progress: false
+  cancel-in-progress: true   # only the newest build matters
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20   # a hung apt/cargo step once blocked the queue for over an hour
     steps:
       - uses: actions/checkout@v4
 
