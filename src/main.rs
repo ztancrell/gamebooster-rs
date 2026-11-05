@@ -6,6 +6,7 @@
 #![cfg_attr(not(windows), allow(dead_code, unused_imports))]
 
 mod accessibility;
+mod bench;
 mod config;
 mod game_mode;
 mod install;
@@ -32,6 +33,8 @@ usage: gamebooster <command> [--dry-run] [--config <file>]
   update     download the latest gamebooster.exe from GitHub and replace this one
   snapshot <out.json>                save a read-only snapshot of system state (capture/snapshot.ps1)
   compare <before.json> <after.json> print what changed between two snapshots (capture/compare.ps1)
+  bench [seconds] [--label <name>]  record the running game's frame times with PresentMon (default 60 s)
+  bench compare <a.json> <b.json>   compare two bench runs, with a run-to-run noise judgement
   --version  print the version and the git commit it was built from
   --dry-run  print what boost/restore would do, change nothing (no admin needed)
   --config   config file (default: gamebooster.toml next to gamebooster.exe)";
@@ -60,20 +63,27 @@ struct Args {
     command: String,
     dry_run: bool,
     config: Option<PathBuf>,
-    /// File arguments of `snapshot` / `compare`.
+    /// File arguments of `snapshot` / `compare` / `bench compare`.
     files: Vec<PathBuf>,
+    /// `bench` duration and label.
+    seconds: Option<u64>,
+    label: Option<String>,
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     let mut it = args.into_iter();
     let (mut command, mut dry_run, mut config, mut files) = (None, false, None, Vec::new());
+    let (mut seconds, mut label) = (None, None);
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dry-run" => dry_run = true,
             "--config" => config = Some(PathBuf::from(it.next().ok_or("--config needs a file")?)),
+            "--label" => label = Some(it.next().ok_or("--label needs a name")?),
             "--version" | "-V" if command.is_none() => command = Some("version".to_string()),
-            "boost" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" if command.is_none() => command = Some(a),
-            _ if matches!(command.as_deref(), Some("snapshot" | "compare")) && !a.starts_with('-') => files.push(PathBuf::from(a)),
+            "boost" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" if command.is_none() => command = Some(a),
+            "compare" if command.as_deref() == Some("bench") && seconds.is_none() => command = Some("bench compare".into()),
+            _ if command.as_deref() == Some("bench") && seconds.is_none() && a.parse::<u64>().is_ok() => seconds = a.parse().ok(),
+            _ if matches!(command.as_deref(), Some("snapshot" | "compare" | "bench compare")) && !a.starts_with('-') => files.push(PathBuf::from(a)),
             _ => return Err(format!("unexpected argument `{a}`")),
         }
     }
@@ -81,7 +91,10 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     match (command.as_str(), files.len()) {
         ("snapshot", n) if n != 1 => Err("usage: gamebooster snapshot <out.json>".into()),
         ("compare", n) if n != 2 => Err("usage: gamebooster compare <before.json> <after.json>".into()),
-        _ => Ok(Args { command, dry_run, config, files }),
+        ("bench compare", n) if n != 2 => Err("usage: gamebooster bench compare <a.json> <b.json>".into()),
+        ("bench", _) if seconds.is_some_and(|s| !(10..=3600).contains(&s)) => Err("bench seconds: use 10 to 3600".into()),
+        (c, _) if c != "bench" && label.is_some() => Err("--label only goes with bench".into()),
+        _ => Ok(Args { command, dry_run, config, files, seconds, label }),
     }
 }
 
@@ -180,17 +193,22 @@ fn run(args: Args) -> Result<(), String> {
         "update" => return install::update(&exe, state_path.exists()),
         "snapshot" => return install::powershell("snapshot", install::SNAPSHOT_PS1, &["-Out".into(), f(0)]),
         "compare" => return install::powershell("compare", install::COMPARE_PS1, &["-Before".into(), f(0), "-After".into(), f(1)]),
+        "bench compare" => {
+            print!("{}", bench::compare_text(&bench::load(&args.files[0])?, &bench::load(&args.files[1])?));
+            return Ok(());
+        }
         _ => {}
     }
     let cfg = Config::load(&config_path).map_err(|e| format!("{e}\n(run `gamebooster init` to create it, then edit it)"))?;
     let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
-    if !matches!(args.command.as_str(), "status" | "ping") && !args.dry_run && !admin {
-        return Err("boost and restore need administrator rights: right-click your terminal, \"Run as administrator\"".into());
+    if !matches!(args.command.as_str(), "status" | "ping") && (!args.dry_run || args.command == "bench") && !admin {
+        return Err("boost, restore and bench need administrator rights: right-click your terminal, \"Run as administrator\"".into());
     }
     match args.command.as_str() {
         "boost" => boost(&cfg, &state_path, args.dry_run),
         "restore" => restore(&cfg, &state_path, args.dry_run),
         "ping" => Ok(network::ping(&cfg.ping_hosts)),
+        "bench" => bench::run(&cfg, &dir, state_path.exists(), args.seconds.unwrap_or(60), args.label.as_deref()),
         _ => status(&cfg, &state_path),
     }
 }
@@ -438,6 +456,15 @@ mod tests {
         assert!(parse_args(["compare", "a.json"].map(String::from)).is_err());
         assert!(parse_args(["boost", "a.json"].map(String::from)).is_err());
         assert!(parse_args(["init", "x"].map(String::from)).is_err());
+        let b = parse_args(["bench", "30", "--label", "power-off"].map(String::from)).unwrap();
+        assert_eq!((b.command.as_str(), b.seconds, b.label.as_deref()), ("bench", Some(30), Some("power-off")));
+        assert_eq!(parse_args(["bench"].map(String::from)).unwrap().seconds, None);
+        let c = parse_args(["bench", "compare", "a.json", "b.json"].map(String::from)).unwrap();
+        assert_eq!((c.command.as_str(), c.files.len()), ("bench compare", 2));
+        assert!(parse_args(["bench", "compare", "a.json"].map(String::from)).is_err());
+        assert!(parse_args(["bench", "5"].map(String::from)).is_err());
+        assert!(parse_args(["bench", "30", "40"].map(String::from)).is_err());
+        assert!(parse_args(["boost", "--label", "x"].map(String::from)).is_err());
     }
 
     #[test]

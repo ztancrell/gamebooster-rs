@@ -91,6 +91,14 @@ copy the whole window text and send it.
     - Timer resolution and Memory changes are noise; ignore them.
 12. Play a round or two. Note: does it feel the same as with SGB boosted, better or worse? Any
     crash or anti-cheat kick?
+    Then, in a match, measure (see [measuring](measuring.md)): Alt-Tab, run
+    `.\gamebooster.exe bench 30`, switch back to the game within a couple of seconds and keep
+    playing the same way until it finishes. The first time it downloads PresentMon into
+    `C:\gamebooster\tools`.
+    Look for: `<game> 30 s, boosted:` with a frame count and FPS lines, then
+    `Saved C:\gamebooster\bench\..._boosted.json (raw frames: ...csv)`.
+    Failure: `has SHA-256 ..., expected ...` (download corrupted or changed; run it again once),
+    `no frames recorded` (game minimised?) or `PresentMon wrote no CSV` (copy its output).
 13. Back to the BF6 main menu (keep the game running), Alt-Tab, then `.\gamebooster.exe restore`.
     Look for:
     - `Priority` / `  set bf6.exe (pid ...) to Normal`
@@ -115,8 +123,13 @@ copy the whole window text and send it.
     registry, BCD and Windows Update. Under Processes, OneDrive and SearchIndexer show as `stopped`
     and `started` with new pids (they were restarted); that's fine. Anything else under Power, Services or Registry is a
     failure.
-16. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files and the console
-    text of steps 9 and 13.
+    Optional, for a first comparison: back in a match, run `.\gamebooster.exe bench 30` once
+    more (now unboosted, labelled `normal`), then
+    `.\gamebooster.exe bench compare bench\<the normal .json> bench\<the boosted .json>`.
+    Look for: the side-by-side table and two `B - A = ...` lines. One pair of runs is only a smoke
+    test; real measurements follow [measuring](measuring.md).
+16. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
+    folder and the console text of steps 9, 12 and 13.
 
 ## Recovery
 

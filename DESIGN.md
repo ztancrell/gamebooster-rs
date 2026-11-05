@@ -39,6 +39,9 @@ Windows via Boot Camp, playing BF6.
   sign-out or reboot. Idea from Razer Cortex.
 - 2026-11-05: Our power plan copies the user's lid, power button and sleep button actions (AC and
   DC) from the previous plan, like brightness, instead of SGB's "lid does nothing".
+- 2026-11-05: Every tweak must be measurable: keep what helps on the target Mac, document what
+  doesn't. `gamebooster bench` records frame times (PresentMon, no injection) and compares runs
+  with run-to-run noise accounted for.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

@@ -2,7 +2,7 @@
 name = "gamebooster"
 version = "0.1.0"
 edition = "2021"
-description = "Small Windows game booster (power plan, services, processes, priority, Game Mode, RAM trim, DNS, ping) with full restore"
+description = "Small Windows game booster (power plan, services, processes, priority, Game Mode, RAM trim, DNS, ping) with full restore, plus a PresentMon frame-time bench"
 license = "MIT"
 
 [dependencies]

@@ -6,17 +6,20 @@ short, is the doc comment at the top of each module in `src/`.
 
 Boost applies them in this order; restore undoes them in reverse.
 
-| # | Tweak | Config switch | Module | Likely impact on BF6 / Boot Camp |
-|---|---|---|---|---|
-| 1 | [Stop services](services.md) | `services = [...]` | `src/services.rs` | Medium, depends on what runs |
-| 2 | [Close apps](close-apps.md) | `close = [...]` | `src/processes.rs` | Medium, depends on what runs |
-| 3 | [RAM trim](ram-trim.md) | `ram_trim = true` | `src/ram.rs` | Low; only when RAM is nearly full |
-| 4 | [Lower other processes](priority.md#lower-other-processes) | `lower_others = true` (default off), `lower_others_class`, `lower_others_exclude` | `src/priority.rs` | Low to medium when background apps use CPU |
-| 5 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100`, `min_processor_state` (unset = 100) | `src/power.rs` | High: the main one |
-| 6 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on |
-| 7 | [Accessibility shortcuts](accessibility-shortcuts.md) | `accessibility_shortcuts_off = true` | `src/accessibility.rs` | None on FPS; stops Sticky Keys pop-ups |
-| 8 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping |
-| 9 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy |
+Measured on the target Mac: to be filled in from `gamebooster bench` runs
+([measuring](../measuring.md)); until then the impact column is an expectation, not a result.
+
+| # | Tweak | Config switch | Module | Likely impact on BF6 / Boot Camp | Measured on the target Mac |
+|---|---|---|---|---|---|
+| 1 | [Stop services](services.md) | `services = [...]` | `src/services.rs` | Medium, depends on what runs | not yet |
+| 2 | [Close apps](close-apps.md) | `close = [...]` | `src/processes.rs` | Medium, depends on what runs | not yet |
+| 3 | [RAM trim](ram-trim.md) | `ram_trim = true` | `src/ram.rs` | Low; only when RAM is nearly full | not yet |
+| 4 | [Lower other processes](priority.md#lower-other-processes) | `lower_others = true` (default off), `lower_others_class`, `lower_others_exclude` | `src/priority.rs` | Low to medium when background apps use CPU | not yet |
+| 5 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100`, `min_processor_state` (unset = 100) | `src/power.rs` | High: the main one | not yet |
+| 6 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on | not yet |
+| 7 | [Accessibility shortcuts](accessibility-shortcuts.md) | `accessibility_shortcuts_off = true` | `src/accessibility.rs` | None on FPS; stops Sticky Keys pop-ups | not yet |
+| 8 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping | not yet |
+| 9 | [Game priority](priority.md) | `[[game]] priority = "high"` | `src/priority.rs` | Medium when the CPU is busy | not yet |
 
 Not a tweak: `gamebooster ping` ([network](network.md#ping)) measures latency to cloud regions and
 changes nothing.
@@ -29,11 +32,12 @@ status` warns about, and how to fix it.
 
 ## How to measure any tweak
 
-Change one thing at a time, and compare the same scene several times with and without it.
+Change one thing at a time, and compare the same scene several times with and without it. The
+full method is in [measuring](../measuring.md).
 
-1. Install [CapFrameX](https://www.capframex.com/) (it uses Intel's PresentMon underneath), or use
-   PresentMon on its own:
-   `PresentMon.exe --process_name bf6.exe --timed 60 --terminate_after_timed --output_file run.csv`
+1. `gamebooster bench --label <name>` (it runs PresentMon for you), then
+   `gamebooster bench compare a.json b.json`. [CapFrameX](https://www.capframex.com/) (also
+   PresentMon underneath) can open the raw CSV `bench` saves next to each JSON, for the graph.
 2. In BF6, pick something repeatable: the same map, the same route, about 60 seconds, ideally an
    empty Portal/practice match so other players don't change the load.
 3. Capture 3 runs without the tweak and 3 with it (`gamebooster restore` / `gamebooster boost`, or
