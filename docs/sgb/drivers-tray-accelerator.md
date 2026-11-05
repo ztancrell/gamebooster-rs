@@ -89,6 +89,24 @@ servers; with no account and no servers it does nothing.
    There is a kill switch.
 8. On disconnect: `sc stop itvwd`.
 
+**More detail from a full decompile of the DLL** (evidence in `decomp/SgbAccelerate.dll/notes.md`):
+- The DLL never sees your password. The main program logs in, then hands the DLL two session
+  tokens. A node that rejects the token, or that is full, sends an error back and the connection
+  stops.
+- The main program gives the DLL up to 16 nodes. About every 10 seconds the DLL checks that the
+  current node still answers, and switches to another one in the list if it doesn't. After three
+  failed checks in a row it tells the main program, which drops the connection. It doesn't
+  reconnect by itself.
+- "Encryption" is weak. ChaCha20 is used with only 8 bytes (64 bits) of key and, as far as could be
+  seen, a fixed all-zero nonce. Treat it as scrambling, not privacy. The code also has "none",
+  "xor" and "rc4" modes.
+- The packet driver's filter always leaves out traffic to the nodes themselves, so the tunnel
+  doesn't capture itself.
+- The kill switch is only a stored on/off setting in the DLL. Nothing in the DLL was found acting on
+  it, so whether it really blocks traffic when the tunnel drops is unconfirmed.
+- DNS is changed and restored by the main program, not the DLL. The DLL only drops lookups for names
+  on a server-supplied block list.
+
 **System changes.** If the Base Filtering Engine (BFE) or Windows Firewall services are disabled,
 it sets them to start automatically and starts them, and doesn't change them back. It also changes
 the DNS settings and some netsh interface settings while connected. If it crashes, DNS can be left

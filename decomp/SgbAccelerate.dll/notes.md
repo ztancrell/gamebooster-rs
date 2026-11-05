@@ -91,3 +91,72 @@ Free accounts get limited "Free Boost Time" hours (`GiftTimeDes` "Get %d-Hour Fr
 `lblRunningLow` "Your free boost time is running low") and a separate free server pool; after that
 SVIP is required ("Network acceleration is available while your SVIP subscription is active").
 Region blocks exist (`network_error_region_restriction`).
+
+## Full Ghidra pass (2026-11-05): what the data plane does in detail
+
+A complete Ghidra 12.1.2 headless decompile of the carved copy (2,163 functions) was read for the
+points below and then deleted, as agreed: only these prose findings are kept. Addresses are VAs in
+this DLL. Confidence is high unless stated.
+
+**Login and tokens.** The DLL does no login. SgbMain obtains the session tokens from
+`boost/get-token` and hands them over through the setter at 0x1001a6c0 (`setTcpToken`/`setUdpToken`,
+export ordinal 10094): two 64-bit values stored in the tunnel object. If the tunnel is currently in
+the "token err" state, setting a new token clears that state so the next connect attempt retries
+with it. The node's first reply is decrypted (64-byte header) and checked in the KCP receive path at
+0x100103b0 (siblings 0x10010d80, 0x10011560): status -11 means "token err" and status -12 "server
+maxcount err" (too many clients on that node); either one fires a callback into SgbMain, which shows
+the error and stops.
+
+**Node list and failover inside the DLL.** `CClientP2S::init` (0x10018430) takes up to 16
+host:port pairs (anything beyond 16 is ignored), a rotation interval in seconds, a DNS server
+string, a network type (IPv4/IPv6) and a flag word. Each address is parsed with `inet_pton`; one bad
+address aborts init with an error code in the 0x1101000x range, which SgbMain reads back. The flag
+word turns into tunnel options (TCP, UDP, IPv6, and a mode where any outbound TCP from the local proxy
+port is captured). The node choice itself (by game, region, distance, load, ping) is SgbMain's; the
+DLL only fails over between the nodes it was given.
+
+**Ping.** `getServerDelay` (0x10019a60, exported through 0x1001b400): TCP latency is a non-blocking
+connect to the node's port timed with `select`; UDP is a datagram probe with a receive timeout that
+also counts lost replies and logs `loss_rate`. These are the Latency and Loss Rate columns.
+
+**Heartbeat and failure handling.** A thread (0x100196e0) wakes every 0.5 s and, about every 10 s,
+tests whether the current node still accepts a TCP connection (0x10019e30, which uses the
+non-blocking connect at 0x100180b0). When the rotation interval has passed it starts from a random
+node instead. It tries the remaining nodes forward and then backward, and remembers the first one
+that answers as the active node. After 3 failed checks in a row (5 when the network type is 1) it
+calls SgbMain's "unexpected disconnect" callback. SgbMain then shows the error and tears the
+connection down; the DLL does not reconnect on its own. While the tunnel reports itself paused, the
+thread sleeps 100 s between checks.
+
+**Tunnel and encryption.** KCP over UDP via libhv, with flow control that holds back sending once
+the queue passes 90% of the KCP window (0x100103b0). The cipher is chosen by name in 0x1000f980:
+`none`, `xor` (one key byte), `rc4` (8-byte key) or `chacha20`; the server list's `algorithm` field
+says `chacha20`. For ChaCha20 the routine copies **8 bytes** of key material into the 32-byte key
+(the rest stays zero) and zeroes the 12-byte nonce. Medium confidence that the nonce really stays
+zero: no per-packet nonce update was found, but one could sit in the call sites 0x10015670,
+0x1000fdc0 and 0x1000fe80. Either way, the effective key is 64 bits, so the tunnel is obfuscation
+rather than strong encryption.
+
+**WinDivert filters.** Beyond the templates quoted above: init inserts ` and ip.DstAddr != <node>
+and ip.SrcAddr != <node>` for **every** node in the list, so tunnel traffic itself is never captured.
+Flag 8 switches to the variant where any outbound TCP from the proxy port is captured, not only
+loopback. Flags 0x22 add the IPv6 twin, and the IPv4 and IPv6 halves are joined as `(%s) or (%s)`.
+The separate socket-layer filter for mapping flows to processes is built at the same time. On
+`stopProxy` (0x100190b0) both handles are closed and the app filter list is cleared.
+
+**Kill switch.** `setKillSwitch` (0x1001a9c0, ordinal 10096) only stores a byte in the client object
+(the same byte init sets from one of its arguments). No code in the DLL that reads that byte was
+found. So the kill switch is either enforced by SgbMain or reaches the tunnel through a path this
+pass did not find. Medium confidence: the search was by object offset.
+
+**DNS.** The DLL gets a DNS server address at init (logged as `dnsserver:`) and, through the
+firewall (0x10013f40, 0x10013150), parses DNS queries inside captured UDP. It drops names on the
+server-supplied `dnshack` list (plain or regex match). The resolver change itself (DNS set to
+127.0.0.1 with a backup, restored on disconnect) is done by SgbMain, not here. No DNS restore code
+exists in the DLL, so a crash leaves whatever SgbMain set.
+
+**Other failure handling.** All exported calls write an error code and a Win32 error into the
+object for SgbMain to read. Init refuses while the proxy is running. `startProxy` fails cleanly when
+the WinDivert handle can't be opened (driver missing, or BFE stopped). The threads time out and log
+`time out` when asked to stop (0x1001a040). The abuse rules (`updateAbuseConfig`, 0x1001aac0)
+refuse to change while the proxy is running.
