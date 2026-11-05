@@ -45,8 +45,8 @@ our own words; no vendor code is reproduced here.
 - Downloaded module installers stay in `DownloadCache` (the "space cleaner" routine is empty); they are
   deleted only when their checksum fails.
 - The installer itself creates **no services, scheduled tasks, Run keys or drivers**. What Cortex installs
-  (Razer Central service, any drivers, autostart) is decided by the Cortex module packages listed in the
-  manifest, which were not obtained. A helper class for creating Windows services exists in the legacy
+  (Razer Central service, any drivers, autostart) is decided by the module packages listed in the manifest;
+  for Cortex see [../cortex/notes.md](../cortex/notes.md). A helper class for creating Windows services exists in the legacy
   `CompatibleV1` assembly (Razer Central / Synapse 3 era) but is not on the Cortex path we could trace.
 
 ## Cross-promotion
@@ -92,5 +92,5 @@ No setting, flag or prompt to disable either channel was found in the installer.
 
 ## Anti-cheat relevance
 
-The installer touches no game process. Nothing here matters for EA Javelin / BF6. The overlay and any
-injection would be in the Cortex app itself (not obtained).
+The installer touches no game process. Nothing here matters for EA Javelin / BF6. For the Cortex app see
+[../cortex/notes.md](../cortex/notes.md#anti-cheat-bf6--ea-javelin).
