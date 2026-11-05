@@ -1,4 +1,4 @@
-# gamebooster config. Copy this file to gamebooster.toml next to gamebooster.exe and edit it.
+# gamebooster config. `gamebooster init` writes this file as gamebooster.toml next to gamebooster.exe; edit it there.
 # Every tweak can be switched off on its own, so you can measure each one separately.
 # See docs/tweaks/ for what each tweak does and how to measure it.
 

@@ -1,10 +1,14 @@
 # Capture what Smart Game Booster's "Boost" changes
 
-Two PowerShell scripts for Windows PowerShell 5.1 (built into Windows 10/11). Nothing to install.
+Two PowerShell scripts for Windows PowerShell 5.1 (built into Windows 10/11). They are built into
+`gamebooster.exe`: `gamebooster snapshot` and `gamebooster compare` write the script to `%TEMP%`, run
+it with `powershell -NoProfile -ExecutionPolicy Bypass -File`, and delete it again. The files here
+are the source; edit them here and rebuild.
 
-- `snapshot.ps1 -Out <file.json>` saves a read-only snapshot of the system state that game boosters
-  usually change. It reads and changes nothing.
-- `compare.ps1 -Before <a.json> -After <b.json>` prints only what changed, grouped as: power, services,
+- `gamebooster snapshot <file.json>` (`snapshot.ps1 -Out <file.json>`) saves a read-only snapshot of
+  the system state that game boosters usually change. It reads and changes nothing.
+- `gamebooster compare <a.json> <b.json>` (`compare.ps1 -Before <a.json> -After <b.json>`) prints
+  only what changed, grouped as: power, services,
   processes (started / stopped / priority / affinity), registry, Windows Update, BCD, timer resolution,
   free memory.
 
@@ -14,14 +18,14 @@ an SGB diff answers.
 
 ## Steps (on the Boot Camp Windows install)
 
-1. Copy the `capture` folder to the Windows side, for example `C:\capture`.
+1. Install `gamebooster.exe` in `C:\gamebooster` (see the
+   [README](../README.md#install-and-update)); if it is already there, run `gamebooster update`.
 2. Open PowerShell as administrator: Start menu, type `PowerShell`, right-click
    **Windows PowerShell**, **Run as administrator**. Use your normal Windows account, since the
    script reads your user's settings (HKCU).
-3. Allow the scripts for this window only:
+3. Go to the folder:
    ```powershell
-   Set-ExecutionPolicy -Scope Process Bypass
-   cd C:\capture
+   cd C:\gamebooster
    ```
 4. Make sure Smart Game Booster is **not** boosted yet. If it is, press its button to restore first.
 5. Decide about Battlefield 6:
@@ -30,16 +34,16 @@ an SGB diff answers.
    - Otherwise do **not** launch BF6. Then the comparison shows only the booster's changes.
 6. Take the "before" snapshot:
    ```powershell
-   .\snapshot.ps1 -Out before.json
+   .\gamebooster.exe snapshot before.json
    ```
 7. Press **Boost** in Smart Game Booster and wait until it says it is done.
 8. Take the "after" snapshot:
    ```powershell
-   .\snapshot.ps1 -Out after.json
+   .\gamebooster.exe snapshot after.json
    ```
 9. Compare and save the result to a file:
    ```powershell
-   .\compare.ps1 -Before before.json -After after.json | Out-File -Encoding utf8 diff.txt
+   .\gamebooster.exe compare before.json after.json | Out-File -Encoding utf8 diff.txt
    ```
 10. Send `diff.txt` (and if possible `before.json` and `after.json` too).
 

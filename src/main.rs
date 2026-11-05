@@ -7,6 +7,7 @@
 
 mod config;
 mod game_mode;
+mod install;
 mod network;
 mod power;
 mod priority;
@@ -20,14 +21,19 @@ use state::{GameModeState, State};
 use std::path::{Path, PathBuf};
 
 const USAGE: &str = "\
-usage: gamebooster <boost|restore|status|ping> [--dry-run] [--config <file>]
+usage: gamebooster <command> [--dry-run] [--config <file>]
 
-  boost     apply the tweaks enabled in the config (if already boosted: re-apply game priority)
-  restore   undo everything the last boost changed
-  status    show whether a boost is active and what it changed
-  ping      measure latency to cloud regions near game servers, fastest first (changes nothing)
-  --dry-run print what boost/restore would do, change nothing (no admin needed)
-  --config  config file (default: gamebooster.toml next to gamebooster.exe)";
+  boost      apply the tweaks enabled in the config (if already boosted: re-apply game priority)
+  restore    undo everything the last boost changed
+  status     show whether a boost is active and what it changed
+  ping       measure latency to cloud regions near game servers, fastest first (changes nothing)
+  init       write the example config as gamebooster.toml next to gamebooster.exe (never overwrites)
+  update     download the latest gamebooster.exe from GitHub and replace this one
+  snapshot <out.json>                save a read-only snapshot of system state (capture/snapshot.ps1)
+  compare <before.json> <after.json> print what changed between two snapshots (capture/compare.ps1)
+  --version  print the version and the git commit it was built from
+  --dry-run  print what boost/restore would do, change nothing (no admin needed)
+  --config   config file (default: gamebooster.toml next to gamebooster.exe)";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Step {
@@ -52,20 +58,29 @@ struct Args {
     command: String,
     dry_run: bool,
     config: Option<PathBuf>,
+    /// File arguments of `snapshot` / `compare`.
+    files: Vec<PathBuf>,
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     let mut it = args.into_iter();
-    let (mut command, mut dry_run, mut config) = (None, false, None);
+    let (mut command, mut dry_run, mut config, mut files) = (None, false, None, Vec::new());
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dry-run" => dry_run = true,
             "--config" => config = Some(PathBuf::from(it.next().ok_or("--config needs a file")?)),
-            "boost" | "restore" | "status" | "ping" if command.is_none() => command = Some(a),
+            "--version" | "-V" if command.is_none() => command = Some("version".to_string()),
+            "boost" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" if command.is_none() => command = Some(a),
+            _ if matches!(command.as_deref(), Some("snapshot" | "compare")) && !a.starts_with('-') => files.push(PathBuf::from(a)),
             _ => return Err(format!("unexpected argument `{a}`")),
         }
     }
-    Ok(Args { command: command.ok_or("missing command")?, dry_run, config })
+    let command = command.ok_or("missing command")?;
+    match (command.as_str(), files.len()) {
+        ("snapshot", n) if n != 1 => Err("usage: gamebooster snapshot <out.json>".into()),
+        ("compare", n) if n != 2 => Err("usage: gamebooster compare <before.json> <after.json>".into()),
+        _ => Ok(Args { command, dry_run, config, files }),
+    }
 }
 
 /// Human-readable summary of what a state does (for --dry-run and status).
@@ -118,6 +133,14 @@ fn main() {
             std::process::exit(2);
         }
     };
+    if args.command == "version" {
+        println!("gamebooster {}", install::VERSION);
+        return;
+    }
+    // Best effort: the exe that `update` replaced can only be deleted once it has exited.
+    if let Ok(exe) = std::env::current_exe() {
+        let _ = std::fs::remove_file(install::old_path(&exe));
+    }
     if let Err(e) = run(args) {
         eprintln!("error: {e}");
         std::process::exit(1);
@@ -131,12 +154,19 @@ fn run(_: Args) -> Result<(), String> {
 
 #[cfg(windows)]
 fn run(args: Args) -> Result<(), String> {
-    let dir = std::env::current_exe().map_err(|e| e.to_string())?.parent().map(Path::to_path_buf).unwrap_or_default();
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let dir = exe.parent().map(Path::to_path_buf).unwrap_or_default();
     let config_path = args.config.unwrap_or_else(|| dir.join("gamebooster.toml"));
     let state_path = dir.join("gamebooster-state.json");
-    let cfg = Config::load(&config_path).map_err(|e| {
-        format!("{e}\n(copy gamebooster.example.toml to {} and edit it)", dir.join("gamebooster.toml").display())
-    })?;
+    let f = |i: usize| args.files[i].clone().into_os_string();
+    match args.command.as_str() {
+        "init" => return install::init(&config_path),
+        "update" => return install::update(&exe, state_path.exists()),
+        "snapshot" => return install::powershell("snapshot", install::SNAPSHOT_PS1, &["-Out".into(), f(0)]),
+        "compare" => return install::powershell("compare", install::COMPARE_PS1, &["-Before".into(), f(0), "-After".into(), f(1)]),
+        _ => {}
+    }
+    let cfg = Config::load(&config_path).map_err(|e| format!("{e}\n(run `gamebooster init` to create it, then edit it)"))?;
     let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
     if !matches!(args.command.as_str(), "status" | "ping") && !args.dry_run && !admin {
         return Err("boost and restore need administrator rights: right-click your terminal, \"Run as administrator\"".into());
@@ -372,6 +402,15 @@ mod tests {
         assert!(parse_args(["boost", "restore"].map(String::from)).is_err());
         assert!(parse_args(["--dry-run"].map(String::from)).is_err());
         assert!(parse_args(["boost", "--config"].map(String::from)).is_err());
+        assert_eq!(parse_args(["--version"].map(String::from)).unwrap().command, "version");
+        assert_eq!(parse_args(["update"].map(String::from)).unwrap().command, "update");
+        let s = parse_args(["snapshot", "a.json"].map(String::from)).unwrap();
+        assert_eq!((s.command.as_str(), s.files), ("snapshot", vec![PathBuf::from("a.json")]));
+        assert_eq!(parse_args(["compare", "a.json", "b.json"].map(String::from)).unwrap().files.len(), 2);
+        assert!(parse_args(["snapshot"].map(String::from)).is_err());
+        assert!(parse_args(["compare", "a.json"].map(String::from)).is_err());
+        assert!(parse_args(["boost", "a.json"].map(String::from)).is_err());
+        assert!(parse_args(["init", "x"].map(String::from)).is_err());
     }
 
     #[test]

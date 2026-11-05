@@ -31,6 +31,28 @@ nothing. See [network](docs/tweaks/network.md).
 Details, defaults, manual commands and how to measure each one: [docs/tweaks/](docs/tweaks/README.md).
 The behaviour follows [docs/spec.md](docs/spec.md).
 
+## Install and update
+
+Every push to `main` is tested and built by GitHub Actions
+([.github/workflows/release.yml](.github/workflows/release.yml)) and published as `gamebooster.exe`
+on the rolling [`latest` release](https://github.com/ztancrell/gamebooster-rs/releases/tag/latest).
+That one exe is all Windows needs: the example config and the capture scripts are built in.
+
+First install:
+
+1. Download `gamebooster.exe` from the
+   [Releases page](https://github.com/ztancrell/gamebooster-rs/releases/tag/latest) and put it in
+   `C:\gamebooster`. Windows SmartScreen may warn the first time you run it: **More info** >
+   **Run anyway**. If PowerShell still refuses it, run `Unblock-File C:\gamebooster\gamebooster.exe`.
+2. In a terminal: `cd C:\gamebooster`, then `gamebooster init`. It writes `gamebooster.toml` next to
+   the exe (it never overwrites an existing one); edit it in Notepad.
+
+Later: `gamebooster update` downloads the latest `gamebooster.exe` with `curl.exe` (Windows 10 1803
+or later), checks it is a Windows program that runs, and swaps it in; it prints the old and new
+version (`gamebooster --version`: crate version and git commit). The replaced exe is kept as
+`gamebooster.exe.old` until the next command deletes it. Updating while boosted is fine: the state
+file stays compatible, so `restore` works with the new version.
+
 ## Build
 
 Needs Rust. From Linux (cross-compile; needs the `x86_64-pc-windows-gnu` target and mingw-w64):
@@ -43,12 +65,13 @@ cargo build --release --target x86_64-pc-windows-gnu
 On Windows: `cargo build --release` gives `target\release\gamebooster.exe`.
 
 `cargo test` runs the platform-independent unit tests (config, state file, order, parsers) on any
-OS. The binary itself only does anything on Windows.
+OS. The binary itself only does anything on Windows. `build.rs` embeds the git short hash (or
+`GITHUB_SHA` in CI) for `--version`.
 
 ## Usage
 
 Put `gamebooster.exe` and your config (`gamebooster.toml`) in one folder, for example
-`C:\gamebooster`. Open a terminal **as administrator** (right-click > Run as administrator) from
+`C:\gamebooster` (see [Install and update](#install-and-update)). Open a terminal **as administrator** (right-click > Run as administrator) from
 your normal Windows account, then:
 
 ```bat
@@ -66,6 +89,11 @@ gamebooster ping
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal. |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Measures latency (median of 5 TCP connects) to `ping_hosts`, AWS regional endpoints by default, and prints them fastest first. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
+| `init` | Writes the built-in example config as `gamebooster.toml` next to `gamebooster.exe` (or `--config <file>`). Never overwrites an existing file. |
+| `update` | Downloads the latest `gamebooster.exe` from the `latest` release and replaces this one; prints old -> new version. No admin needed if you can write to the exe's folder. |
+| `snapshot <out.json>` | Saves a read-only snapshot of system state (runs the built-in copy of [capture/snapshot.ps1](capture/snapshot.ps1) with Windows PowerShell). See [capture](capture/README.md). |
+| `compare <before.json> <after.json>` | Prints what changed between two snapshots (built-in [capture/compare.ps1](capture/compare.ps1)). |
+| `--version` | Prints the version and the git commit it was built from. |
 | `--dry-run` | With `boost` or `restore`: print the plan, change nothing. |
 | `--config <file>` | Use another config file. |
 
@@ -73,8 +101,8 @@ Boost and restore without `--dry-run` refuse to run without administrator rights
 
 ## Config
 
-Copy [gamebooster.example.toml](gamebooster.example.toml) to `gamebooster.toml` next to
-`gamebooster.exe`. Keys:
+`gamebooster init` writes [gamebooster.example.toml](gamebooster.example.toml) (built into the exe)
+as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 
 | Key | Default | Meaning |
 |---|---|---|

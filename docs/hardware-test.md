@@ -11,15 +11,14 @@ copy the whole window text and send it.
 
 ### Setup
 
-1. On Linux, in the repo, build:
-   ```sh
-   cargo build --release --target x86_64-pc-windows-gnu
-   ```
-   Result: `target/x86_64-pc-windows-gnu/release/gamebooster.exe`.
-2. Copy to the Windows side (USB stick or shared folder), all into `C:\gamebooster`:
-   - `gamebooster.exe`
-   - `gamebooster.example.toml`, renamed to `gamebooster.toml`
-   - the whole `capture` folder, so you get `C:\gamebooster\capture\snapshot.ps1`
+1. First time: download `gamebooster.exe` from the
+   [Releases page](https://github.com/ztancrell/gamebooster-rs/releases/tag/latest) into
+   `C:\gamebooster` (SmartScreen: **More info** > **Run anyway**). Already installed: skip to step 4
+   and run `.\gamebooster.exe update` there first.
+   Look for: `Updated: <old> -> <new>` or `Already up to date: ...`; `.\gamebooster.exe --version`
+   should show the commit you expect.
+2. In the PowerShell window from step 4: `.\gamebooster.exe init`.
+   Look for: `Wrote C:\gamebooster\gamebooster.toml ...` (or `already exists; left it unchanged.`).
 3. Edit `C:\gamebooster\gamebooster.toml` in Notepad so every tweak gets exercised once:
    - `services = ["WSearch"]` (Windows Search; harmless to stop).
    - `close = ["OneDrive.exe"]`, or any other app you see running in Task Manager > Details that
@@ -30,7 +29,6 @@ copy the whole window text and send it.
 4. Open PowerShell as administrator (Start, type `PowerShell`, right-click **Windows PowerShell**,
    **Run as administrator**), from your normal Windows account. Then:
    ```powershell
-   Set-ExecutionPolicy -Scope Process Bypass
    cd C:\gamebooster
    ```
    Use this one window for everything below.
@@ -47,7 +45,7 @@ copy the whole window text and send it.
    `priority: bf6.exe -> High while running`.
    Failure: an `error:` line (usually a config typo; the message says which key).
 7. Start BF6 and wait in the main menu. Alt-Tab back to PowerShell.
-8. `.\capture\snapshot.ps1 -Out 1-before.json`
+8. `.\gamebooster.exe snapshot 1-before.json`
    Look for: `wrote 1-before.json (...)`. A `note: bcdedit failed` line means the window isn't
    administrator.
 9. `.\gamebooster.exe boost`
@@ -71,8 +69,8 @@ copy the whole window text and send it.
     `Active power plan: a2921d59-9c60-439e-b61a-21c441a0df53 (gamebooster)`.
 11. Snapshot and compare:
     ```powershell
-    .\capture\snapshot.ps1 -Out 2-boosted.json
-    .\capture\compare.ps1 -Before 1-before.json -After 2-boosted.json | Out-File -Encoding utf8 diff-boost.txt
+    .\gamebooster.exe snapshot 2-boosted.json
+    .\gamebooster.exe compare 1-before.json 2-boosted.json | Out-File -Encoding utf8 diff-boost.txt
     notepad diff-boost.txt
     ```
     Expected in `diff-boost.txt`:
@@ -104,8 +102,8 @@ copy the whole window text and send it.
 14. `.\gamebooster.exe status`: `Not boosted.` and the same power plan GUID as in step 5.
 15. Snapshot and compare with the first one:
     ```powershell
-    .\capture\snapshot.ps1 -Out 3-restored.json
-    .\capture\compare.ps1 -Before 1-before.json -After 3-restored.json | Out-File -Encoding utf8 diff-restore.txt
+    .\gamebooster.exe snapshot 3-restored.json
+    .\gamebooster.exe compare 1-before.json 3-restored.json | Out-File -Encoding utf8 diff-restore.txt
     notepad diff-restore.txt
     ```
     Expected: `active scheme unchanged`, no changes under power schemes, power settings, services,
@@ -143,14 +141,14 @@ Boost settings at their defaults, and take a screenshot of its Boost config list
 processes): that alone shows its default lists.
 
 1. Start BF6, wait in the main menu (SGB's priority setting acts only on the running game).
-2. `.\capture\snapshot.ps1 -Out sgb-1-before.json`
+2. `.\gamebooster.exe snapshot sgb-1-before.json`
 3. Press **Boost** in SGB and wait until it's done.
-4. `.\capture\snapshot.ps1 -Out sgb-2-boosted.json`
-5. Press **Restore** in SGB, then `.\capture\snapshot.ps1 -Out sgb-3-restored.json`.
+4. `.\gamebooster.exe snapshot sgb-2-boosted.json`
+5. Press **Restore** in SGB, then `.\gamebooster.exe snapshot sgb-3-restored.json`.
 6. Compare:
    ```powershell
-   .\capture\compare.ps1 -Before sgb-1-before.json -After sgb-2-boosted.json | Out-File -Encoding utf8 sgb-diff-boost.txt
-   .\capture\compare.ps1 -Before sgb-1-before.json -After sgb-3-restored.json | Out-File -Encoding utf8 sgb-diff-restore.txt
+   .\gamebooster.exe compare sgb-1-before.json sgb-2-boosted.json | Out-File -Encoding utf8 sgb-diff-boost.txt
+   .\gamebooster.exe compare sgb-1-before.json sgb-3-restored.json | Out-File -Encoding utf8 sgb-diff-restore.txt
    ```
 7. Send both diffs, the screenshot and the `sgb-*.json` files.
 
