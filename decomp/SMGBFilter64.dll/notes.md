@@ -5,7 +5,7 @@ Carved copies: 64-bit `carved/pe_0410e075_181448.bin` (`HUD64\SMGBFilter64.dll`)
 Exports `SetHook`, `GetHook`, `SetFPSGameInfo`, `SetFPSFilter`, `SetFPSHotKey`, `SetAviHotKey`,
 `SetScreenshotHotkey`, `GetFPSStatInfo`. No network imports.
 
-## Injection (0x180002d00_SetHook_global_hooks.asm)
+## Injection (0x180002d00 SetHook, global hooks)
 - `SetHook` calls `SetWindowsHookExW(WH_CBT, proc, hThisDll, 0)` and
   `SetWindowsHookExW(WH_KEYBOARD_LL, proc, hThisDll, 0)`. Thread id 0 = **global**: Windows maps
   this DLL into every GUI process of the same bitness on the desktop. The CBT proc only calls

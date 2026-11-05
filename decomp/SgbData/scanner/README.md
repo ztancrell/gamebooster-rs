@@ -2,8 +2,8 @@
 
 Static analysis only; no vendor binary was run, nothing was contacted. Addresses are VAs in the
 de-filtered `SgbMain.exe` (`/home/zpt/re/sgb-extract/app/cmAppVer/SgbMain.exe`). Data from
-`/home/zpt/re/sgb-extract-db/data/{app}/6.0.1/`. The raw signature lists are **not** kept in the
-repo; regenerate them with `python3 -I ../dbd/dbd_decode.py Def.dbd asc4_2010 <outdir>` (outside the repo).
+`/home/zpt/re/sgb-extract-db/data/{app}/6.0.1/`. The raw signature lists (from `Def.dbd`,
+password `asc4_2010`) are **not** kept: Decoded output and decoder are not kept in the repo (see decomp/README.md, 'Policy').
 Plain-language version: [docs/sgb/security-features.md](../../../docs/sgb/security-features.md).
 
 ## 1. Malware scanner ("Account Guard" / "Auto Scan Spyware")

@@ -1,8 +1,8 @@
 # SgbAccelerate.dll (+ WinDivert.dll, itvwd*.sys)
 
 `SgbAccelerate.dll` in the `-db` extraction and carved `pe_0c86fb8f_485944.bin` are byte-identical
-(SHA-256 314991ae...), so `functions/*.c` here are trustworthy for call targets. Decompile is
-partial on purpose (out of scope). This note is an architecture overview from strings, exports,
+(SHA-256 314991ae...), so its call targets are trustworthy. Superseded: this note first said the
+decompile was partial; a full pass was done later (see "Full Ghidra pass" below). This note is an architecture overview from strings, exports,
 imports and two functions (`0x10018be0` startProxy, `0x10019490` socket-layer thread). Nothing was
 executed and no vendor server was contacted. VA = file offset + 0x10000c00 for `.rdata`.
 

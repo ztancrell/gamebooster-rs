@@ -3,15 +3,15 @@
 Static analysis only; no vendor binary was run. Code addresses are in the correctly de-filtered
 `SgbMain.exe` (sha256 `060f6621…d16f`, see `../../inno_carve.py`).
 
-Decode: `python3 -I dbd_decode.py <file.dbd> <password> [outdir]` (needs the `cryptography`
-package). It asserts the HAVAL self-test vector copied from SgbMain, each entry's size and CRC-32.
+Decoded output and decoder are not kept in the repo (see decomp/README.md, 'Policy'). The decoder
+checked the HAVAL self-test vector copied from SgbMain, each entry's size and CRC-32.
 
 | File | Password (literal in SgbMain) | Entries |
 |---|---|---|
 | `Opt.dbd` | `asc6_2012_6` (VA 0x8c6671) | 31 INI-style tweak profiles + `Des-ref.txt` |
 | `SysSpeed.dbd` | `asc9_speedup` | `SysSpeed.ini` (UTF-16), `GB3.ini` |
 | `PriTemp.dbd` | `asc4_2010` | `junkfile.db` (165 sections), `privacy.db` (365 sections), both INI text |
-| `Def.dbd` | `asc4_2010` (VA 0x83a868 path; same literal as PriTemp) | 17 malware-scanner signature lists, see [`../scanner/README.md`](../scanner/README.md). `Main.db`/`Signature.db` have compression byte 3: encrypted but not zlib-packed (the script handles it); `BHO.db` appears twice (second copy overwrites the first when extracting) |
+| `Def.dbd` | `asc4_2010` (VA 0x83a868 path; same literal as PriTemp) | 17 malware-scanner signature lists, see [`../scanner/README.md`](../scanner/README.md). `Main.db`/`Signature.db` have compression byte 3: encrypted but not zlib-packed (the decoder must handle it); `BHO.db` appears twice (second copy overwrites the first when extracting) |
 | `CYRI.dbd` | `SMGB5_CYRI` | opens with the same decoder (first block is zlib); not extracted (game DB) |
 
 ## Container format
@@ -46,10 +46,10 @@ The other two passwords sit next to their `Database\*.dbd` paths in SgbMain's UT
 
 ## What's in it
 
-Kept here (text, small): `Opt/` (Win10 profiles, network default, `Promote.txt`, `Des-ref.txt`) and
-`SysSpeed/` (`SysSpeed.utf8.ini` is `SysSpeed.ini` converted from UTF-16; `GB3.ini` as-is).
-Other Opt profiles (XP/Vista/7/8 variants of the same five) and PriTemp (junk/privacy cleaner path
-templates for browsers and apps; no performance tweaks) are summarised only; regenerate them with the script.
+Summarised below: the Opt Win10 profiles, network default, `Promote.txt`, `Des-ref.txt`, and
+`SysSpeed.ini` / `GB3.ini`. Other Opt profiles (XP/Vista/7/8 variants of the same five) and PriTemp
+(junk/privacy cleaner path templates for browsers and apps; no performance tweaks) are not described
+further. Decoded output and decoder are not kept in the repo (see decomp/README.md, 'Policy').
 
 - **SysSpeed.ini** = the "System Tweak / speed-up" page: 51 items, each a single registry value
   (`RootKey` 2 = HKCU, 3 = HKLM, 4 = HKU; `IsShow=0` items are hidden children applied with their parent via `ModifyN`).

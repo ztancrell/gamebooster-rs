@@ -6,10 +6,10 @@ Target: `sgb-extract/app/cmAppVer/SgbMain.exe` (9,008,696 bytes, Delphi 2009 / R
 ## Method and limits
 - Ghidra via REA did not finish import + auto-analysis of this exe within its 30-minute startup
   deadline (this is what stalled the previous agent). Rizin is not installed. So there is no Ghidra
-  pseudocode: the `.asm` files here are `objdump -M intel` disassembly of single functions,
-  annotated by `dis.py` (string literals, import names). `refs.py` finds code that references a
-  string (VA = file offset + 0x400C00 in .text). Both scripts are kept here so the output can be
-  regenerated.
+  pseudocode: the functions below were read as `objdump -M intel` disassembly, annotated by
+  `dis.py` (string literals, import names). `refs.py` finds code that references a string (VA =
+  file offset + 0x400C00 in .text). Both scripts are kept here so the output can be regenerated
+  locally; the disassembly itself is not kept (see `../README.md`, 'Policy').
 - The exe is **protected**: many helper calls and every Win32 API call site observed go to stubs at
   VA 0xb4xxxx–0xb8xxxx, a region inside the `.rsrc` section range whose bytes are encrypted on disk
   (no `E8` call reaches the normal `FF 25` import thunks of TerminateProcess, ControlService,
@@ -23,15 +23,15 @@ Target: `sgb-extract/app/cmAppVer/SgbMain.exe` (9,008,696 bytes, Delphi 2009 / R
 - Superseded: this file covers Boost/Restore only. Every other SgbMain feature (monitor DDC, overclock,
   clipboard, tray no-op, game detection, CYRI, startup manager, ...) is in `features.md`.
 
-## Files
-| File | What |
+## Functions read
+| Function (VA) | What |
 |---|---|
-| 0x7c6f0c_TBoost_Execute.asm | Boost/Restore dispatcher. |
-| 0x7b81f4_PowerSch_Boost.asm | Power-plan Boost (steps "TPowerSch.Boost 1–11"). |
-| 0x78754c_ServiceList_PerWinVersion.asm | Picks the INI section of default services by Windows version. |
-| 0x788a58_ServiceBoost_ini_Load_Save.asm | ServiceBoost.ini / "StopServiceFail" bookkeeping. |
-| 0x473324_SysInfo_Win32PrioritySeparation_log.asm | Diagnostics: reads PriorityControl, Memory Management (PagingFiles), SubSystems; logs them. |
-| 0x5458a0_PsAPI_dynamic_loader.asm | 0x5458a0 itself is the debug-log function (UnicodeString → `OutputDebugStringW`, ends ≈0x5458f0); the PSAPI loader (`LoadLibraryW("PSAPI.dll")`, GetProcAddress of EnumProcesses, EmptyWorkingSet, ...) is the next function, ≈0x5458f4. Superseded: this row called 0x5458a0 the PSAPI loader; the file name is kept. Not the RAM boost itself. |
+| 0x7c6f0c | Boost/Restore dispatcher. |
+| 0x7b81f4 | Power-plan Boost (steps "TPowerSch.Boost 1–11"). |
+| 0x78754c | Picks the INI section of default services by Windows version. |
+| 0x788a58 | ServiceBoost.ini / "StopServiceFail" bookkeeping. |
+| 0x473324 | Diagnostics: reads PriorityControl, Memory Management (PagingFiles), SubSystems; logs them. |
+| 0x5458a0 | 0x5458a0 itself is the debug-log function (UnicodeString → `OutputDebugStringW`, ends ≈0x5458f0); the PSAPI loader (`LoadLibraryW("PSAPI.dll")`, GetProcAddress of EnumProcesses, EmptyWorkingSet, ...) is the next function, ≈0x5458f4. Superseded: this row called 0x5458a0 the PSAPI loader. Not the RAM boost itself. |
 
 ## Findings
 - **Order** (0x7c6f0c): Boost = Monitor, OverClock, Service, Process, RAM, Clipboard, Power Schemes,
@@ -74,7 +74,7 @@ GetCurrentDisplayBrightness). The copy used now was carved by `decomp/inno_carve
 chunk, then the inverse Inno call filter in 64 KiB blocks). It is
 `/home/zpt/re/sgb-extract/app/cmAppVer/SgbMain.exe`, 9,008,696 bytes, sha256 `060f6621…d16f`. In it,
 every API call goes straight to its `FF 25` import thunk, and only 2 `E8` calls in the whole of
-.text land in 0xb4xxxx–0xb8xxxx. The six earlier `.asm` files were regenerated from this copy, so
+.text land in 0xb4xxxx–0xb8xxxx. The six earlier disassembly listings were regenerated from this copy, so
 their call targets are now right. With this copy, Ghidra via REA finished auto-analysis in 183 s
 (startup limit raised to 90 min, but it wasn't needed).
 
@@ -82,8 +82,9 @@ Direct callers per import (E8 → thunk): SetPriorityClass 1 (0x7c34d5), SetProc
 (0x7b781f), ChangeServiceConfigW 3 (0x5bf498, 0x81c667, 0x9c63b2), ControlService 1 (0x7874ab),
 TerminateProcess 12, OpenSCManagerW 11, StartServiceW 4, EmptyClipboard 4.
 
-New files: `0x7c4278_TPriorityController_Boost_Restore_IDLE.asm`, `0x7b7768_RAMClear_SetProcessWorkingSetSize.asm`,
-`0x5bf498_ChangeServiceConfigW_callers_not_boost.asm`, `0x7b8349_GameScheme_GUID_PowerMgr_lookup.asm`.
+Functions read in this pass: 0x7c4278 (TPriorityController Boost/Restore, IDLE), 0x7b7768 (RAM clear,
+SetProcessWorkingSetSize), 0x5bf498 (ChangeServiceConfigW callers, not Boost), 0x7b8349 (game scheme
+GUID, PowerMgr lookup).
 
 - **Service start types (high confidence): Boost never changes them.** There are only three
   ChangeServiceConfigW calls. 0x5bf498 is a generic set-start-type helper (fn ~0x5bf360, dwServiceType

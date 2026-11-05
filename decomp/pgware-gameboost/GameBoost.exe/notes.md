@@ -20,9 +20,9 @@ Four pickers (from the `TGBMainForm` DFM) and two buttons:
 | Speed Setting | trackbar `[ebx+0x470]+0x2d0` | Boost / **Maximum Boost** (trial: upsell box, opens the store) | Only `MaxConnectionsPerServer` / `MaxConnectionsPer1_0Server`: 4 (Boost) or 8 (Maximum) |
 
 Nothing is detected automatically. The progress dialog's "Finding modem information", "Finding 3D
-graphics device", "Finding hard drives" etc. are a fake progress loop: see
-[`fake_progress.asm`](fake_progress.asm) (random 1–3 million message-pump iterations plus three
-500 ms sleeps per step, 33 steps on Optimize and 29 on Restore, so tens of seconds of animation).
+graphics device", "Finding hard drives" etc. are a fake progress loop: the
+loop does random 1–3 million message-pump iterations plus three
+500 ms sleeps per step, 33 steps on Optimize and 29 on Restore, so tens of seconds of animation.
 
 ## Optimize (`GoButton`, handler around 0x6ca6e0..0x6cb620)
 
@@ -30,7 +30,7 @@ graphics device", "Finding hard drives" etc. are a fake progress loop: see
 2. Saves the four picker values to `HKLM\Software\PGWARE\GameBoost\`.
 3. Fake progress (above).
 4. If `Restore` = 0 (first time): backs up 9 values into `HKLM\Software\PGWARE\GameBoost\` (value
-   names reused), see [`optimize_backup.asm`](optimize_backup.asm). Sets `Restore` = 1.
+   names reused). Sets `Restore` = 1.
 5. Writes the values below. 6. "Restart Windows now?" (Yes → `ExitWindowsEx`).
 
 Full machine-generated list: `python -I ../tweaks.py GameBoost.exe`. "Win10/11" column: applied

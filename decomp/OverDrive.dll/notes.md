@@ -23,7 +23,7 @@ run time with LoadLibrary/GetProcAddress. No network code.
   clock offset), not provable from strings.
 - `GPUDB.dll` (+ `GPUInfo.db`) supplies a per-model reference clock ("dbGPUinfo.GPUClock").
 
-## Limits / safety (0x10005058_AMD5_offset_by_level.asm, 0x100022a0_ReadBoostIni.asm)
+## Limits / safety (0x10005058 AMD5 offset by level, 0x100022a0 ReadBoostIni)
 - Level comes from `%APPDATA%\PCGameBoost\Smart Game Booster\SmartGameBooster.ini`, `[Boost]`
   `OCLevel`; custom MHz from `OC_GPU`, `OC_RAM`; `Support` flag.
 - Offset = driver-reported headroom, capped by the GPUDB reference clock when known; **level 1 halves

@@ -27,7 +27,7 @@ another path is given. Plain-language summary: `docs/sgb/main-app.md`.
 | A6 Clipboard (`TClipbrd`) | 0x7b7bc4 | Reads the `[Clipbrd] Clear` setting, then VCL `Clipboard.Clear` (global 0x4eb5f4 → OpenClipboard/EmptyClipboard). No restore. |
 | A8 Windows Update (`TUpdateBoost`, `TUpdateController`) | Boost 0x7c26c8, `CloseWindowsUpdate` 0x7c253c, `SetUpdateState` 0x7c2e68 | `CoCreateInstance` of the Automatic Updates object, then `IAutomaticUpdatesSettings`: exits if the service is disabled (`ServiceEnabled Exit`), if the setting is read-only (`ReadOnly Exit`) or required by policy (`Required Exit`); otherwise saves the old NotificationLevel (`WindowsUpdate` key) and sets the new one ("set new configure."). Matches spec 2.5; nothing new. |
 | A9 Game Mode (`TGameMode`) | strings 0x7c2200 | `AutoGameModeEnabled` as in the spec. |
-| A11 Tidy tray icons | 0x7c7ae9 in TBoost.Execute (`0x7c7a2e_…logonly.asm`) | **Does nothing in 6.0.** The string "Remove Dead Tray Icons" is only passed to 0x5462f4 → 0x5458a0 (`OutputDebugStringW`); no window or tray API follows, the next step is the finish callback. The tray-related window classes (`ToolbarWindow32`, `TrayNotifyWnd`) are referenced only from the Game Desktop exclusion table below. |
+| A11 Tidy tray icons | 0x7c7ae9 in TBoost.Execute (function 0x7c7a2e) | **Does nothing in 6.0.** The string "Remove Dead Tray Icons" is only passed to 0x5462f4 → 0x5458a0 (`OutputDebugStringW`); no window or tray API follows, the next step is the finish callback. The tray-related window classes (`ToolbarWindow32`, `TrayNotifyWnd`) are referenced only from the Game Desktop exclusion table below. |
 | Boost log | 0x7c7a4d | Writes `Logs\Boost.txt` (CopyFileW of the run log). |
 
 ## Game detection, launching and auto-boost
@@ -55,7 +55,7 @@ another path is given. Plain-language summary: `docs/sgb/main-app.md`.
   UpdateTemperatureInfoForGB3, SetScreenshotDir, SetAviDir, SetFpsPos, SetCaptureFileType,
   SetVideoRecordParam, Get/SetAudioDevice, SetFontColor, SetCustomFontParam, SetTextPosition,
   SetTextShadowInfo` (0x8140a8–0x8142ec): in-game FPS/CPU/GPU overlay, screenshots, video recording.
-- **Game Desktop** (`TGameDesk` 0x7c51d8, `0x7c51d8_TGameDesk_HideDeskApp.asm`): `EnumWindows` and
+- **Game Desktop** (`TGameDesk` 0x7c51d8, HideDeskApp): `EnumWindows` and
   `ShowWindow` hide every visible top-level window except 13 classes (table 0xa4be84: shell tray,
   taskbar, IME, SGB's own) and hides the desktop icons (`Progman` → `SHELLDLL_DefView`); hotkeys
   `ExitGameDeskTop1/2`. Also "LauchGameWithVirtualDesktop".
@@ -77,8 +77,8 @@ OptFailed.ini, Ignore.ini, boottime.dat, disableRate.db, discription.db`) and th
 
 ## CYRI ("Can You Run It") game database
 
-`Database\CYRI.dbd` (16.1 MB) decodes with `../SgbData/dbd/dbd_decode.py`, password `SMGB5_CYRI`, into
-two entries (not committed, regenerate with the script):
+`Database\CYRI.dbd` (16.1 MB) decodes (format in `../SgbData/dbd/README.md`), password `SMGB5_CYRI`, into
+two entries. Decoded output and decoder are not kept in the repo (see decomp/README.md, 'Policy').
 
 - `CYRI.db` (62.6 MB SQLite): `CYRIGame` 162,942 games (SMGBID, GameName, Name_s, Categories,
   Min/Rec CPU text + score, Min/Rec GPU text + score, Min/Rec RAM, Min/Rec OS, GameImagePath,
@@ -151,10 +151,9 @@ Download lists: `s3.amazonaws.com/myfilelist/list-*`, `storage.googleapis.com/my
 ## Cleaners, System Tweak scanner, and who calls TPriorityController (2026-11-05, REA/Ghidra + `dis.py`)
 
 Plain-language version: `docs/sgb/cleaners.md`. Templates: `PriTemp.dbd` (password `asc4_2010`) decodes
-with `../SgbData/dbd/dbd_decode.py` into `junkfile.db` (165 INI sections) and `privacy.db` (365); not
-committed, regenerate. `Junk.dbd`, `RZJunk.dbd`, `SDJunk.dbd` are named in code (0x847470…) but not shipped.
+into `junkfile.db` (165 INI sections) and `privacy.db` (365). Decoded output and decoder are not kept in the repo (see decomp/README.md, 'Policy'). `Junk.dbd`, `RZJunk.dbd`, `SDJunk.dbd` are named in code (0x847470…) but not shipped.
 
-**TPriorityController.Boost has no caller** (`0x7c8acc_TPriorityController_no_Boost_caller.asm`). The dword
+**TPriorityController.Boost has no caller** (function 0x7c8acc). The dword
 0x7c4278 appears only in the VMTs of TPsPriorityBoost (0x7c33d4) and TPriorityController (0x7c445c),
 which share every slot. The only instance is TBoost+0xa0 (created 0x7c676a). Every read of +0xa0 is the
 destructor, the stop-flag setters (0x7c6dc9, 0x7c6e5d), the callback setter (0x7c88fe) and three
@@ -172,7 +171,7 @@ the game's own class is set. Not read in code.
 | Template | parser strings 0x859200… (junk), 0x885af4… (privacy) | Per section: `KindID` (tree group), `Recommended`, `CheckFile`/`CheckReg` (is the app present), `DelFile` (`dir|mask[|RECURSE]`), `DelReg` (key or value), `ExcludeFile`, `SpecialChecked`/`SpecialDelete` (built-in handlers such as `WIN_RECYCLEBIN`, `GC_SAVEPASSWORDS`), `DllName/DllScan/DllFix` (only `DriverClean.dll`), `WarnSec`. |
 | Scan | `SelfScan` 0x84787c, `AnalyzeAndScan` ~0x849d00 | Enumerates the template paths (32-bit and, separately, x64 views), records files with sizes and existing keys/values. Browser history/cookies are cleaned with SQL (`delete from urls/visits/cookies/moz_places…`, 0x87ad14–0x88356c). No call to `Random` (0x40372c, 36 callers) anywhere in 0x841000–0x88a000; the `Sleep`s there are 10–100 ms waits in loops. |
 | Fix | `SelfFix` 0x848244 → `FixItem` 0x84866c (`0x848244_…`, `0x84866c_…asm`) | Enables SeBackup/SeRestore and loads **other users' `ntuser.dat` hives** (0x82b97c, RegLoadKeyW) so their keys are cleaned too. Files: skipped if gone or excluded; if in use (0x8346e4, exclusive CreateFileW) → `MoveFileExW(DELAY_UNTIL_REBOOT)` (0x834270) and the "(Delete on Restart)" list; else delete (0x834da8, optional overwrite passes = "Secure Deletion"), failure → reboot list. Keys/values: if a backup stream is open, exported as `.reg` text first (0x8405a0, 0x840d18), then deleted; failures go to a fail list. |
-| Report | 0x85da60 (`0x85da60_JunkResult_fixed_count.asm`) | "N items fixed" = number of ticked result rows (0x85db3d); size = sum of scan-time sizes of the ticked results (0x85db8f). Not reduced by failures or reboot-deferred files. |
+| Report | 0x85da60 (JunkResult fixed count) | "N items fixed" = number of ticked result rows (0x85db3d); size = sum of scan-time sizes of the ticked results (0x85db8f). Not reduced by failures or reboot-deferred files. |
 
 Inflation, precisely: (1) the post-clean "fixed" count and size are the selection, not a measured
 result; (2) files in use are counted as cleaned although they are only queued for the next reboot
@@ -189,7 +188,7 @@ traced in UI code.
 
 **System Tweak scanner** (`TSysSpeedBusiness`, data `SysSpeed.ini`/`GB3.ini` from `SysSpeed.dbd`):
 
-- Issue test 0x8a1bd0 (`0x8a1bd0_TSysSpeedBusiness_IsNotOptimized.asm`): open the key with
+- Issue test 0x8a1bd0 (TSysSpeedBusiness.IsNotOptimized): open the key with
   `TRegistry.OpenKey(key, CanCreate=True)` (`mov cl,1` 0x8a1da5; 0x4abcb0 → RegCreateKeyExW), so **the scan
   creates missing keys**. Value missing → issue unless `OptVal=Delete`. `CompareStr`: issue if current ≠
   OptVal. `CompareMath`: issue if OptVal < current. So any value left at Windows' default (usually absent)

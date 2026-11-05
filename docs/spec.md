@@ -46,7 +46,7 @@ Boost. Items marked "user list" act only on what the user ticked in the Boost co
 | A8 | Windows automatic updates | Saves the current automatic-update notification level, then sets it to "disabled" (2.5). | Writes back the saved level. | On. |
 | A9 | Windows Game Mode | Sets `HKCU\Software\Microsoft\GameBar` value `AutoGameModeEnabled` (REG_DWORD) to 1. Saves the old value or notes that it was absent. | Writes back the old value, or deletes the value if it was absent. | On. |
 | A10 | Game process priority | When the boosted game runs, sets its priority class to the user's choice: Realtime, High, Above normal, Normal, Below normal or Low. Never changes `steam.exe`, `explorer.exe` or SGB's own processes. | Sets the game back to Normal, or leaves it alone if it has exited. | Per game, opt-in. |
-| A11 | Tidy tray icons | **No-op in SGB 6.0**: only logs "Remove Dead Tray Icons" (`decomp/SgbMain.exe/0x7c7a2e_TBoost_Execute_RemoveDeadTrayIcons_logonly.asm`). Do not implement. Superseded: said it removed dead icons after A4. | Nothing. | Cosmetic. |
+| A11 | Tidy tray icons | **No-op in SGB 6.0**: only logs "Remove Dead Tray Icons" (SgbMain.exe 0x7c7a2e, `decomp/SgbMain.exe/features.md`). Do not implement. Superseded: said it removed dead icons after A4. | Nothing. | Cosmetic. |
 
 Not part of Boost (separate SGB features, do not implement as Boost): the TCP/IP registry tweaks
 (TcpTimedWaitDelay, TcpMaxDupAcks, TcpWindowSize, Nagle, MaxCPS), the SSD/defrag and Windows Search
@@ -171,7 +171,7 @@ steam.exe, `SgbTray.exe`, `SgbMain.exe`, `SgbMini.exe`, SGB's own exe and the 31
 the game is **not** excluded. But **nothing in SgbMain ever calls it**: Boost dispatch skips the
 object, and the object is only used by the Boost settings dialog to store `[Boost] Priority` (on/off)
 and `[Boost] PriorityClass` (default 3), the "Set the priority of game when running" option (evidence:
-`decomp/SgbMain.exe/0x7c8acc_TPriorityController_no_Boost_caller.asm`). The game-priority setting is
+SgbMain.exe 0x7c8acc, `decomp/SgbMain.exe/features.md`). The game-priority setting is
 probably applied by `SgbTray.exe`, which imports SetPriorityClass and reads the same two keys (strings
 only). So lowering other processes is **not** something SGB does; ours is an extra.
 Ours: opt-in, a configurable class (default BELOW_NORMAL, IDLE starves voice chat and similar), and it
@@ -314,14 +314,14 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 
 | Item | Source |
 |---|---|
-| PowerMgr exports (GetCurrentPwrCFG, SetPwrCFG, SetGamePwrCFG, DeleteGamePwrCFG, SetSleepTimeValue, SetDisplayTimeValue, GetCurrentDisplayBrightness, DeletePwrCFGByName) | decomp/PowerMgr.dll/decompile-index.json; decomp/PowerMgr.dll/functions/0x10001010.c … 0x10001100.c |
+| PowerMgr exports (GetCurrentPwrCFG, SetPwrCFG, SetGamePwrCFG, DeleteGamePwrCFG, SetSleepTimeValue, SetDisplayTimeValue, GetCurrentDisplayBrightness, DeletePwrCFGByName) | PowerMgr.dll exports 0x10001010 … 0x10001100 |
 | powrprof functions resolved at runtime; which pointer is the AC writer and which the DC writer | PowerMgr.dll strings (file offsets 0xac44–0xad58); disassembly of the resolver at VA 0x100012e0–0x10001457 (DC writer → 0x1000ddec, AC writer → 0x1000ddf0) |
 | Power GUID table (VA 0x1000b9b4–0x1000bb14, 0x1000bd98–0x1000be18) | PowerMgr.dll .rdata, file offset = VA − 0x10001200 |
-| Plan values written (processor, ASPM, ATI, disk, Wi-Fi, sleep, lid, console lock, video, multimedia) | decomp/PowerMgr.dll/functions/0x10001a30.c (full set); decomp/PowerMgr.dll/functions/0x10001b5a.c (overlapping variant; Ghidra split the code at the wrong boundaries) |
-| Sleep timeout value supplied by the caller | decomp/PowerMgr.dll/functions/0x10001090.c |
+| Plan values written (processor, ASPM, ATI, disk, Wi-Fi, sleep, lid, console lock, video, multimedia) | PowerMgr.dll 0x10001a30 (full set); PowerMgr.dll 0x10001b5a (overlapping variant; Ghidra split the code at the wrong boundaries) |
+| Sleep timeout value supplied by the caller | PowerMgr.dll 0x10001090 |
 | Duplicate from High performance, then write name and description | disassembly VA 0x10001956–0x10001a1a (DuplicateScheme on 0x1000b9b4, then WriteFriendlyName and WriteDescription) |
-| Find scheme by name, then activate | decomp/PowerMgr.dll/functions/0x100016f0.c; disassembly VA 0x100017e1–0x100018fb |
-| Delete scheme(s) by name; Balanced fallback | decomp/PowerMgr.dll/functions/0x10001100.c (Balanced GUID string at 0x1000bd48); decomp/PowerMgr.dll/functions/0x10002100.c |
+| Find scheme by name, then activate | PowerMgr.dll 0x100016f0; disassembly VA 0x100017e1–0x100018fb |
+| Delete scheme(s) by name; Balanced fallback | PowerMgr.dll 0x10001100 (Balanced GUID string at 0x1000bd48); PowerMgr.dll 0x10002100 |
 | Read brightness of the active scheme | disassembly VA 0x100021a0–0x1000222e |
 | Plan name and description; base scheme saved and restored | SgbMain strings "Smart Game Boost Power Plan", "Activate it when you switch…", "BasePwrSchID", "TPowerSch.Boost 1–11", "TPowerSch.Restore 1–7" |
 | Boost and Restore order | SgbMain strings "Boost Monitor … Boost GameMode", "Restore Monitor … Restore GameMode", "TBoost.Execute 4 osBoost / 5 osRestore" |
@@ -329,24 +329,24 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 | Services | SgbMain strings "Stop Service(Dependent)", "Start Service", "SetServiceStop Time Out", "Services_WIN10", "System Services", "Third Services", "ServiceBoost.ini", "StopServiceFail"; imports OpenSCManagerW, ControlService, StartServiceW, ChangeServiceConfigW |
 | RAM | SgbMain strings "EmptyWorkingSet", "GlobalMemoryStatusEx", "Released RAM"; class TRAMClear |
 | Clipboard | SgbMain strings "TClipbrd.Boost", "Clear unused clipboard"; import EmptyClipboard; code 0x7b7bc4 (VCL Clipboard.Clear) |
-| Tray icons no-op | SgbMain 0x7c7ae9: "Remove Dead Tray Icons" only passed to the debug log, `0x7c7a2e_…logonly.asm` |
+| Tray icons no-op | SgbMain 0x7c7ae9: "Remove Dead Tray Icons" only passed to the debug log, TBoost.Execute 0x7c7a2e |
 | Auto-boost watcher | SgbTray strings `OnProcessStart`, `TGameMonitorInfo`, `FGameMonitorList`, "Upgrade to SVIP"; SgbMain `WMBoost`, `/boost` |
 | Game Mode | SgbMain strings "Software\Microsoft\GameBar", "AutoGameModeEnabled", "GameMode" |
 | Windows Update | SgbMain strings "TUpdateBoost.Boost", "save windows update state to file", "PreviousStaus", "ServiceEnabled Exit", "ReadOnly Exit", "Required Exit"; CLSID_AutomaticUpdates at file offset 0x64aa6c, IID_IAutomaticUpdates at 0x64aa5c, IID_IAutomaticUpdatesSettings at 0x3c17b0 |
 | Priority | SgbMain strings "Process Priority", "PriorityClass", "Realtime/High/Above normal/Normal/Below normal/Low", exclusions "steam.exe", "explorer.exe", "SgbTray.exe", "SgbMain.exe", "SgbMini.exe"; imports SetPriorityClass, GetPriorityClass |
 | Monitor DDC/CI | SgbMain strings "TFrameMonitorDDC.Boost", "VCP_DC", "VCP_14", "Monitor.ini"; Boost 0x7c07bc, Restore 0x7c0f7c, VCP get/set 0x7bd5e0 |
 | Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM"; loader 0x7b8da4 (GetProcAddress OverClock/Reset/CanOverClock/GetGPUInfo/GetRange); `decomp/OverDrive.dll/notes.md` |
-| Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/SgbAccelerate.dll/functions (partial); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
+| Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/SgbAccelerate.dll/notes.md (full decompile, deleted); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
 | SgbMain targeted disassembly (method, limits; the "protector" was an extraction error) | decomp/SgbMain.exe/notes.md; decomp/README.md |
-| Boost/Restore dispatch order; temp-file failure only logged | decomp/SgbMain.exe/0x7c6f0c_TBoost_Execute.asm |
-| Power step order; display and sleep timeouts 0; GUID {58231417-…} passed to SetGamePwrCFG | decomp/SgbMain.exe/0x7b81f4_PowerSch_Boost.asm (VA 0x7b82f8 and 0x7b830b push 0); decomp/PowerMgr.dll/functions/0x10001090.c, 0x100010a0.c |
-| Default service INI sections per Windows version | decomp/SgbMain.exe/0x78754c_ServiceList_PerWinVersion.asm |
+| Boost/Restore dispatch order; temp-file failure only logged | SgbMain.exe 0x7c6f0c |
+| Power step order; display and sleep timeouts 0; GUID {58231417-…} passed to SetGamePwrCFG | SgbMain.exe 0x7b81f4 (VA 0x7b82f8 and 0x7b830b push 0); PowerMgr.dll 0x10001090, 0x100010a0 |
+| Default service INI sections per Windows version | SgbMain.exe 0x78754c |
 | Default service lists (plain-text WinSvc.ini, copied to UserWinSvc.ini by SgbInit.exe VA 0x6575e0); no default ProcWL/ProcBL in the installer; .dbd files are not Boost data | decomp/SgbData/README.md, decomp/SgbData/winsvc_lists.py |
-| Win32PrioritySeparation is read only (diagnostics) | decomp/SgbMain.exe/0x473324_SysInfo_Win32PrioritySeparation_log.asm |
+| Win32PrioritySeparation is read only (diagnostics) | SgbMain.exe 0x473324 |
 | No timer-resolution, affinity, MMCSS, network-throttling APIs or strings | SgbMain import table and string tables (searched for timeBeginPeriod, NtSetTimerResolution, SetProcessAffinityMask, SystemProfile, NetworkThrottlingIndex, SystemResponsiveness, SetSystemFileCacheSize) |
-| Other processes lowered to IDLE (0x40), saved class restored; exclusions | decomp/SgbMain.exe/0x7c4278_TPriorityController_Boost_Restore_IDLE.asm (0x7c42e1 mov ecx,0x40 → SetPriorityClass at 0x7c34d5; list built at 0x7c3a9c) |
-| ...but that Boost has no caller (dead code); the object only stores `[Boost] Priority`/`PriorityClass` | decomp/SgbMain.exe/0x7c8acc_TPriorityController_no_Boost_caller.asm (VMT refs only; TBoost+0xa0 never dispatched by 0x7c6f0c) |
-| RAM: SetProcessWorkingSetSize(-1,-1), Symantec skip list; EmptyWorkingSet never called | decomp/SgbMain.exe/0x7b7768_RAMClear_SetProcessWorkingSetSize.asm (0x7b781f; table 0xa4b7b0; pointer 0xa5e6a4 written only) |
-| No start-type change in service boost | decomp/SgbMain.exe/0x5bf498_ChangeServiceConfigW_callers_not_boost.asm (all 3 call sites: 0x5bf498, 0x81c667, 0x9c63b2) |
-| GUID {58231417-…} is a lookup key | decomp/SgbMain.exe/0x7b8349_GameScheme_GUID_PowerMgr_lookup.asm (CLSIDFromString 0x100017ab, compare 0x10002250, duplicate with NULL GUID 0x10001950) |
+| Other processes lowered to IDLE (0x40), saved class restored; exclusions | SgbMain.exe 0x7c4278 (0x7c42e1 mov ecx,0x40 → SetPriorityClass at 0x7c34d5; list built at 0x7c3a9c) |
+| ...but that Boost has no caller (dead code); the object only stores `[Boost] Priority`/`PriorityClass` | SgbMain.exe 0x7c8acc (VMT refs only; TBoost+0xa0 never dispatched by 0x7c6f0c) |
+| RAM: SetProcessWorkingSetSize(-1,-1), Symantec skip list; EmptyWorkingSet never called | SgbMain.exe 0x7b7768 (0x7b781f; table 0xa4b7b0; pointer 0xa5e6a4 written only) |
+| No start-type change in service boost | SgbMain.exe 0x5bf498 (all 3 call sites: 0x5bf498, 0x81c667, 0x9c63b2) |
+| GUID {58231417-…} is a lookup key | SgbMain.exe 0x7b8349 (CLSIDFromString 0x100017ab, compare 0x10002250, duplicate with NULL GUID 0x10001950) |
 | Win32PrioritySeparation is only logged | SgbMain strings: it appears next to "PagingFiles=" and "MB(free/total)" diagnostic text |
