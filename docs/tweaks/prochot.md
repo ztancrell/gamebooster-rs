@@ -26,6 +26,10 @@ The main window's `BD PROCHOT` box shows whether the CPU obeys the external sign
 5. **Low-power settings.** In `gamebooster.toml`: `min_processor_state = 5` and
    `max_processor_state = 99` (Turbo Boost off), then `gamebooster restore` and `gamebooster boost`.
    See [power plan](power-plan.md#optional-low-minimum-state).
+   Or cap the clock instead of turning Turbo off: `max_cpu_mhz = 2800` (try 2600 to 3000) with
+   `max_processor_state = 100`. This is the no-driver version of the "fixed multiplier" workaround
+   (ThrottleStop holding about 2.6 to 3.0 GHz) that kept users stable; see
+   [power plan](power-plan.md#optional-frequency-cap).
 6. **Macs Fan Control.** Raise the fan curve so the machine stays cooler before the lock kicks in.
 
 **Last resort: untick `BD PROCHOT` in ThrottleStop.** The CPU then ignores the external signal.

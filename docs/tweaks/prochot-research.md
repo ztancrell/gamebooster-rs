@@ -234,6 +234,7 @@ unconfirmed by EA.
   2800 MHz) would be the driver-free equivalent of the ThrottleStop multiplier cap that worked
   for users; it is an ordinary powercfg setting we can write and restore like the others. Needs a
   test on this Mac (does the cap hold, does PROCHOT stay away).
+  Superseded: built as `max_cpu_mhz`, see [power-plan.md](power-plan.md#optional-frequency-cap).
 - **Frame cap.** Recommend an in-game or AMD Chill cap in the docs; cheaper than any tweak.
 - **Not automatable:** clearing BD PROCHOT, undervolting, GPU soft PowerPlay tables (risk of a
   black screen, not something a booster should write), SMC reset, firmware updates.

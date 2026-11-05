@@ -133,8 +133,17 @@ copy the whole window text and send it.
     `.\gamebooster.exe bench compare bench\<the normal .json> bench\<the boosted .json>`.
     Look for: the side-by-side table and two `B - A = ...` lines. One pair of runs is only a smoke
     test; real measurements follow [measuring](measuring.md).
-16. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
-    folder and the console text of steps 9, 12 and 13.
+16. Optional, frequency cap (`max_cpu_mhz`): set `max_cpu_mhz = 2800` and
+    `max_processor_state = 100` in `gamebooster.toml`, then `.\gamebooster.exe boost`.
+    Look for: `  set     maximum processor frequency 2800 MHz` under `PowerPlan`, and
+    `powercfg /query SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100` shows
+    `Current AC Power Setting Index: 0x00000af0` and the same for DC (0xaf0 = 2800).
+    Run ThrottleStop's TS Bench and watch the clock in Task Manager or ThrottleStop: it should stay
+    at or just under 2.8 GHz (not 4+ GHz, not 0.8 GHz), and *Limits* should not light up `PROCHOT`.
+    Failure: `skipped (not on this machine)` on that line, or the clock above the cap.
+    `.\gamebooster.exe restore`, then remove the two lines (or comment them out).
+17. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
+    folder and the console text of steps 9, 12, 13 and 16.
 
 ## Recovery
 

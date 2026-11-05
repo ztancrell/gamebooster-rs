@@ -33,6 +33,13 @@
 //! `min_processor_state`. A low value (5) with `max_processor_state = 99` is the low-power combo for
 //! a Mac that gets stuck at 800 MHz by BD PROCHOT; see docs/tweaks/prochot.md.
 //!
+//! **Optional: frequency cap.** The config's `max_cpu_mhz` sets the hidden "Maximum processor
+//! frequency" setting (MHz, 0 = no limit) in our plan. Unlike `max_processor_state = 99` it keeps
+//! Turbo Boost but stops the clock at the cap, e.g. 2800 MHz to stay below the point where a
+//! 2019 16" MacBook Pro trips BD PROCHOT. With both set, the lower limit wins. Unset = not
+//! written (High performance's 0, no limit). Verify with `powercfg /query <guid> SUB_PROCESSOR
+//! 75b0ae3f-bce0-45a7-8c89-c9611c25e100` (0xaf0 = 2800); see docs/tweaks/power-plan.md.
+//!
 //! **800 MHz check.** `status` measures the real clock under one busy thread, like Task Manager:
 //! PDH `Processor Frequency` × `% Processor Performance` / 100. No driver needed.
 //!
@@ -60,6 +67,7 @@ const VIDEO_BRIGHTNESS: &str = "aded5e82-b909-4619-9949-f5d71dac0bcb";
 const SUB_PROCESSOR: &str = "54533251-82be-4824-96c1-47b60b740d00";
 const PROC_MAX: &str = "bc5038f7-23e0-4960-96da-33abaf5935ec";
 const PROC_MIN: &str = "893dee8e-2bef-41e0-89c6-b55d0929964c";
+const PROC_FREQ_MAX: &str = "75b0ae3f-bce0-45a7-8c89-c9611c25e100";
 
 /// (subgroup, setting, value, meaning). Written for both AC and DC. The minimum and maximum
 /// processor states come from the config instead, see [`max_state_meaning`].
@@ -99,6 +107,11 @@ pub fn kept_meaning(setting: &str) -> &'static str {
 /// How boost and --dry-run describe the maximum processor state.
 pub fn max_state_meaning(pct: u32) -> String {
     format!("maximum processor state {pct} %{}", if pct < 100 { " (Turbo Boost off)" } else { "" })
+}
+
+/// How boost and --dry-run describe the frequency cap.
+pub fn max_mhz_meaning(mhz: u32) -> String {
+    format!("maximum processor frequency {mhz} MHz")
 }
 
 /// Under load the CPU should run far above its 800 MHz minimum; below this it looks locked there
@@ -212,7 +225,7 @@ pub fn plan() -> Result<PowerState, String> {
 }
 
 #[cfg(windows)]
-pub fn boost(st: &PowerState, min_state: u32, max_state: u32) -> Result<(), String> {
+pub fn boost(st: &PowerState, min_state: u32, max_state: u32, max_mhz: Option<u32>) -> Result<(), String> {
     delete_ours()?;
     if powercfg(&["/duplicatescheme", HIGH_PERFORMANCE, OUR_PLAN]).is_err() {
         println!("  High performance plan missing, copying Balanced instead");
@@ -220,9 +233,13 @@ pub fn boost(st: &PowerState, min_state: u32, max_state: u32) -> Result<(), Stri
     }
     powercfg(&["/changename", OUR_PLAN, "gamebooster", "Temporary plan created by gamebooster; removed by `gamebooster restore`."])?;
     let (min_meaning, max_meaning) = (format!("minimum processor state {min_state} %"), max_state_meaning(max_state));
+    let mhz_meaning = max_mhz.map(max_mhz_meaning).unwrap_or_default();
     let mut values: Vec<(&str, &str, u32, u32, &str)> = SETTINGS.iter().map(|&(g, s, v, m)| (g, s, v, v, m)).collect();
     values.push((SUB_PROCESSOR, PROC_MIN, min_state, min_state, &min_meaning));
     values.push((SUB_PROCESSOR, PROC_MAX, max_state, max_state, &max_meaning));
+    if let Some(mhz) = max_mhz {
+        values.push((SUB_PROCESSOR, PROC_FREQ_MAX, mhz, mhz, &mhz_meaning));
+    }
     if let Some((ac, dc)) = st.brightness {
         values.push((SUB_VIDEO, VIDEO_BRIGHTNESS, ac, dc, "keep current display brightness"));
     }
@@ -302,6 +319,7 @@ mod tests {
         assert_eq!(parse_guid(OUR_PLAN).as_deref(), Some(OUR_PLAN));
         assert_eq!(parse_guid(PROC_MAX).as_deref(), Some(PROC_MAX));
         assert_eq!(parse_guid(PROC_MIN).as_deref(), Some(PROC_MIN));
+        assert_eq!(parse_guid(PROC_FREQ_MAX).as_deref(), Some(PROC_FREQ_MAX));
     }
 
     #[test]

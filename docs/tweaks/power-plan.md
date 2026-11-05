@@ -25,6 +25,7 @@ The cost: more heat, more fan noise, shorter battery life. That's why restore sw
 |---|---|---|
 | Processor `54533251-82be-4824-96c1-47b60b740d00` | Minimum processor state `893dee8e-2bef-41e0-89c6-b55d0929964c` | `min_processor_state` from the config, default 100 ([low-power combo](#optional-low-minimum-state)) |
 | Processor | Maximum processor state `bc5038f7-23e0-4960-96da-33abaf5935ec` | `max_processor_state` from the config, default 100 ([Turbo Boost off](#optional-turbo-boost-off) below 100) |
+| Processor | Maximum processor frequency `75b0ae3f-bce0-45a7-8c89-c9611c25e100` | `max_cpu_mhz` from the config, MHz; only written when set ([frequency cap](#optional-frequency-cap)), otherwise High performance's 0 (no limit) |
 | Processor | System cooling policy `94d3a615-a899-4ac5-ae2b-e4d8f634367f` | 1 (active) |
 | PCI Express `501a4d13-42af-4429-9fd1-a8218c268e20` | Link state power management `ee12f906-d277-404b-b6da-e5fa1a576df5` | 0 (off) |
 | ATI graphics `f693fb01-e858-4f00-b20f-f30e12ac06d6` | ATI PowerPlay `191f65b5-d45c-4a4f-8aae-1ab8bfd980e6` | 1 (maximize performance; AMD only) |
@@ -146,3 +147,46 @@ machine that overheats or hits PROCHOT, not for one that runs fine at 100 %.
 
 **Try and undo by hand:** as for Turbo Boost above, with `PROCTHROTTLEMIN 5` (undo: `100`); check
 with `powercfg /query SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN` (0x05 = 5).
+
+## Optional: frequency cap
+
+**What it is.** `max_cpu_mhz` writes the *Maximum processor frequency* setting (Processor subgroup,
+`75b0ae3f-bce0-45a7-8c89-c9611c25e100`, in MHz, 0 = no limit) into the gamebooster plan, AC and DC.
+The setting is hidden in Control Panel but writable with `powercfg`. Unlike
+`max_processor_state = 99`, Turbo Boost stays on: the CPU may run above its base clock, but not
+above the cap. It is the driver-free version of the fixed-multiplier workaround from
+[prochot.md](prochot.md): users with a 2019 16" MacBook Pro under Boot Camp who held the CPU at
+about 2.6 to 3.0 GHz stayed stable instead of boosting, overheating the VRM and crashing to
+800 MHz ([research](prochot-research.md)).
+
+**Default.** Unset (or `0`): not written, so the plan keeps High performance's 0 (no limit).
+Values outside 800 to 6000 are rejected when the config loads. `--dry-run` and `boost` print
+`maximum processor frequency 2800 MHz`; `bench` records it in its config snapshot (0 = no cap).
+A machine without the setting prints `skipped (not on this machine)`. Restore needs nothing
+extra: it deletes the whole gamebooster plan.
+
+**With `max_processor_state`.** They don't conflict, both apply and the lower limit wins:
+`max_processor_state = 99` turns turbo off (CPU at or below base, 2.3 GHz on the i9-9880H), so a
+cap above base then changes nothing. To test the cap, use it with `max_processor_state = 100`:
+
+```toml
+max_processor_state = 100   # Turbo allowed...
+max_cpu_mhz = 2800          # ...up to 2.8 GHz; try 2600 to 3000
+```
+
+**Try and undo by hand** (administrator Command Prompt, on whatever plan is active):
+
+```bat
+powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100 2800
+powercfg /setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100 2800
+powercfg /setactive SCHEME_CURRENT
+```
+
+Undo: the same lines with `0`. Check with
+`powercfg /query SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100`
+(0x00000af0 = 2800, 0x00000a28 = 2600, 0x00000bb8 = 3000).
+
+**Measure.** Under ThrottleStop's TS Bench (or a game), the clock in Task Manager or ThrottleStop
+should sit at or just under the cap, never 4+ GHz, and *Limits* should not show `PROCHOT` /
+`EXT PROCHOT`. Then compare CapFrameX runs in the same BF6 scene against `max_processor_state = 99`.
+Measured on the target Mac: not yet.

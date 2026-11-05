@@ -125,6 +125,9 @@ fn describe(st: &State, cfg: &Config) -> String {
             let min = cfg.min_processor_state.unwrap_or(100);
             out += &format!("      minimum processor state {min} % (= {min})\n");
             out += &format!("      {} (= {})\n", power::max_state_meaning(cfg.max_processor_state), cfg.max_processor_state);
+            if let Some(mhz) = cfg.max_cpu_mhz {
+                out += &format!("      {} (= {mhz})\n", power::max_mhz_meaning(mhz));
+            }
         }
         None => out += "  power plan: off\n",
     }
@@ -261,7 +264,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::LowerOthers => println!("  off"),
             Step::PowerPlan => {
                 if let Some(p) = &st.power {
-                    warn("power plan", power::boost(p, cfg.min_processor_state.unwrap_or(100), cfg.max_processor_state));
+                    warn("power plan", power::boost(p, cfg.min_processor_state.unwrap_or(100), cfg.max_processor_state, cfg.max_cpu_mhz));
                 }
             }
             Step::GameMode => {

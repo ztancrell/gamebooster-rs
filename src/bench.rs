@@ -275,6 +275,7 @@ mod sys {
             "power_plan": cfg.power_plan,
             "min_processor_state": cfg.min_processor_state.unwrap_or(100),
             "max_processor_state": cfg.max_processor_state,
+            "max_cpu_mhz": cfg.max_cpu_mhz.unwrap_or(0),
             "game_mode": cfg.game_mode,
             "accessibility_shortcuts_off": cfg.accessibility_shortcuts_off,
             "ram_trim": cfg.ram_trim,

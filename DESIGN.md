@@ -25,6 +25,9 @@ Windows via Boot Camp, playing BF6.
   `max_processor_state`) and an 800 MHz warning in `status`. Out of scope: clearing BD PROCHOT
   ourselves (needs a kernel driver; WinRing0 is blocked by Defender, and test signing breaks BF6's
   anti-cheat). ThrottleStop covers that.
+- 2026-11-05: `max_cpu_mhz` (optional, unset = no cap): writes *Maximum processor frequency* into
+  our plan (AC and DC), the driver-free version of the fixed-multiplier BD PROCHOT workaround.
+  800 to 6000 MHz or 0; with `max_processor_state` below 100 both apply, the lower wins.
 - 2026-11-05: Also build SGB's other optimizer tweaks (decoded from its `.dbd` files), but only the
   ones that matter for gaming on the Boot Camp Mac and that `restore` can undo.
   Outcome: none built; `status` reports HAGS (`HwSchMode`) read-only (see docs/tweaks/optimizer.md).

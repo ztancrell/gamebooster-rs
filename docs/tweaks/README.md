@@ -17,6 +17,7 @@ Measurement is blocked for BF6 for now: its anti-cheat appears to block `bench`'
 | 3 | [RAM trim](ram-trim.md) | `ram_trim = true` | `src/ram.rs` | Low; only when RAM is nearly full | not yet |
 | 4 | [Lower other processes](priority.md#lower-other-processes) | `lower_others = true` (default off), `lower_others_class`, `lower_others_exclude` | `src/priority.rs` | Low to medium when background apps use CPU | not yet |
 | 5 | [Power plan](power-plan.md) | `power_plan = true`, `max_processor_state = 100`, `min_processor_state` (unset = 100) | `src/power.rs` | High: the main one | not yet |
+| 5b | [Frequency cap](power-plan.md#optional-frequency-cap) (part of 5) | `max_cpu_mhz` (unset = no cap) | `src/power.rs` | Medium on a Mac that hits BD PROCHOT; none otherwise | not yet |
 | 6 | [Game Mode](game-mode.md) | `game_mode = true` | `src/game_mode.rs` | Low; usually already on | not yet |
 | 7 | [Accessibility shortcuts](accessibility-shortcuts.md) | `accessibility_shortcuts_off = true` | `src/accessibility.rs` | None on FPS; stops Sticky Keys pop-ups | not yet |
 | 8 | [Fastest DNS](network.md#fastest-dns) | `fastest_dns = true` (default off) | `src/network.rs` | Low: faster lookups/connects, not in-game ping | not yet |

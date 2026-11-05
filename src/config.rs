@@ -15,6 +15,9 @@ pub struct Config {
     /// Minimum processor state (%) in our power plan, AC and DC. Unset = 100 (cores never clock down).
     #[serde(default)]
     pub min_processor_state: Option<u32>,
+    /// Maximum processor frequency (MHz) in our power plan, AC and DC. Unset or 0 = no cap.
+    #[serde(default)]
+    pub max_cpu_mhz: Option<u32>,
     /// Make sure Windows Game Mode is on during a boost.
     #[serde(default = "yes")]
     pub game_mode: bool,
@@ -112,7 +115,7 @@ pub fn is_protected(exe: &str) -> bool {
 
 impl Config {
     pub fn parse(text: &str) -> Result<Config, String> {
-        let cfg: Config = toml::from_str(text).map_err(|e| e.to_string())?;
+        let mut cfg: Config = toml::from_str(text).map_err(|e| e.to_string())?;
         if !(5..=100).contains(&cfg.max_processor_state) {
             return Err(format!("max_processor_state = {} is out of range: use 5 to 100 (99 turns Turbo Boost off)", cfg.max_processor_state));
         }
@@ -122,6 +125,10 @@ impl Config {
                 return Err(format!("min_processor_state = {min} is above max_processor_state = {}", cfg.max_processor_state))
             }
             _ => {}
+        }
+        cfg.max_cpu_mhz = cfg.max_cpu_mhz.filter(|&mhz| mhz != 0); // 0 = no cap, same as unset
+        if let Some(mhz) = cfg.max_cpu_mhz.filter(|mhz| !(800..=6000).contains(mhz)) {
+            return Err(format!("max_cpu_mhz = {mhz} is out of range: use 800 to 6000, or 0 for no cap"));
         }
         for name in cfg.close.iter().chain(cfg.games.iter().map(|g| &g.exe)) {
             if is_protected(name) {
@@ -213,6 +220,16 @@ mod tests {
         assert_eq!(Config::parse("min_processor_state = 0").unwrap().min_processor_state, Some(0));
         for bad in ["min_processor_state = 101", "min_processor_state = -1", "min_processor_state = 100\nmax_processor_state = 99"] {
             assert!(Config::parse(bad).is_err(), "{bad} accepted");
+        }
+    }
+
+    #[test]
+    fn max_cpu_mhz_range() {
+        assert_eq!(Config::parse("").unwrap().max_cpu_mhz, None);
+        assert_eq!(Config::parse("max_cpu_mhz = 0").unwrap().max_cpu_mhz, None);
+        assert_eq!(Config::parse("max_cpu_mhz = 2800\nmax_processor_state = 99").unwrap().max_cpu_mhz, Some(2800));
+        for bad in ["799", "6001", "-1", "2800.5"] {
+            assert!(Config::parse(&format!("max_cpu_mhz = {bad}")).is_err(), "{bad} accepted");
         }
     }
 

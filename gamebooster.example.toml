@@ -17,6 +17,13 @@ max_processor_state = 100
 #   max_processor_state = 99
 # min_processor_state = 5
 
+# Maximum processor frequency (MHz) in that plan, plugged in and on battery. Unset or 0 = no cap.
+# Range 800-6000. Turbo Boost stays on up to the cap. If both this and max_processor_state < 100
+# are set, the lower limit wins. On the 2019 16" MacBook Pro (Boot Camp), users who held the CPU
+# at 2.6-3.0 GHz avoided the 800 MHz BD PROCHOT lock: as an alternative to max_processor_state = 99,
+# try 2600-3000 with max_processor_state = 100 (Turbo allowed up to the cap) and compare.
+# max_cpu_mhz = 2800
+
 # Make sure Windows Game Mode is on (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1).
 game_mode = true
 

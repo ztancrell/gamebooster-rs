@@ -150,6 +150,7 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `power_plan` | `true` | Use the gamebooster power plan. |
 | `max_processor_state` | `100` | Maximum processor state (%) in that plan, 5 to 100. `99` turns Intel Turbo Boost off (less heat and throttling, lower peak clocks); see [power plan](docs/tweaks/power-plan.md#optional-turbo-boost-off). |
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
+| `max_cpu_mhz` | unset (no cap) | Maximum processor frequency (MHz) in that plan, 800 to 6000; `0` or unset = no cap. Turbo stays on up to the cap; with `max_processor_state` below 100 too, the lower limit wins. Try 2600 to 3000 on a Mac that hits BD PROCHOT; see [power plan](docs/tweaks/power-plan.md#optional-frequency-cap). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `accessibility_shortcuts_off` | `true` | Turn off the Sticky / Filter / Toggle Keys hotkeys while boosted; see [accessibility shortcuts](docs/tweaks/accessibility-shortcuts.md). |
 | `game_power_throttling_off` | `true` | Opt each running `[[game]]` out of Windows power throttling (EcoQoS) while boosted; restore hands it back to Windows. See [game priority](docs/tweaks/priority.md#power-throttling-off). |
