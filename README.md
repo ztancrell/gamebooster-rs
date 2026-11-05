@@ -45,6 +45,7 @@ The same for Smart PC Utilities' PC Game Booster (temporary Game Mode, loads the
 The same for Razer Cortex: [docs/razer-cortex/](docs/razer-cortex/README.md).
 The same for Hone (server-driven tweak catalogue, encrypted engine, temporary Game Mode): [docs/hone/](docs/hone/README.md).
 The same for ISLC, Intelligent Standby List Cleaner (standby purge and timer resolution, both placebo or harmful on Windows 10/11): [docs/islc/](docs/islc/README.md).
+The same for ExitLag (relay "ping reducer" with two kernel packet drivers; helps only on a bad ISP route): [docs/exitlag/](docs/exitlag/README.md).
 
 ## Install and update
 
