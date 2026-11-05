@@ -33,7 +33,7 @@ The behaviour follows [docs/spec.md](docs/spec.md).
 
 ## Install and update
 
-Every push to `main` is tested and built by GitHub Actions
+Every push to `main` that changes the program (not docs-only pushes) is tested and built by GitHub Actions
 ([.github/workflows/release.yml](.github/workflows/release.yml)) and published as `gamebooster.exe`
 on the rolling [`latest` release](https://github.com/ztancrell/gamebooster-rs/releases/tag/latest).
 That one exe is all Windows needs: the example config and the capture scripts are built in.

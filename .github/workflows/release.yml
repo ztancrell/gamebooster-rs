@@ -1,4 +1,4 @@
-# Every push to main: test, build gamebooster.exe, publish it to the rolling `latest` release
+# Every push to main that changes the exe (see paths below): test, build gamebooster.exe, publish it to the rolling `latest` release
 # (what `gamebooster update` downloads). Ubuntu + mingw cross-compile: the same toolchain as the
 # local build, and the exe needs no Visual C++ runtime on the target machine.
 name: release
