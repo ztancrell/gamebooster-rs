@@ -135,8 +135,15 @@ fn describe(st: &State, cfg: &Config) -> String {
             for (_, _, v, meaning) in power::SETTINGS {
                 out += &format!("      {meaning} (= {v})\n");
             }
+            match p.brightness {
+                Some((ac, dc)) => out += &format!("      {} (AC = {ac}, DC = {dc})\n", power::BRIGHTNESS_MEANING),
+                None => out += &format!("      skipped (not on this machine) {}\n", power::BRIGHTNESS_MEANING),
+            }
             for (setting, ac, dc) in &p.kept {
                 out += &format!("      {} (AC = {ac}, DC = {dc})\n", power::kept_meaning(setting));
+            }
+            for meaning in power::absent_kept(&p.kept) {
+                out += &format!("      skipped (not on this machine) {meaning}\n");
             }
             let min = cfg.min_processor_state.unwrap_or(100);
             out += &format!("      minimum processor state {min} % (= {min})\n");
@@ -512,7 +519,7 @@ mod tests {
             ..Default::default()
         };
         let d = describe(&st, &cfg);
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off", "keep current lid close action (AC = 1, DC = 0)", "Sticky Keys shortcut off (flags 0x1fe restored)", "Filter Keys left alone"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off", "keep current lid close action (AC = 1, DC = 0)", "skipped (not on this machine) keep current power button action", "skipped (not on this machine) keep current display brightness", "Sticky Keys shortcut off (flags 0x1fe restored)", "Filter Keys left alone"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

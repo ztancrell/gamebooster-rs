@@ -60,7 +60,9 @@ copy the whole window text and send it.
    - `PowerPlan` / about 20 `  set    ...` lines (including `keep current lid close action`,
      `keep current power button action`, `keep current sleep button action`) / `  activated plan gamebooster (a2921d59-9c60-439e-b61a-21c441a0df53)`.
      `skipped (not on this machine)` is fine for the AMD PowerPlay, Wi-Fi and "unidentified hidden
-     display" lines; anywhere else, note it.
+     display" lines, and on Boot Camp Macs for `keep current lid close action`, `keep current power
+     button action` and `keep current sleep button action` (Windows there has no such settings, only
+     "Start menu power button"); anywhere else, note it. `--dry-run` shows the same skipped lines.
    - `GameMode` / `  AutoGameModeEnabled = 1`
    - `Accessibility` / `  Sticky Keys shortcut off`, `  Filter Keys shortcut off`,
      `  Toggle Keys shortcut off` (`left alone (feature on or shortcut already off)` is fine).

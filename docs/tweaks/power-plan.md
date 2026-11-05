@@ -50,7 +50,11 @@ Superseded: the lid close action used to be forced to 0 (do nothing), as SGB doe
 (`KEEP` in `src/power.rs`), so closing the lid or pressing a button does what it always does.
 
 A setting your machine doesn't have (the ATI one on Intel or NVIDIA graphics, for example) is
-printed as `skipped (not on this machine)`; that is expected.
+printed as `skipped (not on this machine)`; that is expected. The same goes for the carried-over
+settings: if the plan you had lacks the display brightness or a lid / button action, `boost` and
+`--dry-run` print e.g. `skipped (not on this machine) keep current lid close action`. On Boot Camp
+Macs all three lid / button actions show as skipped (Windows there only has "Start menu power
+button" under Buttons).
 
 ## Try and undo by hand
 

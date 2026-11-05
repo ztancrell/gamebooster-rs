@@ -104,6 +104,15 @@ pub fn kept_meaning(setting: &str) -> &'static str {
     KEEP.iter().find(|k| k.1 == setting).map_or("keep current setting", |k| k.2)
 }
 
+/// How boost and --dry-run describe the carried-over display brightness.
+pub const BRIGHTNESS_MEANING: &str = "keep current display brightness";
+
+/// The [`KEEP`] settings the previous plan lacks (not on this machine, e.g. Boot Camp Macs have no
+/// lid / power / sleep button actions), for printing as skipped.
+pub fn absent_kept(kept: &[(String, u32, u32)]) -> Vec<&'static str> {
+    KEEP.iter().filter(|k| !kept.iter().any(|(s, ..)| s == k.1)).map(|k| k.2).collect()
+}
+
 /// How boost and --dry-run describe the maximum processor state.
 pub fn max_state_meaning(pct: u32) -> String {
     format!("maximum processor state {pct} %{}", if pct < 100 { " (Turbo Boost off)" } else { "" })
@@ -241,7 +250,12 @@ pub fn boost(st: &PowerState, min_state: u32, max_state: u32, max_mhz: Option<u3
         values.push((SUB_PROCESSOR, PROC_FREQ_MAX, mhz, mhz, &mhz_meaning));
     }
     if let Some((ac, dc)) = st.brightness {
-        values.push((SUB_VIDEO, VIDEO_BRIGHTNESS, ac, dc, "keep current display brightness"));
+        values.push((SUB_VIDEO, VIDEO_BRIGHTNESS, ac, dc, BRIGHTNESS_MEANING));
+    } else {
+        println!("  skipped (not on this machine) {BRIGHTNESS_MEANING}");
+    }
+    for meaning in absent_kept(&st.kept) {
+        println!("  skipped (not on this machine) {meaning}");
     }
     for (setting, ac, dc) in &st.kept {
         values.push((SUB_BUTTONS, setting.as_str(), *ac, *dc, kept_meaning(setting)));
@@ -316,6 +330,7 @@ mod tests {
             assert!(SETTINGS.iter().all(|s| s.1 != *setting), "{setting} is both forced and kept");
         }
         assert_eq!(kept_meaning("7648efa3-dd9c-4e3e-b566-50f929386280"), "keep current power button action");
+        assert_eq!(absent_kept(&[(KEEP[0].1.into(), 1, 1)]), ["keep current power button action", "keep current sleep button action"]);
         assert_eq!(parse_guid(OUR_PLAN).as_deref(), Some(OUR_PLAN));
         assert_eq!(parse_guid(PROC_MAX).as_deref(), Some(PROC_MAX));
         assert_eq!(parse_guid(PROC_MIN).as_deref(), Some(PROC_MIN));
