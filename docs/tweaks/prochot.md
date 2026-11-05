@@ -1,5 +1,13 @@
 # Stuck at 800 MHz (BD PROCHOT)
 
+## Findings on the target Mac (2026-11-05)
+
+The 800 MHz lock was not observed on the user's 2019 MacBook Pro (i7-9750H). ThrottleStop's
+main-window `PROCHOT 100°C` label is TjMax, not a warning; the real *Limits* window stayed empty.
+Under TS Bench the CPU sat at ~2.29 GHz and ~22 W package power (PL1 100 W), cool and quiet, on
+any power plan: a different limit, still being identified. Details:
+[hardware-test.md](../hardware-test.md#results-on-the-target-mac).
+
 **Symptom.** The game drops to a slideshow and Task Manager shows the CPU at about 0.8 GHz even
 under load. `gamebooster status` prints `CPU clock under load: 800 MHz` (or similar) and a warning.
 Idle CPUs sit at 800 MHz normally; the problem is staying there while busy. `status` keeps one
@@ -12,7 +20,8 @@ power management to keep that in check.
 
 **Check.** In [ThrottleStop](https://www.techpowerup.com/download/techpowerup-throttlestop/), open
 *Limits*: a red or highlighted `PROCHOT` / `EXT PROCHOT` entry while the clock is stuck confirms it.
-The main window's `BD PROCHOT` box shows whether the CPU obeys the external signal.
+The main window's `BD PROCHOT` box shows whether the CPU obeys the external signal. The
+`PROCHOT 100°C` label right of the *Limits* button is only the TjMax, not a throttling sign.
 
 ## Fixes, in order
 

@@ -13,6 +13,8 @@ Windows via Boot Camp, playing BF6.
 - Spec section 8 unknowns (SGB's default service list, start-type changes, RAM trim API): answered
   by an SGB capture run, see [docs/hardware-test.md](docs/hardware-test.md).
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
+- What holds the target Mac's CPU at ~22 W package power under load (no PROCHOT, no thermal, static
+  PL1 100 W)? Pending HWiNFO limit reasons and battery report.
 - Automatic boost mode (boost when a configured game starts, restore when the last one exits)?
   Deferred 2026-11-05. The `boost --watch` watcher now exists (it already applies game priority
   when a game starts), so auto-boost could build on it; still deferred.

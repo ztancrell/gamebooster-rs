@@ -140,10 +140,12 @@ copy the whole window text and send it.
 16. Optional, frequency cap (`max_cpu_mhz`): set `max_cpu_mhz = 2800` and
     `max_processor_state = 100` in `gamebooster.toml`, then `.\gamebooster.exe boost`.
     Look for: `  set     maximum processor frequency 2800 MHz` under `PowerPlan`, and
-    `powercfg /query SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100` shows
-    `Current AC Power Setting Index: 0x00000af0` and the same for DC (0xaf0 = 2800).
+    `powercfg /qh SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100` shows
+    `Current AC Power Setting Index: 0x00000af0` and the same for DC (0xaf0 = 2800). Use `/qh`:
+    the setting is hidden and `/query` does not list it.
     Run ThrottleStop's TS Bench and watch the clock in Task Manager or ThrottleStop: it should stay
     at or just under 2.8 GHz (not 4+ GHz, not 0.8 GHz), and *Limits* should not light up `PROCHOT`.
+    (The main window's `PROCHOT 100°C` label next to the *Limits* button is TjMax, not a warning.)
     Failure: `skipped (not on this machine)` on that line, or the clock above the cap.
     `.\gamebooster.exe restore`, then remove the two lines (or comment them out).
 17. Ping and route check (no admin needed, BF6 can be closed): `.\gamebooster.exe ping`, then
@@ -279,4 +281,26 @@ anti-cheat.
 | Blocked | Game priority, process method: `SetPriorityClass` refused while BF6 runs (anti-cheat). |
 | Blocked | `bench`: ETW trace sessions refused system-wide (EAAntiCheatService suspected, unconfirmed). |
 | Pending | Accessibility shortcuts always report "left alone": the Shift x5 check is outstanding. |
-| Pending | `max_cpu_mhz` clock cap; `ping --route`; `status` clock check under the new build; `restore` output with the registry method. |
+| Pending | `max_cpu_mhz` clock cap: written (checked with `powercfg /qh`); no effect observable while the CPU sits at 22 W. |
+| Pending | `ping --route`; `status` clock check under the new build; `restore` output with the registry method. |
+| Open | CPU held at ~22 W package power under load, cause not yet identified (see below). |
+
+### CPU clock and power under load (2026-11-05)
+
+i7-9750H (6 cores / 12 threads). Windows plan before boosting: "Ultimate Performance" (from Chris
+Titus WinUtil). SMC reset done before these readings.
+
+- **No PROCHOT lock seen.** ThrottleStop's main-window label `PROCHOT 100°C` (right of the
+  *Limits* button) is an information label (TjMax), not a throttling indicator; the earlier
+  "PROCHOT red" readings came from that label. The actual *Limits* window (CORE / RING / GPU)
+  stayed empty during TS Bench. Superseded: earlier notes (prochot-research.md, "What the target
+  machine shows") assumed this Mac shows the 800 MHz BD PROCHOT lock; it was not observed.
+- **~2.29 GHz under TS Bench.** Multiplier 22–23 x 99.77 MHz, on battery and plugged in
+  (right-hand port), ~61 °C, fans quiet. Same with gamebooster's plan (`max_cpu_mhz = 2800`,
+  `max_processor_state = 100`) and after `restore` on Ultimate Performance, so neither plan causes
+  it. ThrottleStop *Set Multiplier* not ticked.
+- **HWiNFO:** CPU Package Power ~22.3 W under full load; static PL1 100 W / PL2 125 W (Apple's
+  ceilings); no dynamic PL values shown. So the CPU is held to about half its normal ~45 W budget
+  by a dynamic limit (likely the Mac's controller); the limiting reason is not yet identified.
+- **Next:** the HWiNFO "Performance Limit Reasons" lines that say Yes during TS Bench; then a
+  battery report (`powercfg /batteryreport`).

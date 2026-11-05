@@ -15,6 +15,12 @@ the VRM or charging circuitry, or the charger running out of headroom) more than
 1.7 GHz on one thread is also well below what a 9th-gen H-series chip should do, so something is
 already limiting it before the full 800 MHz lock.
 
+Superseded (2026-11-05): the "`PROCHOT` red" reading came from ThrottleStop's main-window label
+`PROCHOT 100°C` (right of the *Limits* button), which shows TjMax and is not a throttling
+indicator. The real *Limits* window stayed empty during TS Bench, so the 800 MHz lock has not been
+observed on this Mac; the CPU instead sits at ~2.29 GHz and ~22 W package power. See
+[hardware-test.md](../hardware-test.md#results-on-the-target-mac).
+
 ## Root causes reported for this model
 
 **Load-triggered PROCHOT tied to the dGPU and VRM.** On 16-inch models with the Radeon Pro

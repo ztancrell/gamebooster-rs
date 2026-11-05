@@ -187,10 +187,14 @@ powercfg /setactive SCHEME_CURRENT
 ```
 
 Undo: the same lines with `0`. Check with
-`powercfg /query SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100`
+`powercfg /qh SCHEME_CURRENT SUB_PROCESSOR 75b0ae3f-bce0-45a7-8c89-c9611c25e100`
+(`/qh`, not `/query`: this is a hidden setting and `/query` leaves it out)
 (0x00000af0 = 2800, 0x00000a28 = 2600, 0x00000bb8 = 3000).
 
 **Measure.** Under ThrottleStop's TS Bench (or a game), the clock in Task Manager or ThrottleStop
 should sit at or just under the cap, never 4+ GHz, and *Limits* should not show `PROCHOT` /
 `EXT PROCHOT`. Then compare CapFrameX runs in the same BF6 scene against `max_processor_state = 99`.
-Measured on the target Mac: not yet.
+Measured on the target Mac (2026-11-05): written correctly (checked with `/qh`), but no effect
+observable: under TS Bench the CPU never got past ~2.29 GHz at ~22 W package power, below the
+cap, with or without gamebooster's plan. See
+[hardware-test.md](../hardware-test.md#results-on-the-target-mac).
