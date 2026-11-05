@@ -7,9 +7,11 @@ Evidence section at the end; implementers don't need it.
 Status: PowerMgr.dll is fully covered. SgbAccelerate.dll was still being decompiled when this was
 written (3831 functions present), but its strings and exports show it is the online network
 accelerator, not part of local Boost (see "Out of scope"). The Boost orchestration itself lives in
-`SgbMain.exe` (Delphi), which was **not** decompiled. Everything about it comes from its string table
-(log messages, config keys, registry paths, imported API names). The exact values it writes are
-therefore partly unknown. Run `capture/` before and after a Boost to fill those gaps (see
+`SgbMain.exe` (Delphi). Its Boost/Restore dispatcher, power-plan step and service-list selection were
+read from targeted disassembly; the rest comes from its string table (log messages, config keys,
+registry paths, imported API names). The exe is protected: its Win32 API calls go through stubs that
+are encrypted on disk, so which API each step calls could not always be proven, and some values it
+writes are still unknown. Run `capture/` before and after a Boost to fill those gaps (see
 "Not specified / unknown").
 
 ---
@@ -94,8 +96,9 @@ needed.
 | Multimedia `9596fb26-9850-41fd-ac3e-f7c3c00afd4b` | When sharing media `03680956-93bc-4294-bba6-4e0f09bb717f` | 1 | Prevent idle sleep while sharing media. |
 | Multimedia | When playing video `34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4` | 0 | Optimize video quality. |
 
-   S is a sleep timeout the main app passes in, in seconds. The value SGB uses is not known;
-   0 (never) fits the rest of the table and is the recommended default.
+   S is a sleep timeout the main app passes in, in seconds. SGB passes **0** (never). It also passes
+   0 as the display-off timeout, which matches VIDEOIDLE = 0 above.
+   Superseded: earlier versions of this spec said S was unknown and recommended 0 as an assumption.
 
    A setting that doesn't exist on this machine (for example the ATI one on Intel or NVIDIA
    graphics) is skipped, not treated as an error.
@@ -111,13 +114,17 @@ longer exists, activate Balanced.
   with a timeout.
 - Only services that were **running** when Boost started are stopped and remembered. Restore starts
   exactly those, in reverse order.
-- The startup type is not changed: SGB's logs show only "Stop Service" and "Start Service". It also
-  imports ChangeServiceConfig, so a start-type change can't be ruled out yet; see Unknowns.
+- The startup type is not changed as far as can be seen: SGB's logs show only "Stop Service" and
+  "Start Service", and no message mentions a start type. It imports ChangeServiceConfig, but the
+  caller could not be traced, so a start-type change still can't be ruled out (see Unknowns). Ours
+  must not change start types.
 - SGB never offers services in its own safe list or protected security-product services. Our
   implementation needs an explicit allow-list, and services not on it are never touched.
-- SGB's default list per Windows version (INI sections `Services_WIN10`, `Services_WIN8`, and so on)
-  is **not** in the installer as plain text. It is either encoded in a resource or downloaded.
-  Treat it as unknown.
+- SGB picks a default list by Windows version, from INI sections named `Services_2000`,
+  `Services_XP`, `Services_VISTA`, `Services_WIN7`, `Services_WIN8` and `Services_WIN10` (Windows 11
+  reports itself as 10 and gets the WIN10 list). The list contents are **not** in the installer as
+  plain text: they are in one of its encrypted data files or downloaded. The names are unknown.
+  Ours ships its own explicit list.
 
 ### 2.3 Processes (A4)
 
@@ -159,20 +166,32 @@ action normally does nothing there.
 ## 3. Boost order
 
 1. Refuse if already boosted.
-2. Create the restore-state file. If that fails, abort before changing anything.
+2. Create the restore-state file. SGB only logs a failure here and carries on. Ours should abort
+   before changing anything (safer). Superseded: an earlier version of this spec said SGB aborts.
 3. A1 Monitor, A2 Overclock, A3 Services, A4 Processes, A5 RAM, A6 Clipboard, A7 Power plan,
    A8 Windows Update, A9 Game Mode.
 4. A11 Tidy tray icons.
 5. Write a boost report (items changed, MB freed), mark the state "boosted" and save a timestamp.
 6. A10 Priority runs when the game process appears or is launched.
 
-Each action is independent. One failing is logged and the rest continue.
+Each action is independent and runs only if it is enabled. One failing is logged and the rest
+continue.
+
+Power-plan step order inside A7, as SGB does it: save the active scheme as the base scheme, delete
+old plans with the game-plan name, set display-off and sleep timeouts to 0, read the current AC and DC
+brightness, then create and activate the game plan with those values, then record in its config that
+a custom plan is active.
+
+SGB writes no timer-resolution, process-affinity, MMCSS (`Multimedia\SystemProfile`), network
+throttling, `SystemResponsiveness` or file-cache settings: none of those APIs or registry names occur
+in it. It only reads `Win32PrioritySeparation` for a diagnostics log.
 
 ## 4. Restore order
 
 SGB undoes the actions in the **same** order as Boost: Monitor, Overclock, Services, Processes, RAM
-(no-op), Clipboard (no-op), Power plan, Windows Update, Game Mode. Then it marks the state "normal"
-and deletes the restore state.
+(no-op), Clipboard (no-op), Power plan, Windows Update, Game Mode (confirmed from its dispatcher, not
+just its logs). Then it marks the state "normal", deletes the restore state and shows a before/after
+RAM and CPU chart.
 
 Our implementation should use reverse order (A9 to A1) instead. Same result, and safer when actions
 depend on each other.
@@ -219,20 +238,25 @@ does not use it, and **no kernel driver is needed** for anything in this spec.
 
 Fill these from a `capture/` diff (snapshot before and after Boost on the real machine):
 
-- The sleep timeout S that the main app passes to the power plan (assumed 0).
-- The default service list per Windows version, and whether services are also set to Disabled or
-  Manual during a boost.
-- Whether Boost changes timer resolution (no NtSetTimerResolution or timeBeginPeriod reference was
-  found), `Win32PrioritySeparation` (the string appears only next to diagnostic log text), process
-  affinity (no reference found), or registry values beyond `AutoGameModeEnabled`.
+- The contents of the default service list per Windows version (section names are known, the
+  list is encrypted or downloaded), and whether services are also set to Disabled or Manual during a
+  boost (ChangeServiceConfig is imported; its use could not be traced).
+- The default process list (comes from the user's choices and an online score database).
 - Whether A10 also lowers the priority of other processes ("TPriorityController" exists; its
-  behaviour is unknown).
+  calls are behind the protector).
+- Whether A5 uses EmptyWorkingSet or SetProcessWorkingSetSize(-1, -1) (both are available; same
+  effect) and exactly which processes it skips.
+- Registry values written beyond `AutoGameModeEnabled`: none found, but calls behind the protector
+  can't be fully excluded. Timer resolution, affinity, MMCSS and network throttling are ruled out
+  (no API or string for them).
+- Superseded: the sleep timeout S is now known (0), see 2.1; `Win32PrioritySeparation` is confirmed
+  read-only.
 - The exact identity of power setting `90959d22-d6a1-49b9-af93-bce885ad335b`.
 - The role of GUID `{58231417-2B7B-4575-8231-96CB9CF58B36}`, which appears next to the power-plan log
   messages. It may be a fixed ID for the game plan.
 - SgbAccelerate.dll was still being decompiled, but it is out of scope (section 6).
-- `SgbMain.exe` was not decompiled. Its control flow, error handling and timeouts are inferred from
-  log strings only.
+- `SgbMain.exe` was only partly analysed (dispatcher, power-plan step, service-list selection).
+  Error handling and timeouts of the other actions are inferred from log strings only.
 
 ---
 
@@ -264,4 +288,10 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 | Monitor DDC/CI | SgbMain strings "TFrameMonitorDDC.Boost", "VCP_DC", "VCP_14", "Monitor.ini" |
 | Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM" |
 | Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/SgbAccelerate.dll/functions (partial); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
+| SgbMain targeted disassembly (method, limits, protector) | decomp/SgbMain.exe/notes.md; decomp/README.md |
+| Boost/Restore dispatch order; temp-file failure only logged | decomp/SgbMain.exe/0x7c6f0c_TBoost_Execute.asm |
+| Power step order; display and sleep timeouts 0; GUID {58231417-…} passed to SetGamePwrCFG | decomp/SgbMain.exe/0x7b81f4_PowerSch_Boost.asm (VA 0x7b82f8 and 0x7b830b push 0); decomp/PowerMgr.dll/functions/0x10001090.c, 0x100010a0.c |
+| Default service INI sections per Windows version | decomp/SgbMain.exe/0x78754c_ServiceList_PerWinVersion.asm |
+| Win32PrioritySeparation is read only (diagnostics) | decomp/SgbMain.exe/0x473324_SysInfo_Win32PrioritySeparation_log.asm |
+| No timer-resolution, affinity, MMCSS, network-throttling APIs or strings | SgbMain import table and string tables (searched for timeBeginPeriod, NtSetTimerResolution, SetProcessAffinityMask, SystemProfile, NetworkThrottlingIndex, SystemResponsiveness, SetSystemFileCacheSize) |
 | Win32PrioritySeparation is only logged | SgbMain strings: it appears next to "PagingFiles=" and "MB(free/total)" diagnostic text |
