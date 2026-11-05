@@ -23,6 +23,9 @@ Windows via Boot Camp, playing BF6.
   anti-cheat). ThrottleStop covers that.
 - 2026-11-05: Also build SGB's other optimizer tweaks (decoded from its `.dbd` files), but only the
   ones that matter for gaming on the Boot Camp Mac and that `restore` can undo.
+- 2026-11-05: No copy of SGB's network accelerator (vendor relay servers + packet driver). Instead:
+  a `ping` command that reports latency to game-server regions (changes nothing), and an optional
+  "fastest DNS" step on boost that restore undoes.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.
