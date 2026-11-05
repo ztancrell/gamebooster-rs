@@ -31,6 +31,7 @@ nothing. See [network](docs/tweaks/network.md).
 Details, defaults, manual commands and how to measure each one: [docs/tweaks/](docs/tweaks/README.md).
 The behaviour follows [docs/spec.md](docs/spec.md).
 What Smart Game Booster itself does, feature by feature, with verdicts: [docs/sgb/](docs/sgb/README.md).
+The same for PGWARE GameBoost (registry-only, nothing worth adopting): [docs/pgware/](docs/pgware/README.md).
 
 ## Install and update
 
