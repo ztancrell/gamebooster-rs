@@ -49,14 +49,16 @@ cards. SGB scores your PC and says whether each game should run. It also reports
   "how many users disabled this" ratings from the vendor. Its shipped blacklist suggests disabling
   **Windows Defender** and **Malwarebytes** at startup, alongside adware. Do not follow that advice.
 - **System Tweak, Internet Booster.** Registry and network tweaks, some with typos that write junk
-  values (see `decomp/SgbData/dbd/README.md`). Browser settings edits too, including re-signing
+  values (see `decomp/SgbData/dbd/README.md`; how the scanner decides what is a "problem": `cleaners.md`). Browser settings edits too, including re-signing
   Chrome's protected preferences so Chrome accepts the change.
 - **Junk and privacy cleaner, browser extension manager.** Deletes temp files, browser history,
-  cookies and similar.
+  cookies and similar. How it scans, what it deletes and how its numbers overstate the result:
+  `cleaners.md`.
 - **Security check.** Reads which antivirus and firewall Windows reports and can turn Defender's
-  real-time protection and the firewall back on. It can also list installed antivirus programs and
-  start their uninstallers.
-- **Malware scanner.** A small signature scanner with a quarantine folder.
+  real-time protection and the firewall back on. It also detects about 100 installed antivirus
+  products (used to block the accelerator when Kaspersky is present); no uninstall option is offered.
+- **Malware scanner.** A small, outdated signature scanner (database from 2021) with a quarantine
+  folder; it counts tracking cookies as threats. See [security-features.md](security-features.md).
 - **Driver updater, Game defrag, temperature alarms.**
 - **Game accelerator.** A VPN-style tunnel to the vendor's servers (`SgbAccelerate.dll`).
 - **Account sign-in, upsell and promotion windows, skins, languages.**

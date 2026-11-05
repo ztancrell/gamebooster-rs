@@ -34,6 +34,10 @@ choices (and possibly a download). SgbMain also opens these `User*` files in Not
 
 ## The encrypted `.dbd` files (not decoded, not Boost)
 
+Superseded: the `.dbd` files below are now decoded ([`dbd/README.md`](dbd/README.md)); `Def.dbd` is the
+malware scanner's signature set and the security/AV-detection data and every other data file in the
+install are described in [`scanner/README.md`](scanner/README.md).
+
 `Database/*.dbd`, `Database/DriverCleanIgnore.dat` and `Update/ExpSlist.dat` all start with the
 same 24 bytes (`0008dc3345ab51295f6c147912d70f4b ea5ec653b2d8b74e`), then diverge; entropy is
 8.0 bits/byte and body lengths are not multiples of 8 or 16 (stream cipher or similar over

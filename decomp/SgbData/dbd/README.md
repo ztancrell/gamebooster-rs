@@ -11,6 +11,7 @@ package). It asserts the HAVAL self-test vector copied from SgbMain, each entry'
 | `Opt.dbd` | `[redacted]` (VA 0x8c6671) | 31 INI-style tweak profiles + `Des-ref.txt` |
 | `SysSpeed.dbd` | `[redacted]` | `SysSpeed.ini` (UTF-16), `GB3.ini` |
 | `PriTemp.dbd` | `[redacted]` | `junkfile.db` (165 sections), `privacy.db` (365 sections), both INI text |
+| `Def.dbd` | `[redacted]` (VA 0x83a868 path; same literal as PriTemp) | 17 malware-scanner signature lists, see [`../scanner/README.md`](../scanner/README.md). `Main.db`/`Signature.db` have compression byte 3: encrypted but not zlib-packed (the script handles it); `BHO.db` appears twice (second copy overwrites the first when extracting) |
 | `CYRI.dbd` | `[redacted]` | opens with the same decoder (first block is zlib); not extracted (game DB) |
 
 ## Container format
