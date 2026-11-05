@@ -4,7 +4,8 @@
 Restore sets running games back to Normal; nothing is needed if the game has exited. The game has
 to be running when this step runs: start BF6, then run `gamebooster boost`. If you boosted
 before starting the game, run `gamebooster boost` again: while boosted, it only re-applies
-priority.
+priority. Or use `gamebooster boost --watch`: it sets the priority itself when the game starts
+(see [Dynamic mode](#dynamic-mode)).
 
 **Windows default.** Every app starts at Normal priority; the scheduler shares CPU time between
 all Normal threads, with a small boost for the window in front.
@@ -111,7 +112,8 @@ are matched by name only.
 
 ```toml
 lower_others = true
-lower_others_class = "below_normal"   # or "idle"
+lower_others_mode = "once"            # or "dynamic", see below
+lower_others_class = "below_normal"   # or "idle" (once mode only)
 lower_others_exclude = ["Spotify.exe"]
 lower_others_exclude_publishers = ["Spotify"]
 ```
@@ -122,3 +124,54 @@ lower_others_exclude_publishers = ["Spotify"]
 
 **Measure.** Task Manager > Details, "Base priority" column. Frame times in CapFrameX with a
 background load (a browser playing video, a big download), with `lower_others` on and off.
+
+## Dynamic mode
+
+**What it is.** `lower_others_mode = "dynamic"` (with `lower_others = true`) replaces "lower
+everything at boost" with Process Lasso's ProBalance idea: `boost` lowers nothing, and while
+`gamebooster boost --watch` runs it restrains only background apps that actually keep the CPU busy,
+and only for as long as they do. Code: `src/watch.rs`.
+
+Once a second the watcher reads each candidate's CPU time (`GetProcessTimes`) and the machine's
+(`GetSystemTimes`). A process's share = its CPU-time delta / (elapsed time x logical CPUs), so 100 %
+means every logical CPU flat out. A candidate is exactly what once mode would lower (your own
+Normal-priority processes, minus the built-in names, publishers, games, `close` and the exclude
+lists), **minus the foreground window's process and all its descendants**.
+
+- **Restrain** to Below normal when the machine is at least *machine* % busy and the process has
+  stayed at or above *process* % for 900 ms (in practice: two 1-s samples in a row over it).
+- **Release** back to Normal when it is under *release* % and has been restrained for at least
+  4.2 s, or at once when it (or a parent) becomes the foreground window. No maximum time.
+- Below normal only: `lower_others_class = "idle"` is ignored in this mode (the watcher prints a
+  note). No affinity, EcoQoS or I/O priority changes.
+
+Thresholds (`PROBALANCE` in `src/watch.rs`) are Process Lasso 19.0's own defaults by logical CPU
+count, read from `ProcessGovernor.exe` (source:
+[decomp/process-lasso/governor/notes.md](../../decomp/process-lasso/governor/notes.md#probalance-defaults-by-logical-cpu-count-normal-branch)):
+
+| Logical CPUs | Machine busy >= | Process >= | Release under |
+|---|---|---|---|
+| 4 | 23 % | 15 % | 5 % |
+| 8 | 11 % | 8 % | 4 % |
+| 12 (i7-9750H) | 10 % | 7 % | 3 % |
+| 16 (2019 MBP 16") | 10 % | 5 % | 2 % |
+| 32 and more | 7 % | 2 % | 1 % |
+
+Other counts are in the const. Process Lasso's separate hybrid-CPU (P/E-core) branch is not
+reproduced; the Mac has no E-cores.
+
+**Safety.** Each restraint is added to the state file's `lowered` list (pid, creation time, exe,
+old class) before the priority changes, and removed on release; the file is written atomically.
+Stopping the watcher (Ctrl+C, closing the window) releases everything it restrained. If it is
+killed, `gamebooster restore` puts the recorded ones back, same pid and creation time only, as in
+once mode. A release only resets a process that is still Below normal, so a priority you set by
+hand meanwhile is kept.
+
+**Verify.** Run `gamebooster boost --watch`, start a CPU-heavy background app (a video export, a
+browser benchmark), keep another window in front: within about 3 s the watcher prints `restrained
+...` and Task Manager > Details shows Below normal. Switch to that app: `released ...: now in the
+foreground`. Stop the load: released about 4 s later at the earliest.
+
+**Measure.** `gamebooster bench` (the config snapshot records `lower_others_mode`) with a
+background load: `lower_others` off, `"once"`, `"dynamic"`. Keep dynamic only if 1 % lows improve
+or stay equal; until then it is unmeasured.

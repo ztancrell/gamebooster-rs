@@ -39,6 +39,9 @@ pub struct Config {
     /// Lower the priority of the user's other Normal-priority processes during a boost.
     #[serde(default)]
     pub lower_others: bool,
+    /// `once` (default): boost lowers them all. `dynamic`: `boost --watch` restrains only busy ones.
+    #[serde(default)]
+    pub lower_others_mode: LowerMode,
     /// The class `lower_others` sets: below_normal (default) or idle.
     #[serde(default)]
     pub lower_others_class: LowerClass,
@@ -90,6 +93,15 @@ pub enum LowerClass {
     Idle,
 }
 
+/// How `lower_others` works: all at boost (`once`), or ProBalance-style while `boost --watch` runs.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LowerMode {
+    #[default]
+    Once,
+    Dynamic,
+}
+
 fn yes() -> bool {
     true
 }
@@ -121,6 +133,11 @@ pub fn is_protected(exe: &str) -> bool {
 }
 
 impl Config {
+    /// `lower_others` in dynamic mode: boost lowers nothing, the watcher restrains.
+    pub fn dynamic_lowering(&self) -> bool {
+        self.lower_others && self.lower_others_mode == LowerMode::Dynamic
+    }
+
     pub fn parse(text: &str) -> Result<Config, String> {
         let mut cfg: Config = toml::from_str(text).map_err(|e| e.to_string())?;
         if !(5..=100).contains(&cfg.max_processor_state) {
@@ -176,6 +193,9 @@ mod tests {
         assert!(!cfg.lower_others && cfg.lower_others_class == LowerClass::BelowNormal && cfg.lower_others_exclude.is_empty());
         assert_eq!(Config::parse("lower_others_class = \"idle\"").unwrap().lower_others_class, LowerClass::Idle);
         assert!(Config::parse("lower_others_class = \"low\"").is_err());
+        assert_eq!(cfg.lower_others_mode, LowerMode::Once);
+        assert_eq!(Config::parse("lower_others_mode = \"dynamic\"").unwrap().lower_others_mode, LowerMode::Dynamic);
+        assert!(Config::parse("lower_others_mode = \"always\"").is_err());
         assert_eq!(cfg.games[0].exe, "bf6.exe");
         assert_eq!(cfg.games[0].priority, Priority::High);
     }

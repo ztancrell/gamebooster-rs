@@ -282,6 +282,7 @@ mod sys {
             "services": cfg.services.len(),
             "close": cfg.close.len(),
             "lower_others": cfg.lower_others,
+            "lower_others_mode": format!("{:?}", cfg.lower_others_mode).to_lowercase(),
             "lower_others_class": crate::priority::lower_class_name(cfg.lower_others_class),
             "fastest_dns": cfg.fastest_dns,
             "game_power_throttling_off": cfg.game_power_throttling_off,

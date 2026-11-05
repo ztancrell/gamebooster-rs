@@ -3,7 +3,8 @@
 //! **What it does.** For each `[[game]]` in the config that is running, sets its process priority
 //! class (default High). Restore sets running games back to Normal; a game that has exited needs
 //! nothing. The game must already be running: start BF6, then boost (or run `boost` again while
-//! boosted, which only re-applies priority and power throttling).
+//! boosted, which only re-applies priority and power throttling; or use `boost --watch`, which
+//! applies them when the game starts, see `watch.rs`).
 //!
 //! **Windows default.** Every app starts at Normal. The scheduler then shares CPU time between all
 //! Normal threads, with a small boost for the foreground window.
@@ -26,6 +27,8 @@
 //! sets the old class back only on the same process (pid and creation time match), so a reused PID
 //! is never touched. Processes already raised or lowered are left alone, so this never fights game
 //! priority or a choice you made in Task Manager. Verify in Task Manager > Details > Base priority.
+//! With `lower_others_mode = "dynamic"` boost lowers nothing; `boost --watch` restrains busy
+//! candidates instead (`watch.rs`).
 
 use crate::config::{LowerClass, Priority};
 use serde::{Deserialize, Serialize};
@@ -118,7 +121,7 @@ fn lower_class(c: LowerClass) -> u32 {
 
 /// The user SID of a process (as bytes), or None if Windows won't tell us.
 #[cfg(windows)]
-fn user_sid(h: windows_sys::Win32::Foundation::HANDLE) -> Option<Vec<u8>> {
+pub fn user_sid(h: windows_sys::Win32::Foundation::HANDLE) -> Option<Vec<u8>> {
     use windows_sys::Win32::Security::{GetLengthSid, GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
     use windows_sys::Win32::System::Threading::OpenProcessToken;
     unsafe {
@@ -138,7 +141,7 @@ fn user_sid(h: windows_sys::Win32::Foundation::HANDLE) -> Option<Vec<u8>> {
 }
 
 #[cfg(windows)]
-fn created(h: windows_sys::Win32::Foundation::HANDLE) -> Option<u64> {
+pub fn created(h: windows_sys::Win32::Foundation::HANDLE) -> Option<u64> {
     use windows_sys::Win32::Foundation::FILETIME;
     use windows_sys::Win32::System::Threading::GetProcessTimes;
     let z = || FILETIME { dwLowDateTime: 0, dwHighDateTime: 0 };
@@ -149,7 +152,7 @@ fn created(h: windows_sys::Win32::Foundation::HANDLE) -> Option<u64> {
 /// The CompanyName from an exe's version info (first translation). Not signature-checked: a spoofed
 /// name only makes us skip that exe, which is harmless for an exclusion list.
 #[cfg(windows)]
-fn company_name(path: &str) -> Option<String> {
+pub fn company_name(path: &str) -> Option<String> {
     use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
     let path = crate::wide(path);
     unsafe {

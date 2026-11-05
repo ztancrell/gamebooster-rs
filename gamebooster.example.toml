@@ -72,7 +72,11 @@ ram_trim = false
 # the games, apps in `close`, the shell and Windows session processes, audio, Discord, Steam, the EA
 # app, anti-cheat, ThrottleStop, OBS, Defender and gamebooster (list: NEVER_LOWER in src/priority.rs).
 lower_others = false
-# below_normal (default) or idle. Idle is what Smart Game Booster's (unused) code would set, but an idle app only runs
+# "once" (default): the boost lowers them all, as above. "dynamic": the boost lowers nothing; while
+# `gamebooster boost --watch` runs, only apps that keep the CPU busy are set to below normal, and
+# back once they calm down or you switch to them (like Process Lasso's ProBalance; below normal only).
+lower_others_mode = "once"
+# below_normal (default) or idle (once mode only). Idle is what Smart Game Booster's (unused) code would set, but an idle app only runs
 # when the CPU has nothing else to do, so voice chat, music or a stream can stutter while you play.
 lower_others_class = "below_normal"
 # More apps to leave alone (image names as in Task Manager's Details tab), e.g. ["Spotify.exe"].

@@ -24,6 +24,8 @@
 /// One running process.
 pub struct Proc {
     pub pid: u32,
+    /// Parent pid at creation (may be stale: Windows reuses pids).
+    pub parent: u32,
     pub name: String,
     /// Full image path; None when Windows won't tell us (protected or system processes).
     pub path: Option<String>,
@@ -86,7 +88,7 @@ mod sys {
             let mut more = Process32FirstW(snap, &mut e) != 0;
             while more {
                 let name = crate::from_wide(&e.szExeFile);
-                out.push(Proc { pid: e.th32ProcessID, path: image_path(e.th32ProcessID), name });
+                out.push(Proc { pid: e.th32ProcessID, parent: e.th32ParentProcessID, path: image_path(e.th32ProcessID), name });
                 more = Process32NextW(snap, &mut e) != 0;
             }
             CloseHandle(snap);
@@ -130,7 +132,7 @@ mod tests {
 
     #[test]
     fn picks_listed_names_dedupes_paths() {
-        let p = |pid, name: &str, path: Option<&str>| Proc { pid, name: name.into(), path: path.map(String::from) };
+        let p = |pid, name: &str, path: Option<&str>| Proc { pid, parent: 0, name: name.into(), path: path.map(String::from) };
         let procs = [
             p(1, "OneDrive.exe", Some(r"C:\OD\OneDrive.exe")),
             p(2, "onedrive.exe", Some(r"c:\od\onedrive.exe")),

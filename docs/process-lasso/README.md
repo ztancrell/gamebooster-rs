@@ -102,6 +102,13 @@ responsiveness tests, not game frame times. Neither approach has frame-time evid
 
 ## Adoption proposal: dynamic restraint (ProBalance-style), opt-in
 
+**Built** (2026-11-05) as `lower_others_mode = "dynamic"` with `gamebooster boost --watch`: see
+`src/watch.rs` and [docs/tweaks/priority.md](../tweaks/priority.md#dynamic-mode). Differences from
+the proposal below: the config key is `lower_others_mode = "once" | "dynamic"` (not
+`lower_others = "dynamic"`), no `dynamic_*` overrides (Process Lasso's table only), and stopping
+the watcher releases its restraints but leaves the rest of the boost on (run `restore` separately).
+Not yet measured (item 7).
+
 **Design question first:** gamebooster-rs is a one-shot CLI (`boost` / `restore`). Dynamic restraint
 needs a process that keeps running while you play. This is new ground, next to the deferred
 "automatic boost mode" open question in DESIGN.md, and it needs a decision there before anyone builds

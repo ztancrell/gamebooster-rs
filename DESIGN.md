@@ -14,7 +14,8 @@ Windows via Boot Camp, playing BF6.
   by an SGB capture run, see [docs/hardware-test.md](docs/hardware-test.md).
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
 - Automatic boost mode (boost when a configured game starts, restore when the last one exits)?
-  Deferred 2026-11-05.
+  Deferred 2026-11-05. The `boost --watch` watcher now exists (it already applies game priority
+  when a game starts), so auto-boost could build on it; still deferred.
 - How to measure BF6 when its anti-cheat blocks ETW capture (bench incomplete, 2026-11-05): confirm
   the cause, then choose BF6 overlay / screen-update counting / another game.
 
@@ -55,6 +56,12 @@ Windows via Boot Camp, playing BF6.
   (`game_power_throttling_off`, default on: harmless and process-scoped, nothing stored). Applied
   with game priority; restore hands control back to Windows. No timer-resolution flag. From the
   Hone research (docs/hone/README.md, adoption item 1).
+- 2026-11-05: Watch mode + dynamic `lower_others`: `boost --watch` stays running after the boost
+  (until Ctrl+C or the console closes), sets game priority when a game starts, and with
+  `lower_others_mode = "dynamic"` restrains busy background processes ProBalance-style (Process
+  Lasso's per-CPU-count thresholds, Below normal only, never the foreground app). Each restraint is
+  journalled in the state file; stopping the watcher releases them, `restore` undoes the rest.
+  Measure with bench (off / once / dynamic) before keeping dynamic.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

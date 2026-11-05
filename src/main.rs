@@ -17,6 +17,7 @@ mod processes;
 mod ram;
 mod services;
 mod state;
+mod watch;
 
 use config::Config;
 use state::{GameModeState, State};
@@ -26,6 +27,7 @@ const USAGE: &str = "\
 usage: gamebooster <command> [--dry-run] [--config <file>]
 
   boost      apply the tweaks enabled in the config (if already boosted: re-apply game priority and power throttling off)
+  boost --watch  boost, then keep running until Ctrl+C: game priority when a game starts, dynamic lower_others
   restore    undo everything the last boost changed
   status     show whether a boost is active and what it changed
   ping       latency, jitter and loss to cloud regions near game servers, fastest first (changes nothing)
@@ -72,18 +74,21 @@ struct Args {
     /// `ping --route [host]`.
     route: bool,
     host: Option<String>,
+    /// `boost --watch`.
+    watch: bool,
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
     let mut it = args.into_iter();
     let (mut command, mut dry_run, mut config, mut files) = (None, false, None, Vec::new());
-    let (mut seconds, mut label, mut route, mut host) = (None, None, false, None);
+    let (mut seconds, mut label, mut route, mut host, mut watch) = (None, None, false, None, false);
     while let Some(a) = it.next() {
         match a.as_str() {
             "--dry-run" => dry_run = true,
             "--config" => config = Some(PathBuf::from(it.next().ok_or("--config needs a file")?)),
             "--label" => label = Some(it.next().ok_or("--label needs a name")?),
             "--route" if command.as_deref() == Some("ping") => route = true,
+            "--watch" if command.as_deref() == Some("boost") => watch = true,
             _ if route && host.is_none() && !a.starts_with('-') => host = Some(a),
             "--version" | "-V" if command.is_none() => command = Some("version".to_string()),
             "boost" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" if command.is_none() => command = Some(a),
@@ -100,7 +105,8 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
         ("bench compare", n) if n != 2 => Err("usage: gamebooster bench compare <a.json> <b.json>".into()),
         ("bench", _) if seconds.is_some_and(|s| !(10..=3600).contains(&s)) => Err("bench seconds: use 10 to 3600".into()),
         (c, _) if c != "bench" && label.is_some() => Err("--label only goes with bench".into()),
-        _ => Ok(Args { command, dry_run, config, files, seconds, label, route, host }),
+        _ if watch && dry_run => Err("--watch can't be combined with --dry-run".into()),
+        _ => Ok(Args { command, dry_run, config, files, seconds, label, route, host, watch }),
     }
 }
 
@@ -114,8 +120,12 @@ fn describe(st: &State, cfg: &Config) -> String {
         let mut names: Vec<&str> = st.lowered.iter().map(|p| p.exe.as_str()).collect();
         names.sort_by_key(|n| n.to_ascii_lowercase());
         names.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
-        out += &format!("  lower other processes to {} (old class restored): {} processes: {}\n",
-            priority::lower_class_name(cfg.lower_others_class), st.lowered.len(), if names.is_empty() { "none".into() } else { names.join(", ") });
+        let how = if cfg.dynamic_lowering() {
+            "dynamic: busy ones to below normal while `boost --watch` runs (old class restored); restrained now".to_string()
+        } else {
+            format!("to {} (old class restored)", priority::lower_class_name(cfg.lower_others_class))
+        };
+        out += &format!("  lower other processes {how}: {} processes: {}\n", st.lowered.len(), if names.is_empty() { "none".into() } else { names.join(", ") });
     } else {
         out += "  lower other processes: off\n";
     }
@@ -215,7 +225,10 @@ fn run(args: Args) -> Result<(), String> {
         return Err("boost, restore and bench need administrator rights: right-click your terminal, \"Run as administrator\"".into());
     }
     match args.command.as_str() {
-        "boost" => boost(&cfg, &state_path, args.dry_run),
+        "boost" => {
+            boost(&cfg, &state_path, args.dry_run, args.watch)?;
+            if args.watch { watch::run(&cfg, &state_path) } else { Ok(()) }
+        }
         "restore" => restore(&cfg, &state_path, args.dry_run),
         "ping" if args.route => network::route(&cfg.ping_hosts, args.host.as_deref(), cfg.ping_samples),
         "ping" => Ok(network::ping(&cfg.ping_hosts, cfg.ping_samples)),
@@ -231,11 +244,11 @@ fn warn<T>(what: &str, r: Result<T, String>) -> Option<T> {
 }
 
 #[cfg(windows)]
-fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
+fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<(), String> {
     if State::load(state_path)?.is_some() {
         println!("Already boosted (state in {}). Only re-applying game priority and power throttling.", state_path.display());
         if !dry_run && priority::apply(&cfg.games, false, cfg.game_power_throttling_off) == 0 {
-            println!("  no configured game is running");
+            println!("  no configured game is running{}", if watch { ": the watcher sets it when one starts" } else { "" });
         }
         return Ok(());
     }
@@ -252,7 +265,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
         },
         accessibility: if cfg.accessibility_shortcuts_off { warn("reading accessibility shortcuts", accessibility::plan()) } else { None },
         dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
-        lowered: if cfg.lower_others { priority::plan_lower(cfg) } else { Vec::new() },
+        lowered: if cfg.lower_others && !cfg.dynamic_lowering() { priority::plan_lower(cfg) } else { Vec::new() },
     };
     if dry_run {
         println!("Boost would do (dry run, nothing changed):\n{}", describe(&st, cfg));
@@ -267,6 +280,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::Processes => processes::close_all(&cfg.close),
             Step::Ram if cfg.ram_trim => ram::trim(cfg),
             Step::Ram => println!("  off"),
+            Step::LowerOthers if cfg.dynamic_lowering() => println!("  dynamic: `boost --watch` restrains busy background processes while it runs"),
             Step::LowerOthers if cfg.lower_others => priority::set_others(&st.lowered, Some(cfg.lower_others_class)),
             Step::LowerOthers => println!("  off"),
             Step::PowerPlan => {
@@ -284,14 +298,14 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
                     warn("accessibility shortcuts", accessibility::boost(a));
                 }
             }
-            Step::Dns => {
-                if let Some(d) = &st.dns {
-                    warn("DNS", network::boost(d));
-                }
-            }
+            Step::Dns => match &st.dns {
+                Some(d) => { warn("DNS", network::boost(d)); }
+                None if cfg.fastest_dns => println!("  kept current server (fastest)"),
+                None => println!("  off"),
+            },
             Step::Priority => {
                 if priority::apply(&cfg.games, false, cfg.game_power_throttling_off) == 0 && !cfg.games.is_empty() {
-                    println!("  no configured game is running: start it, then run `gamebooster boost` again");
+                    println!("  no configured game is running: {}", if watch { "the watcher sets it when one starts" } else { "start it, then run `gamebooster boost` again (or use `boost --watch`)" });
                 }
             }
         }
@@ -482,6 +496,9 @@ mod tests {
         assert!(parse_args(["ping", "example.com"].map(String::from)).is_err());
         assert!(parse_args(["boost", "--route"].map(String::from)).is_err());
         assert!(parse_args(["ping", "--route", "a", "b"].map(String::from)).is_err());
+        assert!(parse_args(["boost", "--watch"].map(String::from)).unwrap().watch);
+        assert!(parse_args(["restore", "--watch"].map(String::from)).is_err());
+        assert!(parse_args(["boost", "--watch", "--dry-run"].map(String::from)).is_err());
     }
 
     #[test]

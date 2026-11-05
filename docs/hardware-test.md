@@ -154,8 +154,34 @@ copy the whole window text and send it.
     Failure: `IcmpCreateFile failed`, every hop `*` / `no answer` (ICMP blocked by a firewall), or
     hop 1 not being your router's address (`ipconfig`, *Default Gateway*).
     Also try `.\gamebooster.exe ping --route 1.1.1.1`: it should reach the destination.
-18. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
-    folder and the console text of steps 9, 12, 13, 16 and 17.
+18. Watch mode (BF6 closed, not boosted: `status` says `Not boosted.`). In `gamebooster.toml` set
+    `lower_others = true` and `lower_others_mode = "dynamic"`. Then `.\gamebooster.exe boost --watch`.
+    Look for: under `LowerOthers`, "dynamic: `boost --watch` restrains busy background processes
+    while it runs"; under `Priority`, `no configured game is running: the watcher sets it when one
+    starts`; then `Watching once a second ...` and a `lower others (dynamic, 16 logical CPUs):
+    restrain ... >= 10 % busy ... >= 5 % ...` line (12 threads: 10 / 7 %).
+    a. Launch BF6 and wait in the main menu. Look for: `Game started:` then `set bf6.exe (pid ...)
+       to High` and `bf6.exe: power throttling off` in the watch window; Task Manager > Details
+       shows High for bf6.exe.
+    b. Alt-Tab to the desktop. Start a CPU-heavy background app that is not excluded, e.g. a
+       browser tab running a benchmark, or in a second (non-admin) PowerShell:
+       `1..4 | % { Start-Job { while ($true) {} } }`. Put another window (Notepad) in front.
+       Look for, within about 3 s: `restrained <name> (pid ..., NN % CPU) to below normal`, and
+       Below normal for it in Task Manager > Details (PowerShell jobs run as `powershell.exe`).
+    c. Click on that app's window (or the second PowerShell). Look for `released <name> ...: now
+       in the foreground`. Click away again: it is restrained again after about 2 s.
+    d. Stop the load (`Get-Job | Stop-Job; Get-Job | Remove-Job`). Look for `released ...: quiet
+       again`, at least 4 s after it was restrained.
+    e. Start the load again, wait for `restrained`, then press Ctrl+C in the watch window.
+       Look for: `Stopping the watcher.`, `restored the old priority of N processes`, "Still
+       boosted: run `gamebooster restore` when you're done playing."; Task Manager shows Normal
+       again. Then `.\gamebooster.exe restore` (ends with `Restored.`), and stop the load.
+    Failure: no `restrained` line while the load runs, a restrained app that stays Below normal
+    after Ctrl+C, the watch window printing a status line more than every 10 s, or Windows
+    reporting the watch window as not responding. Set `lower_others_mode = "once"` (or
+    `lower_others = false`) again afterwards.
+19. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
+    folder and the console text of steps 9, 12, 13, 16, 17 and 18.
 
 ## Recovery
 
@@ -173,7 +199,7 @@ If `restore` keeps failing, undo by hand in the same administrator PowerShell. O
    If it is `null`: `reg delete HKCU\Software\Microsoft\GameBar /v AutoGameModeEnabled /f`.
 5. Accessibility shortcuts: nothing to do; they were changed for this session only, so signing
    out or rebooting brings them back (or turn them on in Settings > Accessibility > Keyboard).
-6. Game priority and lowered processes (`"lowered"`) need nothing for safety; priorities end when
+6. Game priority and lowered processes (`"lowered"`, including the watcher's dynamic restraints) need nothing for safety; priorities end when
    each app quits; so does the game's power-throttling opt-out. To put one back now: Task Manager > Details > right-click > Set priority > Normal.
 7. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority and power throttling off).
 

@@ -13,7 +13,9 @@ What a boost does, in this order (restore goes in reverse):
 3. **RAM trim** of all other processes (optional, off by default, not undoable).
 4. **Lower other processes** (optional, off by default): your own apps that run at Normal priority
    go to Below normal (or Idle), except the games, launchers, voice chat, anti-cheat, the shell
-   and a built-in safe list. Restore puts back each one's old priority if it still runs.
+   and a built-in safe list. Restore puts back each one's old priority if it still runs. With
+   `lower_others_mode = "dynamic"` boost lowers nothing here; `boost --watch` restrains only busy
+   ones while it runs (see [Watch mode](#watch-mode)).
 5. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
    active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; your
    brightness and lid / power button / sleep button actions are copied over unchanged; optionally
@@ -47,7 +49,7 @@ The same for Razer Cortex: [docs/razer-cortex/](docs/razer-cortex/README.md).
 The same for Hone (server-driven tweak catalogue, encrypted engine, temporary Game Mode): [docs/hone/](docs/hone/README.md).
 The same for ISLC, Intelligent Standby List Cleaner (standby purge and timer resolution, both placebo or harmful on Windows 10/11): [docs/islc/](docs/islc/README.md).
 The same for ExitLag (relay "ping reducer" with two kernel packet drivers; helps only on a bad ISP route): [docs/exitlag/](docs/exitlag/README.md).
-The same for Process Lasso (ProBalance dynamic priority restraint, read from the binary; a proposal for a dynamic `lower_others`): [docs/process-lasso/](docs/process-lasso/README.md).
+The same for Process Lasso (ProBalance dynamic priority restraint, read from the binary; the basis of `lower_others_mode = "dynamic"`): [docs/process-lasso/](docs/process-lasso/README.md).
 
 ## Install and update
 
@@ -96,6 +98,7 @@ your normal Windows account, then:
 cd C:\gamebooster
 gamebooster boost --dry-run
 gamebooster boost
+gamebooster boost --watch
 gamebooster status
 gamebooster restore
 gamebooster ping
@@ -105,6 +108,7 @@ gamebooster ping --route
 | Command | What it does |
 |---|---|
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority and power throttling off (use this after starting the game). |
+| `boost --watch` | Boosts (or, if already boosted, re-applies game priority), then keeps running in the console until Ctrl+C or the window closes; see [Watch mode](#watch-mode). Not with `--dry-run`. |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal (and power throttling to Windows). |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Times `ping_samples` (10) TCP connects to each of `ping_hosts`, AWS regional endpoints by default, and prints median, p90, jitter and loss per region, fastest first; marks a region with any loss or jitter above 10 ms. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
@@ -160,7 +164,8 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `game_power_throttling_off` | `true` | Opt each running `[[game]]` out of Windows power throttling (EcoQoS) while boosted; restore hands it back to Windows. See [game priority](docs/tweaks/priority.md#power-throttling-off). |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
-| `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. |
+| `lower_others_mode` | `"once"` | `"once"`: boost lowers them all. `"dynamic"`: boost lowers nothing; `boost --watch` restrains only busy ones, ProBalance-style (Below normal only). See [Watch mode](#watch-mode). |
+| `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. Once mode only; dynamic mode always uses Below normal. |
 | `lower_others_exclude` | `[]` | Extra image names to leave alone (case-insensitive), on top of the built-in list. |
 | `lower_others_exclude_publishers` | `[]` | Extra publishers to leave alone: case-insensitive substrings of the exe's CompanyName (file Properties > Details), on top of the built-in list. |
 | `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
@@ -174,6 +179,29 @@ Unknown keys and typos are errors. Protected processes (Windows core, `explorer.
 `taskmgr.exe`, Steam, the EA app, Epic, Defender, Symantec, gamebooster itself) are refused in
 `close` and as games. The BF6 executable name `bf6.exe` is the expected one but **unverified**:
 check Task Manager > Details while the game runs.
+
+## Watch mode
+
+`gamebooster boost --watch` boosts as usual, then stays running in the console, checking once a
+second:
+
+- **Games.** When a configured `[[game]]` starts, it sets its priority and power throttling off, so
+  you don't have to run `boost` again after launching BF6. When the game exits, both end with it.
+- **Dynamic lower others** (`lower_others = true`, `lower_others_mode = "dynamic"`). Like Process
+  Lasso's ProBalance: one of your Normal-priority background apps (same filter as `lower_others`,
+  and never the window in front or its child processes) goes to Below normal when the whole
+  machine is busy and that app has used a big share of it for 0.9 s; it goes back to Normal once it
+  is quiet and has been restrained for at least 4.2 s, or at once when you switch to it. The
+  thresholds come from Process Lasso's table by logical CPU count (16 threads: machine >= 10 %,
+  app >= 5 %, release under 2 %); see [game priority](docs/tweaks/priority.md#dynamic-mode).
+
+It prints one line per change (`restrained chrome.exe (pid 4120, 9 % CPU) to below normal`,
+`released chrome.exe (pid 4120) after 6 s: quiet again`) and a status line at most every 10 s when
+something changed (`[2:30] CPU 34 %, 1 restrained (chrome.exe), game running`). Ctrl+C or closing
+the window releases what the watcher restrained and prints "Still boosted: run `gamebooster
+restore` when you're done playing.": the rest of the boost stays until you run `restore`. Each
+restraint is recorded in the state file as it happens, so if the watcher is killed, `restore`
+still undoes it. If you run `restore` in another window, the watcher notices and stops.
 
 ## Safety and restore
 
@@ -195,7 +223,8 @@ check Task Manager > Details while the game runs.
 ## Limitations
 
 - Game priority is set only on games already running when you boost. Start the game first, or run
-  `boost` again once it's running. There is no background watcher.
+  `boost` again once it's running, or use `boost --watch`. The watcher only runs while its
+  console is open; there is no service or automatic boost.
 - Closed apps are relaunched without their original command-line arguments.
 - The power plan values follow the spec; the sleep timeout is 0 (never), an assumption.
 - `AutoGameModeEnabled` is per user: run elevated from your own account.
