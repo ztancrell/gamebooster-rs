@@ -119,3 +119,10 @@ New files: `0x7c4278_TPriorityController_Boost_Restore_IDLE.asm`, `0x7b7768_RAMC
   reused. Otherwise High performance is duplicated with a NULL destination GUID (0x10001950), so
   Windows assigns a new random GUID. Because Boost deletes plans by name first, normally a new plan
   with a random GUID is created.
+
+## Network, licence and promotion calls (2026-11-05)
+
+Not part of Boost. SgbMain's endpoints (stats, licence check, accelerator API, hardware upload,
+promo links with installed-product list `idata`) are listed with evidence in
+`../../docs/sgb/telemetry-licensing-updates.md`; the helper programs each have a `notes.md` in
+`../<program>/`.
