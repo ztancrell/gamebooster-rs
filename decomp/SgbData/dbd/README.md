@@ -73,7 +73,7 @@ Gaming column for a 2019 MacBook Pro under Boot Camp (Win10/11, NVMe SSD, Intel 
 
 | Tweak | Change | Gaming |
 |---|---|---|
-| Foreground CPU priority | HKLM `…\PriorityControl\Win32PrioritySeparation` = 38 (0x26: short, fixed, 3:1) in SysSpeed; 26 (0x1A) in Promote | **helps** a little (0x26 is the common gaming value; our Boost already owns this) |
+| Foreground CPU priority | HKLM `…\PriorityControl\Win32PrioritySeparation` = 38 (0x26: short, variable, 3:1) in SysSpeed; 26 (0x1A) in Promote | none: 0x26 equals the client default 2 (see docs/tweaks/optimizer.md) |
 | HW-accelerated GPU scheduling | HKLM `…\GraphicsDrivers\HwSchMode` = 2 (GB3_48, Win10) | maybe; driver-dependent, needs reboot; Boot Camp AMD drivers are old, so test first |
 | Kernel not paged | HKLM `…\Memory Management\DisablePagingExecutive` = 1 | none on 16–32 GB machines |
 | `IoPageLockLimit` = 128 MiB | HKLM Memory Management | none (ignored since XP SP1) |
@@ -95,6 +95,8 @@ Gaming column for a 2019 MacBook Pro under Boot Camp (Win10/11, NVMe SSD, Intel 
 | IE / WMP | `MaxConnectionsPerServer`=10, IE/WMP update checks off | none (IE is gone) |
 | LanmanWorkstation/Server | `MaxCmds/MaxThreads`=30, `MaxMpxCt`=2048, NetBT `NameSrvQueryTimeout`=3000 | none |
 
-Bottom line: for gaming on Boot Camp, only `Win32PrioritySeparation` (already in our Boost) and,
-optionally and after testing, `HwSchMode` are worth considering. The rest is legacy XP-era placebo, and
+Bottom line: for gaming on Boot Camp, only `HwSchMode` is worth considering, optionally and after
+testing (`gamebooster status` reports it; see docs/tweaks/optimizer.md). `Win32PrioritySeparation`
+0x26 equals the Windows client default. Superseded: an earlier version of this note said 0x26 helps
+and that our Boost already sets it; it doesn't. The rest is legacy XP-era placebo, and
 the service-disabling and `Dnscache` items are harmful as permanent changes.

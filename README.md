@@ -61,7 +61,7 @@ gamebooster ping
 |---|---|
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority (use this after starting the game). |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal. |
-| `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
+| `status` | Prints the saved state (if boosted), the active power plan GUID, `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Measures latency (median of 5 TCP connects) to `ping_hosts`, AWS regional endpoints by default, and prints them fastest first. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
 | `--dry-run` | With `boost` or `restore`: print the plan, change nothing. |
 | `--config <file>` | Use another config file. |
@@ -115,6 +115,6 @@ check Task Manager > Details while the game runs.
 - The power plan values follow the spec; the sleep timeout is 0 (never), an assumption.
 - `AutoGameModeEnabled` is per user: run elevated from your own account.
 - Not implemented (on purpose): GPU overclock, monitor presets, clipboard clearing, Windows Update
-  changes, network acceleration (relay servers; `ping` and fastest DNS are the substitute), tray icon cleanup, killing `explorer.exe`.
+  changes, network acceleration (relay servers; `ping` and fastest DNS are the substitute), tray icon cleanup, killing `explorer.exe`, SGB's other optimizer registry tweaks (see [optimizer](docs/tweaks/optimizer.md)).
 - Tested only by unit tests and a cross-compile; not yet run on real hardware. First-run checklist:
   [docs/hardware-test.md](docs/hardware-test.md).

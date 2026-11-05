@@ -263,6 +263,9 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
     let active = power::active_scheme()?;
     println!("Active power plan: {active}{}", if active == power::OUR_PLAN { " (gamebooster)" } else { "" });
     println!("{}: {}", game_mode::VALUE, game_mode::read()?.map_or("(absent, Windows default = on)".into(), |v| v.to_string()));
+    // Read only: HAGS needs a reboot and driver support, so boost doesn't touch it (docs/tweaks/optimizer.md).
+    let hags = reg_dword(windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE, HAGS_KEY, "HwSchMode")?;
+    println!("GPU scheduling (HAGS): {}", hags_text(hags));
     match power::clock_under_load_mhz() {
         Ok(mhz) => {
             println!("CPU clock under load: {mhz:.0} MHz");
@@ -273,6 +276,35 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
         Err(e) => println!("CPU clock under load: couldn't measure ({e})"),
     }
     Ok(())
+}
+
+const HAGS_KEY: &str = r"SYSTEM\CurrentControlSet\Control\GraphicsDrivers";
+
+/// `HwSchMode`: 2 = on, 1 = off, absent = Windows default.
+fn hags_text(v: Option<u32>) -> String {
+    match v {
+        Some(2) => "on".into(),
+        Some(1) => "off".into(),
+        Some(n) => format!("unknown value {n}"),
+        None => "not set (Windows default)".into(),
+    }
+}
+
+/// A REG_DWORD value, or None if it doesn't exist.
+#[cfg(windows)]
+fn reg_dword(root: windows_sys::Win32::System::Registry::HKEY, key: &str, value: &str) -> Result<Option<u32>, String> {
+    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
+    use windows_sys::Win32::System::Registry::{RegGetValueW, RRF_RT_REG_DWORD};
+    let (mut data, mut size) = (0u32, 4u32);
+    let err = unsafe {
+        RegGetValueW(root, wide(key).as_ptr(), wide(value).as_ptr(), RRF_RT_REG_DWORD,
+            std::ptr::null_mut(), &mut data as *mut u32 as *mut _, &mut size)
+    };
+    match err {
+        ERROR_SUCCESS => Ok(Some(data)),
+        ERROR_FILE_NOT_FOUND => Ok(None),
+        e => Err(format!("can't read {key}\\{value} (error {e})")),
+    }
 }
 
 #[cfg(windows)]
@@ -308,6 +340,14 @@ mod tests {
         assert_eq!(r, BOOST_ORDER);
         assert_eq!(restore_order().next(), Some(Step::Priority));
         assert_eq!(restore_order().last(), Some(Step::Services));
+    }
+
+    #[test]
+    fn hags_values() {
+        assert_eq!(hags_text(Some(2)), "on");
+        assert_eq!(hags_text(Some(1)), "off");
+        assert_eq!(hags_text(None), "not set (Windows default)");
+        assert_eq!(hags_text(Some(7)), "unknown value 7");
     }
 
     #[test]

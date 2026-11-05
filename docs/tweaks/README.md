@@ -19,6 +19,9 @@ Boost applies them in this order; restore undoes them in reverse.
 Not a tweak: `gamebooster ping` ([network](network.md#ping)) measures latency to cloud regions and
 changes nothing.
 
+Not built: [SGB's other optimizer tweaks](optimizer.md) (placebo or harmful on Windows 10/11);
+`gamebooster status` only reports whether hardware-accelerated GPU scheduling is on.
+
 Not a tweak, but related: [Stuck at 800 MHz (BD PROCHOT)](prochot.md), the problem `gamebooster
 status` warns about, and how to fix it.
 

@@ -30,16 +30,7 @@ mod sys {
 
     /// The current value, or None if it doesn't exist.
     pub fn read() -> Result<Option<u32>, String> {
-        let (mut data, mut size) = (0u32, 4u32);
-        let err = unsafe {
-            RegGetValueW(HKEY_CURRENT_USER, wide(KEY).as_ptr(), wide(VALUE).as_ptr(), RRF_RT_REG_DWORD,
-                std::ptr::null_mut(), &mut data as *mut u32 as *mut _, &mut size)
-        };
-        match err {
-            ERROR_SUCCESS => Ok(Some(data)),
-            ERROR_FILE_NOT_FOUND => Ok(None),
-            e => Err(format!("can't read {KEY}\\{VALUE} (error {e})")),
-        }
+        crate::reg_dword(HKEY_CURRENT_USER, KEY, VALUE)
     }
 
     /// Write `Some(v)`, or delete the value for `None`.
