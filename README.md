@@ -15,15 +15,19 @@ What a boost does, in this order (restore goes in reverse):
    go to Below normal (or Idle), except the games, launchers, voice chat, anti-cheat, the shell
    and a built-in safe list. Restore puts back each one's old priority if it still runs.
 5. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
-   active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; optionally
+   active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; your
+   brightness and lid / power button / sleep button actions are copied over unchanged; optionally
    maximum 99 % to turn Intel Turbo Boost off, and a lower minimum for less heat). Restore
    reactivates your old plan and deletes ours.
 6. **Game Mode** on (`HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1`). Restore writes back
    the old value.
-7. **Fastest DNS** (optional, off by default): if Cloudflare, Google or Quad9 answers DNS lookups
+7. **Accessibility shortcuts off**: the Sticky Keys (Shift five times), Filter Keys (hold Right
+   Shift 8 s) and Toggle Keys (hold Num Lock 5 s) hotkeys, so they can't pop up mid-game. A
+   feature you have switched on is left alone. Session only; restore writes back the old flags.
+8. **Fastest DNS** (optional, off by default): if Cloudflare, Google or Quad9 answers DNS lookups
    clearly faster than your current server, sets it on the active adapter (IPv4). Restore puts back
    the old static list or DHCP.
-8. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
+9. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
 
 Separately, `gamebooster ping` measures latency to cloud regions near game servers and changes
 nothing. See [network](docs/tweaks/network.md).
@@ -114,6 +118,7 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `max_processor_state` | `100` | Maximum processor state (%) in that plan, 5 to 100. `99` turns Intel Turbo Boost off (less heat and throttling, lower peak clocks); see [power plan](docs/tweaks/power-plan.md#optional-turbo-boost-off). |
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](docs/tweaks/power-plan.md#optional-low-minimum-state). |
 | `game_mode` | `true` | Make sure Game Mode is on. |
+| `accessibility_shortcuts_off` | `true` | Turn off the Sticky / Filter / Toggle Keys hotkeys while boosted; see [accessibility shortcuts](docs/tweaks/accessibility-shortcuts.md). |
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
 | `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. |
@@ -135,11 +140,11 @@ check Task Manager > Details while the game runs.
 - Before the first change, boost writes everything restore needs to
   `gamebooster-state.json` next to `gamebooster.exe` (previous power plan, the services it stops,
   the full paths of the apps it closes, the processes it lowers with their old priority, the old
-  Game Mode value, the old DNS setting). If that write fails, nothing is
+  Game Mode value, the old accessibility shortcut flags, the old DNS setting). If that write fails, nothing is
   changed. The file's presence means "boosted"; boosting again doesn't overwrite it.
 - After a crash, a power cut or a reboot, just run `gamebooster restore`. Restore is idempotent:
   running services, running apps and an already-deleted plan are fine. If starting a service,
-  restoring the power plan, writing Game Mode or restoring DNS fails, the state
+  restoring the power plan, writing Game Mode, the accessibility flags or DNS fails, the state
   file is kept so you can run restore again; it is deleted only after a clean restore.
 - Nothing is permanent: service startup types aren't touched, so a reboot restarts services too.
   Power plan by hand: `powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e` (Balanced) and

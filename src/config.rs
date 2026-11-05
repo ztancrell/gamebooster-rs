@@ -18,6 +18,9 @@ pub struct Config {
     /// Make sure Windows Game Mode is on during a boost.
     #[serde(default = "yes")]
     pub game_mode: bool,
+    /// Turn off the Sticky / Filter / Toggle Keys hotkeys during a boost (session only).
+    #[serde(default = "yes")]
+    pub accessibility_shortcuts_off: bool,
     /// Trim the working set of every non-game process once, right after closing apps.
     #[serde(default)]
     pub ram_trim: bool,

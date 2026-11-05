@@ -5,6 +5,7 @@
 //! explains what it changes and why; docs/tweaks/ has the same per tweak, with manual commands.
 #![cfg_attr(not(windows), allow(dead_code, unused_imports))]
 
+mod accessibility;
 mod config;
 mod game_mode;
 mod install;
@@ -43,12 +44,13 @@ enum Step {
     LowerOthers,
     PowerPlan,
     GameMode,
+    Accessibility,
     Dns,
     Priority,
 }
 
 /// Boost order, as in the spec. Restore walks it backwards.
-const BOOST_ORDER: [Step; 8] = [Step::Services, Step::Processes, Step::Ram, Step::LowerOthers, Step::PowerPlan, Step::GameMode, Step::Dns, Step::Priority];
+const BOOST_ORDER: [Step; 9] = [Step::Services, Step::Processes, Step::Ram, Step::LowerOthers, Step::PowerPlan, Step::GameMode, Step::Accessibility, Step::Dns, Step::Priority];
 
 fn restore_order() -> impl Iterator<Item = Step> {
     BOOST_ORDER.into_iter().rev()
@@ -104,6 +106,9 @@ fn describe(st: &State, cfg: &Config) -> String {
             for (_, _, v, meaning) in power::SETTINGS {
                 out += &format!("      {meaning} (= {v})\n");
             }
+            for (setting, ac, dc) in &p.kept {
+                out += &format!("      {} (AC = {ac}, DC = {dc})\n", power::kept_meaning(setting));
+            }
             let min = cfg.min_processor_state.unwrap_or(100);
             out += &format!("      minimum processor state {min} % (= {min})\n");
             out += &format!("      {} (= {})\n", power::max_state_meaning(cfg.max_processor_state), cfg.max_processor_state);
@@ -113,6 +118,17 @@ fn describe(st: &State, cfg: &Config) -> String {
     match &st.game_mode {
         Some(g) => out += &format!("  Game Mode: {} = {} -> 1\n", game_mode::VALUE, g.previous.map_or("(absent)".into(), |v| v.to_string())),
         None => out += "  Game Mode: off\n",
+    }
+    match &st.accessibility {
+        Some(a) => {
+            for (name, saved) in accessibility::entries(a) {
+                out += &match saved {
+                    Some(f) => format!("  accessibility: {name} shortcut off (flags {f:#x} restored)\n"),
+                    None => format!("  accessibility: {name} left alone (feature on or shortcut already off)\n"),
+                };
+            }
+        }
+        None => out += "  accessibility shortcuts: off\n",
     }
     match &st.dns {
         Some(d) => out += &format!("  DNS ({}): {} -> {}\n", d.adapter, d.previous_static.as_deref().unwrap_or("from DHCP"), d.server),
@@ -205,6 +221,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
         } else {
             None
         },
+        accessibility: if cfg.accessibility_shortcuts_off { warn("reading accessibility shortcuts", accessibility::plan()) } else { None },
         dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
         lowered: if cfg.lower_others { priority::plan_lower(cfg) } else { Vec::new() },
     };
@@ -231,6 +248,11 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String> {
             Step::GameMode => {
                 if st.game_mode.is_some() {
                     warn("Game Mode", game_mode::write(Some(1)));
+                }
+            }
+            Step::Accessibility => {
+                if let Some(a) = &st.accessibility {
+                    warn("accessibility shortcuts", accessibility::boost(a));
                 }
             }
             Step::Dns => {
@@ -271,6 +293,11 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
             Step::GameMode => {
                 if let Some(g) = &st.game_mode {
                     check("Game Mode", game_mode::write(g.previous));
+                }
+            }
+            Step::Accessibility => {
+                if let Some(a) = &st.accessibility {
+                    check("accessibility shortcuts", accessibility::restore(a));
                 }
             }
             Step::Dns => {
@@ -418,12 +445,13 @@ mod tests {
         let cfg = Config::parse(include_str!("../gamebooster.example.toml")).unwrap();
         let st = State {
             services: vec!["WSearch".into()],
-            power: Some(state::PowerState { previous_scheme: power::BALANCED.into(), brightness: None }),
+            power: Some(state::PowerState { previous_scheme: power::BALANCED.into(), brightness: None, kept: vec![(power::KEEP[0].1.into(), 1, 0)] }),
+            accessibility: Some(state::AccessibilityState { sticky_keys: Some(0x1fe), ..Default::default() }),
             game_mode: Some(GameModeState { previous: None }),
             ..Default::default()
         };
         let d = describe(&st, &cfg);
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off", "keep current lid close action (AC = 1, DC = 0)", "Sticky Keys shortcut off (flags 0x1fe restored)", "Filter Keys left alone"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

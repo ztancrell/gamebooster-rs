@@ -96,6 +96,9 @@ needed.
 | Multimedia `9596fb26-9850-41fd-ac3e-f7c3c00afd4b` | When sharing media `03680956-93bc-4294-bba6-4e0f09bb717f` | 1 | Prevent idle sleep while sharing media. |
 | Multimedia | When playing video `34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4` | 0 | Optimize video quality. |
 
+   gamebooster-rs note: our plan does not take the LIDACTION row; it copies the user's lid, power
+   button and sleep button actions instead (see [tweaks/power-plan.md](tweaks/power-plan.md)).
+
    S is a sleep timeout the main app passes in, in seconds. SGB passes **0** (never). It also passes
    0 as the display-off timeout, which matches VIDEOIDLE = 0 above.
    Superseded: earlier versions of this spec said S was unknown and recommended 0 as an assumption.

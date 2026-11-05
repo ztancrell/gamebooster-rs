@@ -56,10 +56,14 @@ copy the whole window text and send it.
    - `Ram` / `  off`
    - `LowerOthers` / `  lowered N processes to below normal` (a `(... skipped: access denied, ...
      exited)` tail is fine)
-   - `PowerPlan` / about 17 `  set    ...` lines / `  activated plan gamebooster (a2921d59-9c60-439e-b61a-21c441a0df53)`.
+   - `PowerPlan` / about 20 `  set    ...` lines (including `keep current lid close action`,
+     `keep current power button action`, `keep current sleep button action`) / `  activated plan gamebooster (a2921d59-9c60-439e-b61a-21c441a0df53)`.
      `skipped (not on this machine)` is fine for the AMD PowerPlay, Wi-Fi and "unidentified hidden
      display" lines; anywhere else, note it.
    - `GameMode` / `  AutoGameModeEnabled = 1`
+   - `Accessibility` / `  Sticky Keys shortcut off`, `  Filter Keys shortcut off`,
+     `  Toggle Keys shortcut off` (`left alone (feature on or shortcut already off)` is fine).
+     Then press Shift five times: no Sticky Keys dialog.
    - `Dns` (nothing under it; `fastest_dns` is off by default)
    - `Priority` / `  set bf6.exe (pid ...) to High`. `could not set` means BF6's anti-cheat blocks it:
      note it, not fatal.
@@ -91,6 +95,7 @@ copy the whole window text and send it.
     Look for:
     - `Priority` / `  set bf6.exe (pid ...) to Normal`
     - `Dns` (nothing under it)
+    - `Accessibility` / `  Sticky Keys flags restored (0x...)` (one line per shortcut boost turned off)
     - `GameMode` / `  AutoGameModeEnabled = <old value>` (or `(deleted)` if it was absent)
     - `PowerPlan` / `  reactivated plan <the GUID from step 5>` / `  deleted plan gamebooster`
     - `LowerOthers` / `  restored the old priority of N processes` (`(... exited)` is fine)
@@ -127,9 +132,11 @@ If `restore` keeps failing, undo by hand in the same administrator PowerShell. O
 4. Game Mode: if `"previous"` under `"game_mode"` is a number N:
    `reg add HKCU\Software\Microsoft\GameBar /v AutoGameModeEnabled /t REG_DWORD /d N /f`.
    If it is `null`: `reg delete HKCU\Software\Microsoft\GameBar /v AutoGameModeEnabled /f`.
-5. Game priority and lowered processes (`"lowered"`) need nothing for safety; priorities end when
+5. Accessibility shortcuts: nothing to do; they were changed for this session only, so signing
+   out or rebooting brings them back (or turn them on in Settings > Accessibility > Keyboard).
+6. Game priority and lowered processes (`"lowered"`) need nothing for safety; priorities end when
    each app quits. To put one back now: Task Manager > Details > right-click > Set priority > Normal.
-6. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority).
+7. Delete `gamebooster-state.json` (otherwise the next `boost` only re-applies priority).
 
 A reboot also brings the services back (their start type is never changed), but not the power plan
 or the Game Mode value.

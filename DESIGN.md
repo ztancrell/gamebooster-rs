@@ -13,6 +13,8 @@ Windows via Boot Camp, playing BF6.
 - Spec section 8 unknowns (SGB's default service list, start-type changes, RAM trim API): answered
   by an SGB capture run, see [docs/hardware-test.md](docs/hardware-test.md).
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
+- Automatic boost mode (boost when a configured game starts, restore when the last one exits)?
+  Deferred 2026-11-05.
 
 ## Decided
 
@@ -31,6 +33,12 @@ Windows via Boot Camp, playing BF6.
   (`lower_others`), Below normal by default, only the user's own Normal-priority processes.
 - 2026-11-05: `lower_others` also skips by publisher (exe version-info CompanyName substrings,
   built-in list plus `lower_others_exclude_publishers`), so renamed or new vendor exes are safe.
+- 2026-11-05: Turn off the Sticky / Filter / Toggle Keys hotkeys while boosted
+  (`accessibility_shortcuts_off`, default on: harmless and reversible). Only the hotkey flags, never
+  a feature the user has on; session only (`SPIF_SENDCHANGE`, not persisted), so a crash heals on
+  sign-out or reboot. Idea from Razer Cortex.
+- 2026-11-05: Our power plan copies the user's lid, power button and sleep button actions (AC and
+  DC) from the previous plan, like brightness, instead of SGB's "lid does nothing".
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

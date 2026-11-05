@@ -2,7 +2,8 @@
 
 **What it is.** gamebooster copies Windows' *High performance* plan into its own plan called
 `gamebooster` (fixed GUID `a2921d59-9c60-439e-b61a-21c441a0df53`), changes the settings below for
-both plugged in (AC) and battery (DC), keeps your current display brightness, and activates it.
+both plugged in (AC) and battery (DC), keeps your current display brightness and lid / power
+button / sleep button actions, and activates it.
 Restore reactivates the plan you had before and deletes `gamebooster`. If High performance is
 missing (some laptops hide it), Balanced is copied instead and the same values are written.
 
@@ -31,7 +32,9 @@ The cost: more heat, more fan noise, shorter battery life. That's why restore sw
 | Wireless adapter `19cbb8fa-5279-450e-9fac-8a3d5fedd0c1` | Power saving mode `12bbebe6-58d6-4636-95bb-3217ef867c1a` | 0 (maximum performance) |
 | Sleep `238c9fa8-0aad-41ed-83f4-97be242c8f20` | Sleep after `29f6c1db-86da-48c5-9fdb-f2b67b1f44da` | 0 (never) |
 | Sleep | Hibernate after `9d7815a6-7ee4-497e-8888-515a05f02364` | 0 (never) |
-| Buttons `4f971e89-eebd-4455-a8de-9e59040e7347` | Lid close action `5ca83367-6e45-459f-a27b-476b1d01c936` | 0 (do nothing) |
+| Buttons `4f971e89-eebd-4455-a8de-9e59040e7347` | Lid close action `5ca83367-6e45-459f-a27b-476b1d01c936` | your current AC / DC values |
+| Buttons | Power button action `7648efa3-dd9c-4e3e-b566-50f929386280` | your current AC / DC values |
+| Buttons | Sleep button action `96996bc0-ad50-47ec-923b-6f41874dd9eb` | your current AC / DC values |
 | None `fea3413e-7e05-4911-9a71-700331f1c294` | Require password on wake `0e796bdb-100d-47d6-a2d5-f7d2daa51f51` | 0 |
 | Display `7516b95f-f776-4464-8c53-06167f40cc99` | Brightness `aded5e82-b909-4619-9949-f5d71dac0bcb` | your current AC / DC values |
 | Display | Turn off after `3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e` | 0 (never) |
@@ -40,6 +43,10 @@ The cost: more heat, more fan noise, shorter battery life. That's why restore sw
 | Display | unidentified hidden setting `90959d22-d6a1-49b9-af93-bce885ad335b` | 0 |
 | Multimedia `9596fb26-9850-41fd-ac3e-f7c3c00afd4b` | When sharing media `03680956-93bc-4294-bba6-4e0f09bb717f` | 1 (prevent idle sleep) |
 | Multimedia | When playing video `34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4` | 0 (optimize quality) |
+
+Superseded: the lid close action used to be forced to 0 (do nothing), as SGB does. Since
+2026-11-05 the lid, power button and sleep button actions are copied from the plan you had
+(`KEEP` in `src/power.rs`), so closing the lid or pressing a button does what it always does.
 
 A setting your machine doesn't have (the ATI one on Intel or NVIDIA graphics, for example) is
 printed as `skipped (not on this machine)`; that is expected.

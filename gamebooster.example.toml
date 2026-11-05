@@ -20,6 +20,11 @@ max_processor_state = 100
 # Make sure Windows Game Mode is on (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled = 1).
 game_mode = true
 
+# Turn off the Sticky Keys (Shift x5), Filter Keys (hold Right Shift) and Toggle Keys (hold Num Lock)
+# shortcuts while boosted, so they can't pop up mid-game. A feature you have switched on is left
+# alone. Session only: restore (or signing out / rebooting) brings the shortcuts back.
+accessibility_shortcuts_off = true
+
 # On boost, time DNS lookups against your current DNS server and Cloudflare (1.1.1.1), Google
 # (8.8.8.8) and Quad9 (9.9.9.9). If a public one is more than 10 ms and 20 % faster, use it on the
 # active network adapter (IPv4) until restore. Faster lookups, not lower in-game ping.

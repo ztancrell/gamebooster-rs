@@ -2,7 +2,8 @@
 //!
 //! **What it does.** Duplicates the built-in High performance plan into our own plan (fixed GUID
 //! [`OUR_PLAN`]), writes the values in [`SETTINGS`] for both AC (plugged in) and DC (battery),
-//! carries over the current display brightness, and activates it. Restore reactivates the plan
+//! carries over the current display brightness and the lid / power button / sleep button actions
+//! ([`KEEP`]), and activates it. Restore reactivates the plan
 //! that was active before and deletes ours.
 //!
 //! **Windows default.** Boot Camp installs run Balanced: the minimum processor state is 5 %, so
@@ -70,7 +71,6 @@ pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
     ("19cbb8fa-5279-450e-9fac-8a3d5fedd0c1", "12bbebe6-58d6-4636-95bb-3217ef867c1a", 0, "Wi-Fi power saving: maximum performance"),
     ("238c9fa8-0aad-41ed-83f4-97be242c8f20", "29f6c1db-86da-48c5-9fdb-f2b67b1f44da", 0, "never sleep"),
     ("238c9fa8-0aad-41ed-83f4-97be242c8f20", "9d7815a6-7ee4-497e-8888-515a05f02364", 0, "never hibernate"),
-    ("4f971e89-eebd-4455-a8de-9e59040e7347", "5ca83367-6e45-459f-a27b-476b1d01c936", 0, "closing the lid does nothing"),
     ("fea3413e-7e05-4911-9a71-700331f1c294", "0e796bdb-100d-47d6-a2d5-f7d2daa51f51", 0, "no password on wake"),
     (SUB_VIDEO, "3c0bc021-c8a8-4e07-a973-6b14cbcb2b7e", 0, "never turn off the display"),
     (SUB_VIDEO, "17aaa29b-8b43-4b94-aafe-35f64daaf1ee", 0, "never dim the display"),
@@ -79,6 +79,22 @@ pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
     ("9596fb26-9850-41fd-ac3e-f7c3c00afd4b", "03680956-93bc-4294-bba6-4e0f09bb717f", 1, "when sharing media: prevent idle sleep"),
     ("9596fb26-9850-41fd-ac3e-f7c3c00afd4b", "34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4", 0, "when playing video: optimize video quality"),
 ];
+
+const SUB_BUTTONS: &str = "4f971e89-eebd-4455-a8de-9e59040e7347";
+
+/// (subgroup, setting, meaning): copied from the previous plan (AC and DC) instead of forced, so the
+/// user's lid and button actions don't change while boosted. Deliberately differs from SGB, which
+/// sets the lid action to "do nothing". A setting the machine lacks is skipped.
+pub const KEEP: &[(&str, &str, &str)] = &[
+    (SUB_BUTTONS, "5ca83367-6e45-459f-a27b-476b1d01c936", "keep current lid close action"),
+    (SUB_BUTTONS, "7648efa3-dd9c-4e3e-b566-50f929386280", "keep current power button action"),
+    (SUB_BUTTONS, "96996bc0-ad50-47ec-923b-6f41874dd9eb", "keep current sleep button action"),
+];
+
+/// The meaning of a kept setting GUID, for printing.
+pub fn kept_meaning(setting: &str) -> &'static str {
+    KEEP.iter().find(|k| k.1 == setting).map_or("keep current setting", |k| k.2)
+}
 
 /// How boost and --dry-run describe the maximum processor state.
 pub fn max_state_meaning(pct: u32) -> String {
@@ -186,7 +202,13 @@ pub fn plan() -> Result<PowerState, String> {
     let active = active_scheme()?;
     let previous_scheme = if active == OUR_PLAN { BALANCED.to_string() } else { active };
     let brightness = powercfg(&["/query", &previous_scheme, SUB_VIDEO, VIDEO_BRIGHTNESS]).ok().and_then(|t| parse_ac_dc(&t));
-    Ok(PowerState { previous_scheme, brightness })
+    let kept = KEEP.iter()
+        .filter_map(|&(sub, setting, _)| {
+            let (ac, dc) = powercfg(&["/query", &previous_scheme, sub, setting]).ok().and_then(|t| parse_ac_dc(&t))?;
+            Some((setting.to_string(), ac, dc))
+        })
+        .collect();
+    Ok(PowerState { previous_scheme, brightness, kept })
 }
 
 #[cfg(windows)]
@@ -203,6 +225,9 @@ pub fn boost(st: &PowerState, min_state: u32, max_state: u32) -> Result<(), Stri
     values.push((SUB_PROCESSOR, PROC_MAX, max_state, max_state, &max_meaning));
     if let Some((ac, dc)) = st.brightness {
         values.push((SUB_VIDEO, VIDEO_BRIGHTNESS, ac, dc, "keep current display brightness"));
+    }
+    for (setting, ac, dc) in &st.kept {
+        values.push((SUB_BUTTONS, setting.as_str(), *ac, *dc, kept_meaning(setting)));
     }
     for (sub, setting, ac, dc, meaning) in values {
         let ok = powercfg(&["/setacvalueindex", OUR_PLAN, sub, setting, &ac.to_string()]).is_ok()
@@ -268,6 +293,12 @@ mod tests {
             assert_eq!(parse_guid(sub).as_deref(), Some(*sub));
             assert_eq!(parse_guid(setting).as_deref(), Some(*setting));
         }
+        for (sub, setting, _) in KEEP {
+            assert_eq!(parse_guid(sub).as_deref(), Some(*sub));
+            assert_eq!(parse_guid(setting).as_deref(), Some(*setting));
+            assert!(SETTINGS.iter().all(|s| s.1 != *setting), "{setting} is both forced and kept");
+        }
+        assert_eq!(kept_meaning("7648efa3-dd9c-4e3e-b566-50f929386280"), "keep current power button action");
         assert_eq!(parse_guid(OUR_PLAN).as_deref(), Some(OUR_PLAN));
         assert_eq!(parse_guid(PROC_MAX).as_deref(), Some(PROC_MAX));
         assert_eq!(parse_guid(PROC_MIN).as_deref(), Some(PROC_MIN));
