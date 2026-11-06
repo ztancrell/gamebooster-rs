@@ -54,6 +54,7 @@ The same for Hone (server-driven tweak catalogue, encrypted engine, temporary Ga
 The same for ISLC, Intelligent Standby List Cleaner (standby purge and timer resolution, both placebo or harmful on Windows 10/11): [docs/islc/](docs/islc/README.md).
 The same for ExitLag (relay "ping reducer" with two kernel packet drivers; helps only on a bad ISP route): [docs/exitlag/](docs/exitlag/README.md).
 The same for Process Lasso (ProBalance dynamic priority restraint, read from the binary; the basis of `lower_others_mode = "dynamic"`): [docs/process-lasso/](docs/process-lasso/README.md).
+The same for JetBoost (BlueSprig, a rebranded IObit booster from 2012; stops a Windows 8-era service list, hard-kills apps, forces min CPU 100 % even on battery; nothing new to adopt): [docs/jetboost/](docs/jetboost/README.md).
 The same for Wise Game Booster (permanent XP-era registry tweaks, kills programs, stops services with a resume list; uploads your game list): [docs/wise-game-booster/](docs/wise-game-booster/README.md).
 
 ## Install and update
