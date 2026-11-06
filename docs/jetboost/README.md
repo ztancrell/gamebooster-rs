@@ -108,8 +108,9 @@ anti-cheat is not the issue; the issue is that nothing in it helps.
 
 Only items that are measurable and undoable on the target Mac count:
 
-- **Nothing new.** gamebooster-rs already sets PCIe ASPM off and Wi-Fi maximum performance in its
-  boost plan ([power plan](../tweaks/power-plan.md)), already stops an allow-listed set of services
+- **Nothing new.** gamebooster-rs already sets PCIe ASPM off in its boost plan
+  ([power plan](../tweaks/power-plan.md)); it does not set the wireless adapter power mode itself
+  (the High performance plan it copies from usually has Wi-Fi at maximum performance on AC), already stops an allow-listed set of services
   and restarts them ([services](../tweaks/services.md)), already closes and relaunches chosen apps
   ([close apps](../tweaks/close-apps.md)), and already lowers other processes reversibly
   ([priority](../tweaks/priority.md)).
