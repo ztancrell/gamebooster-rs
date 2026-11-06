@@ -22,7 +22,9 @@
 //! **`gamebooster auto`** runs the same loop without a boost first: [`auto_step`] boosts (the normal
 //! `boost`) when a configured game starts and runs the normal `restore` `auto_restore_delay_secs`
 //! after the last one exits. It only restores boosts it made; Ctrl+C or closing the console while
-//! it is boosted restores (restore keeps the state file until it has finished).
+//! it is boosted restores (restore keeps the state file until it has finished). With the registry
+//! priority method auto writes the games' IFEO entries when it starts and holds them until it exits
+//! (`crate::hold_ifeo`): Windows reads them only at game start, after which auto's boost is too late.
 
 use std::collections::HashSet;
 
@@ -282,6 +284,9 @@ mod sys {
         } else {
             println!("  lower others: {}", if cfg.lower_others { "once (done by boost); set lower_others_mode = \"dynamic\" for the watcher to do it" } else { "off" });
         }
+        if auto && !cfg.process_priority() {
+            crate::hold_ifeo(cfg, state_path)?;
+        }
         let me = priority::user_sid(unsafe { GetCurrentProcess() }).unwrap_or_default();
         let own_pid = std::process::id();
         let start = Instant::now();
@@ -323,7 +328,7 @@ mod sys {
                 match (mode, next, act) {
                     (_, _, Some(AutoDo::Boost)) => {
                         println!("{game} started: boosting");
-                        if let Err(e) = crate::boost(cfg, state_path, false, true) {
+                        if let Err(e) = crate::boost(cfg, state_path, false, true, true) {
                             println!("boost failed: {e}");
                         }
                         fresh = false; // boost just applied game priority
@@ -451,6 +456,11 @@ mod sys {
                 }
             }
             println!("Still boosted: run `gamebooster restore` when you're done playing.");
+        }
+        if auto {
+            if let Err(e) = crate::release_ifeo(state_path) {
+                println!("IFEO restore failed: {e} (`gamebooster restore` will retry)");
+            }
         }
         DONE.store(true, SeqCst);
         Ok(())

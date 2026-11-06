@@ -77,6 +77,8 @@ Windows via Boot Camp, playing BF6.
   one exits (`auto_restore_delay_secs`; a restart or launcher hand-off within the grace keeps the
   boost). Built on the `boost --watch` watcher. It only restores boosts it made itself; closing the
   window while it is boosted restores. No logon task / service for now.
+  With the registry priority method auto holds the IFEO entries for its whole run (written at auto
+  start, put back at auto exit, journalled in `gamebooster-auto-ifeo.json` for `restore`).
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

@@ -251,11 +251,21 @@ fn run(args: Args) -> Result<(), String> {
     }
     match args.command.as_str() {
         "boost" => {
-            boost(&cfg, &state_path, args.dry_run, args.watch)?;
+            boost(&cfg, &state_path, args.dry_run, args.watch, false)?;
             if args.watch { watch::run(&cfg, &state_path, false) } else { Ok(()) }
         }
         "auto" => watch::run(&cfg, &state_path, true),
-        "restore" => restore(&cfg, &state_path, args.dry_run),
+        "restore" if args.dry_run => {
+            restore(&cfg, &state_path, true)?;
+            if let Some(h) = State::load(&held_path(&state_path))? {
+                println!("Would also put back the IFEO entries `auto` holds: {}", h.ifeo.iter().map(|e| e.exe.as_str()).collect::<Vec<_>>().join(", "));
+            }
+            Ok(())
+        }
+        "restore" => {
+            restore(&cfg, &state_path, false)?;
+            release_ifeo(&state_path) // after a killed `auto`
+        }
         "ping" if args.route => network::route(&cfg.ping_hosts, args.host.as_deref(), cfg.ping_samples),
         "ping" => Ok(network::ping(&cfg.ping_hosts, cfg.ping_samples)),
         "bench" => bench::run(&cfg, &dir, state_path.exists(), args.seconds.unwrap_or(60), args.label.as_deref()),
@@ -283,7 +293,7 @@ fn no_game_hint(cfg: &Config, watch: bool) -> &'static str {
 }
 
 #[cfg(windows)]
-fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<(), String> {
+fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool, auto: bool) -> Result<(), String> {
     if State::load(state_path)?.is_some() {
         println!("Already boosted (state in {}). Only re-applying game priority and power throttling.", state_path.display());
         if !dry_run && priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority()) == 0 {
@@ -305,7 +315,7 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<
         accessibility: if cfg.accessibility_shortcuts_off { warn("reading accessibility shortcuts", accessibility::plan()) } else { None },
         dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
         lowered: if cfg.lower_others && !cfg.dynamic_lowering() { priority::plan_lower(cfg) } else { Vec::new() },
-        ifeo: if cfg.process_priority() { Vec::new() } else { priority::plan_ifeo(&cfg.games) },
+        ifeo: if cfg.process_priority() || held_path(state_path).exists() { Vec::new() } else { priority::plan_ifeo(&cfg.games) },
     };
     if dry_run {
         println!("Boost would do (dry run, nothing changed):\n{}", describe(&st, cfg));
@@ -351,8 +361,61 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool) -> Result<
             }
         }
     }
-    println!("Boosted. Run `gamebooster restore` when you're done playing.");
+    if auto {
+        println!("Boosted. auto restores {} s after the last game exits.", cfg.auto_restore_delay_secs);
+    } else {
+        println!("Boosted. Run `gamebooster restore` when you're done playing.");
+    }
     Ok(())
+}
+
+/// `auto` with the registry method holds the games' IFEO entries for its whole run (Windows reads
+/// them only at game start, so a boost after the game started is too late). They are journalled in
+/// this file (a `State` with only `ifeo`) so `restore` undoes them if auto was killed; while it
+/// exists, boost (auto's or a manual one) skips the IFEO step.
+fn held_path(state_path: &Path) -> PathBuf {
+    state_path.with_file_name("gamebooster-auto-ifeo.json")
+}
+
+/// `auto` start: journal, then write, each game's IFEO entry. A file left by a killed auto and a
+/// manual boost's entries keep their old values (taken over from the state file, so the boost's
+/// restore leaves them to auto).
+#[cfg(windows)]
+fn hold_ifeo(cfg: &Config, state_path: &Path) -> Result<(), String> {
+    let path = held_path(state_path);
+    let mut held = State::load(&path)?.unwrap_or_default();
+    let mut st = State::load(state_path)?.filter(|st| !st.ifeo.is_empty());
+    if let Some(st) = &mut st {
+        priority::take_over(&mut held.ifeo, std::mem::take(&mut st.ifeo));
+    }
+    priority::take_over(&mut held.ifeo, priority::plan_ifeo(&cfg.games));
+    held.save(&path)?; // before the state file loses its entries: a crash in between leaves both (restoring twice is harmless)
+    if let Some(st) = st {
+        st.save(state_path)?;
+    }
+    println!("Game priority (registry): holding the IFEO entries while auto runs ({})", path.display());
+    priority::write_ifeo(&held.ifeo);
+    Ok(())
+}
+
+/// Put back the IFEO entries `auto` held (auto exit, or `restore` after a killed auto). If a boost is
+/// still active they are handed to its state file instead, so its `restore` puts them back.
+#[cfg(windows)]
+fn release_ifeo(state_path: &Path) -> Result<(), String> {
+    let path = held_path(state_path);
+    let Some(held) = State::load(&path)? else { return Ok(()) };
+    match State::load(state_path)? {
+        Some(mut st) => {
+            priority::take_over(&mut st.ifeo, held.ifeo);
+            st.save(state_path)?;
+            println!("IFEO entries auto held: left to the active boost; `gamebooster restore` puts them back");
+        }
+        None => {
+            println!("Putting back the IFEO entries auto held:");
+            priority::restore_ifeo(&held.ifeo)?; // on failure the file stays for another `restore`
+        }
+    }
+    std::fs::remove_file(&path).map_err(|e| format!("can't delete {}: {e}", path.display()))
 }
 
 #[cfg(windows)]
@@ -418,6 +481,9 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
     match State::load(state_path)? {
         Some(st) => println!("Boosted (since unix time {}). Restore will undo:\n{}", st.boosted_at, describe(&st, cfg)),
         None => println!("Not boosted."),
+    }
+    if let Some(h) = State::load(&held_path(state_path))? {
+        println!("auto holds IFEO entries (put back when auto exits, or by `gamebooster restore`): {}", h.ifeo.iter().map(|e| e.exe.as_str()).collect::<Vec<_>>().join(", "));
     }
     println!("Game priority method: {}", priority_method_text(cfg));
     let active = power::active_scheme()?;

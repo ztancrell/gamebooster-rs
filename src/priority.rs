@@ -36,7 +36,10 @@
 //! [`cpu_priority_class`]) and Windows itself applies it the next time the game starts, so nothing
 //! opens the game process. The state file records whether the `<exe>` and `PerfOptions` keys existed
 //! and the old value; restore puts the old value back (or deletes it) and deletes only keys it
-//! created that are now empty. Other IFEO values (Debugger etc.) are never touched.
+//! created that are now empty. Other IFEO values (Debugger etc.) are never touched. `gamebooster
+//! auto` writes the entries when it starts and keeps them for its whole run (its own boosts and
+//! restores skip them), journalled in `gamebooster-auto-ifeo.json` so `restore` undoes them if auto
+//! was killed (`hold_ifeo` / `release_ifeo` in main.rs).
 
 use crate::config::{LowerClass, Priority};
 
@@ -81,6 +84,16 @@ pub struct IfeoUndo {
 
 pub fn ifeo_undo(e: &Ifeo) -> IfeoUndo {
     IfeoUndo { set: e.previous, delete_perf: !e.perf_existed, delete_key: !e.key_existed }
+}
+
+/// Add `more` to `held`, skipping exes already held: the first record of an exe has the value from
+/// before any gamebooster write, so it is never replaced (`auto` holding the IFEO entries).
+pub fn take_over(held: &mut Vec<Ifeo>, more: Vec<Ifeo>) {
+    for e in more {
+        if !held.iter().any(|h| h.exe.eq_ignore_ascii_case(&e.exe)) {
+            held.push(e);
+        }
+    }
 }
 
 use serde::{Deserialize, Serialize};
@@ -561,6 +574,17 @@ mod tests {
         assert_eq!(ifeo_undo(&e(true, true, None)), IfeoUndo { set: None, delete_perf: false, delete_key: false });
         // An old value: write it back.
         assert_eq!(ifeo_undo(&e(true, true, Some(6))), IfeoUndo { set: Some(6), delete_perf: false, delete_key: false });
+    }
+
+    #[test]
+    fn take_over_keeps_the_original() {
+        let e = |exe: &str, previous| Ifeo { exe: exe.into(), priority: Priority::High, key_existed: false, perf_existed: false, previous };
+        // auto starts on top of a manual boost: the boost's record (absent) wins over a fresh read (3,
+        // the boost's own write), and a game the boost didn't cover is added.
+        let mut held = Vec::new();
+        take_over(&mut held, vec![e("bf6.exe", None)]);
+        take_over(&mut held, vec![e("BF6.exe", Some(3)), e("cs2.exe", Some(6))]);
+        assert_eq!(held, vec![e("bf6.exe", None), e("cs2.exe", Some(6))]);
     }
 
     #[test]

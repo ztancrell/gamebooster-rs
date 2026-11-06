@@ -55,6 +55,14 @@ It takes effect the next time the game starts: if the game is running at boost, 
 The process method's `SetPriorityClass` is skipped; power throttling off still applies to the
 running game.
 
+**With `gamebooster auto`.** auto boosts only after the game has started, which is too late for
+this value. So auto writes the entries when it starts (before any game) and keeps them across its
+boosts and restores; its own boosts skip the IFEO step. When auto exits it puts them back exactly
+(same records as below), or, if a boost it didn't make is still active, hands them to that boost's
+state file. The records are kept in `gamebooster-auto-ifeo.json` next to the state file, so if auto
+is killed, `gamebooster restore` puts them back. Started on top of an active boost, auto takes that
+boost's IFEO records over (the old values are kept, never re-read from our own writes).
+
 **Restore.** The state file records, per game, whether the `<exe>` key and `PerfOptions` existed and
 the old value. Restore writes the old value back (or deletes it), then deletes `PerfOptions` and
 the `<exe>` key only if boost created them and they are empty. Other IFEO values (Debugger,

@@ -32,7 +32,7 @@ What a boost does, in this order (restore goes in reverse):
 9. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
    With `game_priority_method = "registry"` (for anti-cheats that block it, like BF6's) it writes the
    game's IFEO `CpuPriorityClass` instead, which Windows applies at the next game start; restore
-   puts the registry back exactly.
+   puts the registry back exactly. `auto` writes it when `auto` starts and keeps it until it exits.
 
 Separately, `gamebooster ping` measures latency, jitter and loss to cloud regions near game
 servers, and `gamebooster ping --route` checks each hop on the way (your router, your ISP, the far
@@ -117,7 +117,7 @@ gamebooster ping --route
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority and power throttling off (use this after starting the game). |
 | `boost --watch` | Boosts (or, if already boosted, re-applies game priority), then keeps running in the console until Ctrl+C or the window closes; see [Watch mode](#watch-mode). Not with `--dry-run`. |
 | `auto` | Keeps running in the console: boosts when a configured `[[game]]` starts and restores `auto_restore_delay_secs` (30) after the last one exits; see [Automatic boost](#automatic-boost). Admin. Not with `--dry-run`. |
-| `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal (and power throttling to Windows). |
+| `restore` | Undoes the last boost from the state file, then deletes the state file. Also puts back IFEO entries a killed `auto` left (`gamebooster-auto-ifeo.json`). If not boosted, only resets game priority to Normal (and power throttling to Windows). |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, its *Maximum processor state* on AC and DC (warns below 100 %, which turns Turbo Boost off, with the `powercfg` fix; only a note when it is gamebooster's own plan at your `max_processor_state`), `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Times `ping_samples` (10) TCP connects to each of `ping_hosts`, AWS regional endpoints by default, and prints median, p90, jitter and loss per region, fastest first; marks a region with any loss or jitter above 10 ms. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
 | `ping --route [host]` | Per-hop path check like `pathping`: finds the hops to `host` (default: the fastest region) with ICMP, pings each hop `ping_samples` times and prints median and loss, hop 1 labelled as your router (Wi-Fi or Ethernet), plus a hint where persisting loss starts. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#route-check). |
@@ -231,14 +231,25 @@ again within that time keeps the boost (a restart or a launcher hand-off). Then 
   stays, so run `gamebooster restore`.
 - If a restore step fails, the state file is kept and `auto` treats it as a boost it didn't make:
   run `gamebooster restore`.
+- With `game_priority_method = "registry"`, `auto` writes the games' IFEO entries when it starts,
+  before any game, because Windows reads them only when the game starts (a boost after that is too
+  late). It keeps them across its boosts and restores and puts them back exactly when it exits.
+  They are recorded in `gamebooster-auto-ifeo.json`, so if `auto` is killed, `gamebooster restore`
+  puts them back (run while `auto` is still open, it ends that hold as well). If a boost is still
+  active when `auto` exits (one it didn't make), the entries go to that boost's state file and its
+  `restore` puts them back.
 
 ## Safety and restore
 
 - Before the first change, boost writes everything restore needs to
   `gamebooster-state.json` next to `gamebooster.exe` (previous power plan, the services it stops,
   the full paths of the apps it closes, the processes it lowers with their old priority, the old
-  Game Mode value, the old accessibility shortcut flags, the old DNS setting). If that write fails, nothing is
+  Game Mode value, the old accessibility shortcut flags, the old DNS setting, the old IFEO entries
+  with the registry priority method). If that write fails, nothing is
   changed. The file's presence means "boosted"; boosting again doesn't overwrite it.
+- `auto` with the registry priority method records the old IFEO entries in
+  `gamebooster-auto-ifeo.json` (same folder) before writing them; `restore` puts them back and
+  deletes it. While that file exists, `boost` skips the IFEO step (`auto` already wrote them).
 - After a crash, a power cut or a reboot, just run `gamebooster restore`. Restore is idempotent:
   running services, running apps and an already-deleted plan are fine. If starting a service,
   restoring the power plan, writing Game Mode, the accessibility flags or DNS fails, the state

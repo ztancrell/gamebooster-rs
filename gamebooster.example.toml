@@ -181,7 +181,8 @@ close = []
 #   "registry" writes HKLM\...\Image File Execution Options\<exe>\PerfOptions\CpuPriorityClass on
 #              boost; Windows applies it when the game starts, so the anti-cheat never sees a
 #              process access. Takes effect at the next game start (restart a running game).
-#              Restore puts the registry back exactly. Low but nonzero risk that an anti-cheat
+#              Restore puts the registry back exactly. `gamebooster auto` writes it when auto
+#              starts and keeps it until auto exits. Low but nonzero risk that an anti-cheat
 #              objects to IFEO entries: watch for launch errors. realtime is not allowed here.
 #              Recommended for games with a kernel anti-cheat such as BF6: verified there
 #              (BF6 launches normally, Task Manager shows High).
