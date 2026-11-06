@@ -1,5 +1,8 @@
 # gamebooster-rs
 
+> **Made with AI.** The code, docs and research in this repo were written by Claude Opus 5.5
+> (Anthropic) through Claude Code. I direct the project, make the decisions and test on real hardware.
+
 A small Windows CLI that tweaks the system for gaming with `boost` and undoes every change with
 `restore`. No kernel driver, no network accelerator. Written in Rust for playing Battlefield 6 under
 Boot Camp on a Mac; every tweak is explained, with the manual commands to try it yourself.
