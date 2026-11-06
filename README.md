@@ -43,6 +43,7 @@ Separately, `gamebooster bench` records the game's frame times with Intel Presen
 Status: not working yet on the target Mac (BF6's anti-cheat appears to block the capture); see
 [docs/measuring.md](docs/measuring.md).
 
+MacBook Pro 2019 stuck at a low clock in Windows? See [docs/macbook-pro-2019-slow-cpu.md](docs/macbook-pro-2019-slow-cpu.md).
 Details, defaults, manual commands and how to measure each one: [docs/tweaks/](docs/tweaks/README.md).
 The behaviour follows [docs/spec.md](docs/spec.md).
 What Smart Game Booster itself does, feature by feature, with verdicts: [docs/sgb/](docs/sgb/README.md).
