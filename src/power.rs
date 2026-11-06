@@ -213,6 +213,36 @@ pub fn active_scheme() -> Result<String, String> {
     parse_guid(&powercfg(&["/getactivescheme"])?).ok_or("can't parse `powercfg /getactivescheme`".into())
 }
 
+/// The status line under "Maximum processor state" when the active plan caps it below 100 % (that
+/// turns Turbo Boost off; an 80 % cap held the target Mac at ~22 W, docs/hardware-test.md). Our own
+/// plan at the configured `max_processor_state` is deliberate, so that is a note, not a warning.
+pub fn max_state_warning(name: &str, ours: bool, configured: u32, ac: u32, dc: u32) -> Option<String> {
+    if ac >= 100 && dc >= 100 {
+        None
+    } else if ours && ac == configured && dc == configured {
+        Some(format!("  note: set by max_processor_state = {configured} (Turbo Boost off while boosted)"))
+    } else {
+        Some(format!(
+            "  warning: active plan '{name}' caps Maximum processor state at {ac}% (AC) / {dc}% (DC); below 100 turns Turbo Boost off. \
+             Fix: powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMAX 100 (and /setdcvalueindex), \
+             then powercfg /setactive scheme_current"
+        ))
+    }
+}
+
+/// The active plan's name, e.g. "Balanced" from "Power Scheme GUID: 381b...  (Balanced)".
+#[cfg(windows)]
+pub fn active_scheme_name() -> Result<String, String> {
+    let text = powercfg(&["/getactivescheme"])?;
+    Ok(text.trim().rsplit_once('(').map_or(text.trim(), |(_, n)| n.trim_end_matches(')')).to_string())
+}
+
+/// (AC, DC) Maximum processor state of a plan, in %.
+#[cfg(windows)]
+pub fn max_state(scheme: &str) -> Result<(u32, u32), String> {
+    parse_ac_dc(&powercfg(&["/query", scheme, SUB_PROCESSOR, PROC_MAX])?).ok_or("can't parse `powercfg /query`".into())
+}
+
 #[cfg(windows)]
 fn plan_exists(guid: &str) -> bool {
     powercfg(&["/list"]).is_ok_and(|t| t.to_ascii_lowercase().contains(guid))
@@ -341,6 +371,14 @@ mod tests {
     fn max_state_says_turbo_off_below_100() {
         assert_eq!(max_state_meaning(100), "maximum processor state 100 %");
         assert_eq!(max_state_meaning(99), "maximum processor state 99 % (Turbo Boost off)");
+    }
+
+    #[test]
+    fn warns_on_capped_max_state() {
+        assert_eq!(max_state_warning("Balanced", false, 100, 100, 100), None);
+        assert!(max_state_warning("Balanced", false, 100, 80, 100).unwrap().contains("warning: active plan 'Balanced' caps Maximum processor state at 80% (AC) / 100% (DC)"));
+        assert!(max_state_warning("gamebooster", true, 99, 99, 99).unwrap().contains("note: set by max_processor_state = 99"));
+        assert!(max_state_warning("gamebooster", true, 99, 80, 80).unwrap().contains("warning"));
     }
 
     #[test]

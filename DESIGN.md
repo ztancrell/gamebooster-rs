@@ -73,6 +73,8 @@ Windows via Boot Camp, playing BF6.
   `PerfOptions\CpuPriorityClass`, which Windows applies at game start. Recorded in the state file
   (key / PerfOptions existed, old value) and put back exactly; other IFEO values never touched;
   never Realtime. Low but nonzero risk that an anti-cheat objects to IFEO entries.
+- 2026-11-05: `status` warns when the active plan's Maximum processor state is below 100 (AC or
+  DC), after the 80 % cap found on the target Mac; our own plan at `max_processor_state` is only a note.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

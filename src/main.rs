@@ -419,6 +419,16 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
     println!("Game priority method: {}", priority_method_text(cfg));
     let active = power::active_scheme()?;
     println!("Active power plan: {active}{}", if active == power::OUR_PLAN { " (gamebooster)" } else { "" });
+    match power::max_state(&active) {
+        Ok((ac, dc)) => {
+            println!("Maximum processor state: {ac} % (AC), {dc} % (DC)");
+            let name = power::active_scheme_name().unwrap_or_else(|_| active.clone());
+            if let Some(msg) = power::max_state_warning(&name, active == power::OUR_PLAN, cfg.max_processor_state, ac, dc) {
+                println!("{msg}");
+            }
+        }
+        Err(e) => println!("Maximum processor state: couldn't read ({e})"),
+    }
     println!("{}: {}", game_mode::VALUE, game_mode::read()?.map_or("(absent, Windows default = on)".into(), |v| v.to_string()));
     // Read only: HAGS needs a reboot and driver support, so boost doesn't touch it (docs/tweaks/optimizer.md).
     let hags = reg_dword(windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE, HAGS_KEY, "HwSchMode")?;
