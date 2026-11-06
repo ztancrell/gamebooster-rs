@@ -28,7 +28,16 @@
 //! is never touched. Processes already raised or lowered are left alone, so this never fights game
 //! priority or a choice you made in Task Manager. Verify in Task Manager > Details > Base priority.
 //! With `lower_others_mode = "dynamic"` boost lowers nothing; `boost --watch` restrains busy
-//! candidates instead (`watch.rs`).
+//! candidates instead (`watch.rs`). With `lower_others_io` (default on) each lowered process whose
+//! disk (I/O) priority is Normal also gets Low (`NtSetInformationProcess(ProcessIoPriority)`), the
+//! old value recorded with the old class and put back the same way; a process that refuses (e.g.
+//! anti-cheat protected) is printed and skipped. Never the game (games are never lowered).
+//!
+//! **Win32PrioritySeparation (`priority_separation`, default on).** Boost writes
+//! `HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl\Win32PrioritySeparation = 0x2A`
+//! ([`SEPARATION`]: short, fixed quantum, 3:1 foreground boost; Windows 10 client default is 2) after
+//! recording the old value or its absence; restore writes it back or deletes it. Live, no reboot.
+//! Try-by-feel (docs/tweaks/priority.md).
 //!
 //! **Registry method (`game_priority_method = "registry"`).** Some anti-cheats (EA Javelin in BF6)
 //! refuse `SetPriorityClass` from outside. Instead, boost writes `HKLM\SOFTWARE\Microsoft\Windows
@@ -134,6 +143,57 @@ pub struct Lowered {
     pub created: u64,
     /// Priority class before the boost (always Normal today).
     pub old_class: u32,
+    /// I/O priority before the boost (always Normal today), or None if it was left alone
+    /// (`lower_others_io` off, or absent in state files from older versions).
+    #[serde(default)]
+    pub old_io: Option<u32>,
+}
+
+/// `IO_PRIORITY_HINT` values for `ProcessIoPriority`: 1 = IoPriorityLow, 2 = IoPriorityNormal.
+pub const IO_LOW: u32 = 1;
+pub const IO_NORMAL: u32 = 2;
+
+/// Win32PrioritySeparation while boosted (`priority_separation`): HKLM, takes effect at once.
+pub const PRIORITY_CONTROL: &str = r"SYSTEM\CurrentControlSet\Control\PriorityControl";
+pub const SEPARATION_VALUE: &str = "Win32PrioritySeparation";
+/// The only value boost writes: 0x20 short quantum | 0x08 fixed quantum | 0x02 3:1 foreground boost.
+pub const SEPARATION: u32 = 0x2A;
+
+/// Write `Some(v)` as Win32PrioritySeparation, or delete it for None. Boost only ever passes
+/// `Some(SEPARATION)`; restore passes the recorded old value.
+#[cfg(windows)]
+pub fn write_separation(value: Option<u32>) -> Result<(), String> {
+    use windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE;
+    crate::reg_set_dword(HKEY_LOCAL_MACHINE, PRIORITY_CONTROL, SEPARATION_VALUE, value)?;
+    println!("  {SEPARATION_VALUE} = {}", value.map_or("(deleted)".into(), |v| format!("{v:#x}")));
+    Ok(())
+}
+
+#[cfg(windows)]
+#[link(name = "ntdll")]
+extern "system" {
+    fn NtQueryInformationProcess(h: windows_sys::Win32::Foundation::HANDLE, class: i32, info: *mut core::ffi::c_void, len: u32, ret: *mut u32) -> i32;
+    fn NtSetInformationProcess(h: windows_sys::Win32::Foundation::HANDLE, class: i32, info: *const core::ffi::c_void, len: u32) -> i32;
+}
+#[cfg(windows)]
+const PROCESS_IO_PRIORITY: i32 = 33;
+
+/// The process's I/O priority if `lower_others_io` is on and it is Normal (the only one we lower).
+#[cfg(windows)]
+pub fn io_to_lower(h: windows_sys::Win32::Foundation::HANDLE, cfg: &crate::config::Config) -> Option<u32> {
+    let mut v = 0u32;
+    let ok = cfg.lower_others_io
+        && unsafe { NtQueryInformationProcess(h, PROCESS_IO_PRIORITY, (&mut v as *mut u32).cast(), 4, std::ptr::null_mut()) } >= 0;
+    (ok && v == IO_NORMAL).then_some(v)
+}
+
+/// Set a process's I/O priority (`NtSetInformationProcess(ProcessIoPriority)`); needs PROCESS_SET_INFORMATION.
+#[cfg(windows)]
+pub fn set_io(h: windows_sys::Win32::Foundation::HANDLE, v: u32) -> Result<(), String> {
+    match unsafe { NtSetInformationProcess(h, PROCESS_IO_PRIORITY, (&v as *const u32).cast(), 4) } {
+        s if s >= 0 => Ok(()),
+        s => Err(format!("I/O priority not set (NTSTATUS {:#010x})", s as u32)),
+    }
 }
 
 /// In the built-in list, a game, closed by `close`, in `lower_others_exclude`, or its publisher
@@ -257,19 +317,20 @@ pub fn plan_lower(cfg: &crate::config::Config) -> Vec<Lowered> {
             if !should_lower(&p.name, publisher.as_deref(), same_user, class, cfg) {
                 return None;
             }
-            Some(Lowered { pid: p.pid, created: created(h.0)?, exe: p.name, old_class: class })
+            Some(Lowered { pid: p.pid, created: created(h.0)?, exe: p.name, old_class: class, old_io: io_to_lower(h.0, cfg) })
         })
         .collect()
 }
 
 /// Set each process to `to` (or back to its old class when `to` is None), only if it is still the
-/// same process. Prints one summary line; failures are counted, never fatal.
+/// same process, and its I/O priority to Low (or back) when `old_io` is set. Prints one summary
+/// line plus one per I/O failure; failures are never fatal.
 #[cfg(windows)]
 pub fn set_others(procs: &[Lowered], to: Option<LowerClass>) {
     use crate::processes::Process;
     use windows_sys::Win32::Foundation::{GetLastError, ERROR_ACCESS_DENIED};
     use windows_sys::Win32::System::Threading::{SetPriorityClass, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION};
-    let (mut done, mut gone, mut denied) = (0, 0, 0);
+    let (mut done, mut gone, mut denied, mut io) = (0, 0, 0, 0);
     for p in procs {
         let Some(h) = Process::open(p.pid, PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SET_INFORMATION) else {
             match unsafe { GetLastError() } {
@@ -280,21 +341,31 @@ pub fn set_others(procs: &[Lowered], to: Option<LowerClass>) {
         };
         if created(h.0) != Some(p.created) {
             gone += 1; // the pid now belongs to another process
+            continue;
         } else if unsafe { SetPriorityClass(h.0, to.map_or(p.old_class, lower_class)) } != 0 {
             done += 1;
         } else {
             denied += 1;
         }
+        if let Some(old) = p.old_io {
+            match set_io(h.0, if to.is_some() { IO_LOW } else { old }) {
+                Ok(()) => io += 1,
+                Err(e) => println!("  {} (pid {}): {e}", p.exe, p.pid),
+            }
+        }
     }
-    println!("  {}", summary(done, gone, denied, to));
+    println!("  {}", summary(done, gone, denied, io, to));
 }
 
 /// "lowered 23 processes to below normal (4 skipped: access denied, 1 exited)".
-pub fn summary(done: usize, gone: usize, denied: usize, to: Option<LowerClass>) -> String {
+pub fn summary(done: usize, gone: usize, denied: usize, io: usize, to: Option<LowerClass>) -> String {
     let mut s = match to {
         Some(c) => format!("lowered {done} processes to {}", lower_class_name(c)),
         None => format!("restored the old priority of {done} processes"),
     };
+    if io > 0 {
+        s += &format!(", I/O priority {} on {io}", if to.is_some() { "low" } else { "restored" });
+    }
     let mut skipped = Vec::new();
     if denied > 0 {
         skipped.push(format!("{denied} skipped: access denied"));
@@ -548,9 +619,10 @@ mod tests {
 
     #[test]
     fn summary_text() {
-        assert_eq!(summary(23, 0, 4, Some(LowerClass::BelowNormal)), "lowered 23 processes to below normal (4 skipped: access denied)");
-        assert_eq!(summary(5, 2, 0, None), "restored the old priority of 5 processes (2 exited)");
-        assert_eq!(summary(1, 0, 0, Some(LowerClass::Idle)), "lowered 1 processes to idle");
+        assert_eq!(summary(23, 0, 4, 0, Some(LowerClass::BelowNormal)), "lowered 23 processes to below normal (4 skipped: access denied)");
+        assert_eq!(summary(5, 2, 0, 4, None), "restored the old priority of 5 processes, I/O priority restored on 4 (2 exited)");
+        assert_eq!(summary(1, 0, 0, 1, Some(LowerClass::Idle)), "lowered 1 processes to idle, I/O priority low on 1");
+        assert_eq!(SEPARATION, 42);
     }
 
     #[test]

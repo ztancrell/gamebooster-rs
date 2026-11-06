@@ -89,6 +89,9 @@ does not touch).
 
 ## Adoption items for gamebooster-rs
 
+Built 2026-11-06: items 1 to 3 (USB selective suspend off in our plan, `lower_others_io`,
+`priority_separation`); see [DESIGN.md](../../DESIGN.md#decided).
+
 Ranked by expected value on the target Mac. "Adopt" = cheap, reversible, no heat cost, low risk.
 
 1. **Adopt: USB selective suspend off in our plan** (`2a737441-1930-4402-8d77-b2bebba308a3` /

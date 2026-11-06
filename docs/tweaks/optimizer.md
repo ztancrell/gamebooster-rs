@@ -4,8 +4,9 @@ Besides Boost/Restore, SGB ships an "optimizer" / "system tweak" page of one-off
 (51 in `SysSpeed.ini`, 48 in `GB3.ini`, plus the `Opt.dbd` profiles), decoded from its `.dbd` data files. The full table, with a gaming verdict for each, is in
 [decomp/SgbData/dbd/README.md](../../decomp/SgbData/dbd/README.md).
 
-gamebooster builds none of them. The only one it touches at all is a read-only check of
-hardware-accelerated GPU scheduling in `gamebooster status`.
+gamebooster builds none of them. The only ones it touches at all are read-only checks in
+`gamebooster status`: hardware-accelerated GPU scheduling, multiplane overlays (MPO) and Game DVR
+background recording (the last two from the WinUtil / PC-Tuning / Tier1Suite research).
 
 ## Why none
 
@@ -17,6 +18,8 @@ Microsoft documents the value as a 6-bit mask (interval length, fixed/variable, 
 and the client default 2 (000010) as "shorter, variable intervals" with a 3:1 foreground boost;
 0x26 (100110) is what the "Adjust for best performance of: Programs" option writes, and it means
 the same thing ([Win32PrioritySeparation, Microsoft Learn](https://learn.microsoft.com/en-us/previous-versions/cc976120(v=technet.10))).
+Since 2026-11-06 boost does set a different value, `0x2A` (fixed quantum), while boosted, as a
+try-by-feel item with restore; see [priority](priority.md#win32priorityseparation).
 
 Harmful ones (permanent, and not worth it):
 
@@ -49,3 +52,30 @@ Undo: the same switch to Off, then reboot.
 
 Measure it as in [How to measure any tweak](README.md#how-to-measure-any-tweak) (3 runs each way,
 compare 1 % lows). Keep it only if it helps.
+
+## Multiplane overlays (MPO)
+
+Read only. `status` prints:
+
+```
+MPO: on (default) | off (OverlayTestMode=5) | off (DisableOverlays=1)
+```
+
+(from `HKLM\SOFTWARE\Microsoft\Windows\Dwm` value `OverlayTestMode`, 5 = MPO off, and
+`HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers` value `DisableOverlays`, 1 = off; any
+other value is printed as "on (...)" with both values.) Turning MPO off is a known fix for
+flicker or black screens with some drivers, and PC-Tuning mentions it as a way out of a stuck
+"Hardware Composed: Independent Flip" presentation; it is not a frame-rate tweak and needs a
+reboot, so boost doesn't touch it. By hand: `reg add "HKLM\SOFTWARE\Microsoft\Windows\Dwm" /v
+OverlayTestMode /t REG_DWORD /d 5 /f`, reboot; undo with `reg delete` of the same value, reboot.
+
+## Game DVR background recording
+
+Read only. `status` prints `Game DVR background recording: on | off (GameDVR_Enabled=..,
+AppCaptureEnabled=.., HistoricalCaptureEnabled=..)`, from `HKCU\System\GameConfigStore` value
+`GameDVR_Enabled` and `HKCU\Software\Microsoft\Windows\CurrentVersion\GameDVR` values
+`AppCaptureEnabled` and `HistoricalCaptureEnabled` ("absent" when a value doesn't exist). It counts
+as on when `HistoricalCaptureEnabled = 1` and neither of the other two is 0, and then warns:
+background recording keeps encoding the last minutes of play (GPU encoder, disk writes). Turn it
+off in Settings > Gaming > Captures > "Record in the background while I'm playing a game" = Off.
+On the target Mac all three are 0 (2026-11-06), so it prints off.

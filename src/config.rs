@@ -45,6 +45,12 @@ pub struct Config {
     /// The class `lower_others` sets: below_normal (default) or idle.
     #[serde(default)]
     pub lower_others_class: LowerClass,
+    /// With `lower_others`, also set the lowered processes' disk (I/O) priority to Low.
+    #[serde(default = "yes")]
+    pub lower_others_io: bool,
+    /// Set Win32PrioritySeparation to 0x2A (short, fixed, 3:1 foreground boost) while boosted.
+    #[serde(default = "yes")]
+    pub priority_separation: bool,
     /// Extra image names `lower_others` leaves alone (on top of `priority::NEVER_LOWER`).
     #[serde(default)]
     pub lower_others_exclude: Vec<String>,
@@ -211,7 +217,8 @@ mod tests {
     #[test]
     fn example_config_parses() {
         let cfg = Config::parse(include_str!("../gamebooster.example.toml")).unwrap();
-        assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim && !cfg.fastest_dns);
+        assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim && !cfg.fastest_dns && cfg.lower_others_io && cfg.priority_separation);
+        assert!(!Config::parse("priority_separation = false\nlower_others_io = false").unwrap().priority_separation);
         assert_eq!(cfg.ping_hosts.len(), crate::network::DEFAULT_PING_HOSTS.len());
         assert_eq!(cfg.ping_samples, 10);
         assert_eq!(cfg.auto_restore_delay_secs, 30);

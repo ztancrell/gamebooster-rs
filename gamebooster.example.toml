@@ -64,6 +64,11 @@ ping_samples = 10
 # Windows 10 1709+. Applied with the game priority, so the game must be running (see [[game]]).
 game_power_throttling_off = true
 
+# Set Win32PrioritySeparation to 0x2A (short, fixed time slices, 3:1 boost for the window in front)
+# while boosted; restore puts back the old value (or deletes it if there was none). Takes effect at
+# once. Try by feel; false leaves it untouched. Windows default is 2.
+priority_separation = true
+
 # Trim the RAM of every non-game process once. Only useful when RAM is nearly full. Not undoable.
 ram_trim = false
 
@@ -79,6 +84,10 @@ lower_others_mode = "once"
 # below_normal (default) or idle (once mode only). Idle is what Smart Game Booster's (unused) code would set, but an idle app only runs
 # when the CPU has nothing else to do, so voice chat, music or a stream can stutter while you play.
 lower_others_class = "below_normal"
+# With lower_others: also set each lowered app's disk (I/O) priority to Low (only ones at Normal),
+# so a background updater or indexer doesn't compete with the game's disk reads. Restore puts it
+# back. Apps that refuse (anti-cheat protected) are printed and skipped. Try by feel.
+lower_others_io = true
 # More apps to leave alone (image names as in Task Manager's Details tab), e.g. ["Spotify.exe"].
 lower_others_exclude = []
 # More publishers to leave alone: part of the CompanyName in the exe's Properties > Details tab,

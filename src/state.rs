@@ -26,6 +26,15 @@ pub struct State {
     /// IFEO entries the registry priority method wrote (absent in state files from older versions).
     #[serde(default)]
     pub ifeo: Vec<crate::priority::Ifeo>,
+    /// Win32PrioritySeparation before the boost (absent in state files from older versions).
+    #[serde(default)]
+    pub priority_separation: Option<SeparationState>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct SeparationState {
+    /// The old `Win32PrioritySeparation` value, or None if it didn't exist (restore deletes it then).
+    pub previous: Option<u32>,
 }
 
 /// Original `dwFlags` of each feature whose hotkey boost turns off; None = left alone.
@@ -92,9 +101,10 @@ mod tests {
             power: Some(PowerState { previous_scheme: "381b4222-f694-41f0-9685-ff5bb260df2e".into(), brightness: Some((100, 75)), kept: vec![("5ca83367-6e45-459f-a27b-476b1d01c936".into(), 1, 1)] }),
             game_mode: Some(GameModeState { previous: None }),
             dns: Some(crate::network::DnsState { adapter_guid: "{4D36E972-E325-11CE-BFC1-08002BE10318}".into(), adapter: "Wi-Fi".into(), previous_static: None, server: "1.1.1.1".into() }),
-            lowered: vec![crate::priority::Lowered { pid: 1234, exe: "chrome.exe".into(), created: 133_000_000_000_000_000, old_class: 0x20 }],
+            lowered: vec![crate::priority::Lowered { pid: 1234, exe: "chrome.exe".into(), created: 133_000_000_000_000_000, old_class: 0x20, old_io: Some(2) }],
             accessibility: Some(AccessibilityState { sticky_keys: Some(0x1fe), filter_keys: None, toggle_keys: Some(0x3e) }),
             ifeo: vec![crate::priority::Ifeo { exe: "bf6.exe".into(), priority: crate::config::Priority::High, key_existed: false, perf_existed: false, previous: None }],
+            priority_separation: Some(SeparationState { previous: None }),
         };
         st.save(&path).unwrap();
         assert_eq!(State::load(&path).unwrap(), Some(st));
@@ -104,7 +114,9 @@ mod tests {
     #[test]
     fn old_state_without_new_fields_loads() {
         let st: State = serde_json::from_str(r#"{"boosted_at":1,"services":[],"processes":[],"power":null,"game_mode":null}"#).unwrap();
-        assert!(st.lowered.is_empty() && st.dns.is_none() && st.accessibility.is_none() && st.ifeo.is_empty());
+        assert!(st.lowered.is_empty() && st.dns.is_none() && st.accessibility.is_none() && st.ifeo.is_empty() && st.priority_separation.is_none());
+        let l: crate::priority::Lowered = serde_json::from_str(r#"{"pid":1,"exe":"a.exe","created":2,"old_class":32}"#).unwrap();
+        assert_eq!(l.old_io, None);
         let p: PowerState = serde_json::from_str(r#"{"previous_scheme":"x","brightness":null}"#).unwrap();
         assert!(p.kept.is_empty());
     }

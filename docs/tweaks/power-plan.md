@@ -44,6 +44,7 @@ The cost: more heat, more fan noise, shorter battery life. That's why restore sw
 | Display | unidentified hidden setting `90959d22-d6a1-49b9-af93-bce885ad335b` | 0 |
 | Multimedia `9596fb26-9850-41fd-ac3e-f7c3c00afd4b` | When sharing media `03680956-93bc-4294-bba6-4e0f09bb717f` | 1 (prevent idle sleep) |
 | Multimedia | When playing video `34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4` | 0 (optimize quality) |
+| USB `2a737441-1930-4402-8d77-b2bebba308a3` | USB selective suspend `48e6b7a6-50f5-4782-a5d4-53bb8f07e226` | 0 (off: a mouse or headset is never put to sleep mid-game; High performance has it on, verified on the target Mac 2026-11-06) |
 
 Superseded: the lid close action used to be forced to 0 (do nothing), as SGB does. Since
 2026-11-05 the lid, power button and sleep button actions are copied from the plan you had
@@ -72,11 +73,17 @@ powercfg /setdcvalueindex %P% SUB_PROCESSOR PROCTHROTTLEMIN 100
 powercfg /setacvalueindex %P% SUB_PROCESSOR SYSCOOLPOL 1
 powercfg /setacvalueindex %P% SUB_PCIEXPRESS ASPM 0
 powercfg /setacvalueindex %P% f693fb01-e858-4f00-b20f-f30e12ac06d6 191f65b5-d45c-4a4f-8aae-1ab8bfd980e6 1
+powercfg /setacvalueindex %P% 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
 powercfg /setactive %P%
 ```
 
 Undo: `powercfg /setactive <the GUID you noted>` then `powercfg /delete %P%`. If you lost the
 GUID, Balanced is `381b4222-f694-41f0-9685-ff5bb260df2e`.
+
+Run `gamebooster restore` **before** any "reset / restore default power plans" button (for example
+WinUtil's Ultimate Performance undo, which runs `powercfg /restoredefaultschemes`). That deletes
+every custom plan, ours included; restore then can't find your old plan if it was a custom one and
+activates Balanced instead.
 
 To see a hidden setting in Control Panel > Power Options > Advanced settings:
 `powercfg /attributes SUB_PROCESSOR PROCTHROTTLEMIN -ATTRIB_HIDE`. `powercfg /qh %P%` lists every
@@ -89,7 +96,9 @@ setting of the plan, hidden ones included.
   per-core usage graphs stop showing idle cores.
 - CapFrameX in BF6 (see [README](README.md#how-to-measure-any-tweak)): expect better 1 % lows and
   fewer spikes. If temperatures hit the limit (about 100 °C on Mac Intel CPUs), clocks will drop
-  anyway: a cooling pad or raising the Mac's back helps more than any setting.
+  anyway: a cooling pad or raising the Mac's back helps more than any setting. Capping BF6's frame
+  rate (in-game) a little below what the Mac sustains once hot also helps: less heat, steadier
+  clocks and frame times than running uncapped into the thermal limit.
 
 ## Optional: Turbo Boost off
 

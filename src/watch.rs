@@ -11,10 +11,11 @@
 //!   "machine" % busy and the process has used at least its "process" % of the machine for
 //!   [`SUSTAIN_MS`]. It goes back to Normal once it is under the "release" % and has been restrained
 //!   for at least [`MIN_HOLD_MS`], or at once when it (or its parent) becomes the foreground window.
-//!   Below normal only, never Idle.
+//!   Below normal only, never Idle. With `lower_others_io` (default on) its disk (I/O) priority is
+//!   set to Low with it and put back on release.
 //!
 //! **Safety.** Every restraint is written to the state file's `lowered` journal (pid, creation time,
-//! exe, old class) before the priority changes, and removed on release, so a crash or a killed
+//! exe, old class, old I/O priority) before the priority changes, and removed on release, so a crash or a killed
 //! watcher leaves `gamebooster restore` able to undo it. On exit the watcher releases what it
 //! restrained and leaves everything else boosted. If the state file disappears (restore ran in
 //! another console), the watcher stops without touching anything.
@@ -256,6 +257,8 @@ mod sys {
         h: Option<Process>,
         cpu: u64,
         track: Track,
+        /// I/O priority before the restraint, if it was lowered too (`lower_others_io`).
+        old_io: Option<u32>,
     }
 
     /// `auto`: boost when a game starts and restore after the last one exits (see [`auto_step`]).
@@ -396,14 +399,22 @@ mod sys {
                     let foreground = fg.contains(&p.pid);
                     match e.track.step(ms, busy, pct, foreground, t) {
                         Some(Event::Restrain) => {
-                            let entry = Lowered { pid: p.pid, exe: p.name.clone(), created: e.created, old_class: class };
+                            e.old_io = priority::io_to_lower(h.0, cfg);
+                            let entry = Lowered { pid: p.pid, exe: p.name.clone(), created: e.created, old_class: class, old_io: e.old_io };
                             let ok = journal(state_path, |l| l.push(entry)).map_err(|err| format!("journal failed: {err}"))
                                 .and_then(|_| (unsafe { SetPriorityClass(h.0, BELOW_NORMAL_PRIORITY_CLASS) } != 0).then_some(()).ok_or_else(|| std::io::Error::last_os_error().to_string()));
                             match ok {
-                                Ok(()) => println!("  restrained {} (pid {}, {pct:.0} % CPU) to below normal", p.name, p.pid),
+                                Ok(()) => {
+                                    let io = match e.old_io.map(|_| priority::set_io(h.0, priority::IO_LOW)) {
+                                        Some(Ok(())) => ", I/O priority low".to_string(),
+                                        Some(Err(err)) => format!(", {err}"),
+                                        None => String::new(),
+                                    };
+                                    println!("  restrained {} (pid {}, {pct:.0} % CPU) to below normal{io}", p.name, p.pid);
+                                }
                                 Err(err) => {
                                     println!("  could not restrain {} (pid {}): {err}", p.name, p.pid);
-                                    e.track = Track::default();
+                                    (e.track, e.old_io) = (Track::default(), None);
                                     let (pid, created) = (p.pid, e.created);
                                     let _ = journal(state_path, |l| l.retain(|x| !(x.pid == pid && x.created == created)));
                                 }
@@ -412,6 +423,9 @@ mod sys {
                         Some(Event::Release) => {
                             // Only undo our own change: leave it if someone set another class meanwhile.
                             let ok = if class != BELOW_NORMAL_PRIORITY_CLASS || unsafe { SetPriorityClass(h.0, NORMAL_CLASS) } != 0 { Ok(()) } else { Err(std::io::Error::last_os_error()) };
+                            if let Some(Err(err)) = e.old_io.take().map(|old| priority::set_io(h.0, old)) {
+                                println!("  {} (pid {}): {err}", p.name, p.pid);
+                            }
                             let (pid, created) = (p.pid, e.created);
                             let j = journal(state_path, |l| l.retain(|x| !(x.pid == pid && x.created == created)));
                             let why = if foreground { "now in the foreground" } else { "quiet again" };
@@ -447,7 +461,7 @@ mod sys {
             }
         } else if !stopped_by_restore && state_path.exists() {
             let held: Vec<Lowered> = procs.iter().filter(|(_, e)| e.track.restrained_at.is_some())
-                .map(|(&pid, e)| Lowered { pid, exe: e.exe.clone(), created: e.created, old_class: NORMAL_CLASS }).collect();
+                .map(|(&pid, e)| Lowered { pid, exe: e.exe.clone(), created: e.created, old_class: NORMAL_CLASS, old_io: e.old_io }).collect();
             println!("Stopping the watcher.");
             if !held.is_empty() {
                 priority::set_others(&held, None);
@@ -469,7 +483,7 @@ mod sys {
     /// First sight of a process: a restraint candidate gets a handle, everything else is cached as
     /// "not a candidate" (so the publisher is read once per process, not every second).
     fn new_entry(p: &processes::Proc, me: &[u8], own_pid: u32, cfg: &Config) -> Entry {
-        let mut e = Entry { exe: p.name.clone(), created: 0, h: None, cpu: 0, track: Track::default() };
+        let mut e = Entry { exe: p.name.clone(), created: 0, h: None, cpu: 0, track: Track::default(), old_io: None };
         if p.pid == own_pid || p.pid == 0 || me.is_empty() || priority::excluded(&p.name, None, cfg) {
             return e;
         }

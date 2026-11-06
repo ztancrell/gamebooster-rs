@@ -62,6 +62,10 @@ unless noted. "Heat" is on the heat-limited i7-9750H.
 
 ## Adoption items for gamebooster-rs
 
+Built 2026-11-06: items 1 and 2 (restore-first warning in the README and
+[power plan](../tweaks/power-plan.md) doc; `MPO:` line in `status`, worded `on (default) | off
+(OverlayTestMode=5) | off (DisableOverlays=1)`); see [DESIGN.md](../../DESIGN.md#decided).
+
 1. **Adopt (docs + `status`): warn about `powercfg /restoredefaultschemes`.** In the README /
    [power plan](../tweaks/power-plan.md) doc: run `gamebooster restore` before WinUtil's
    "Ultimate Performance - Disable" (or any "reset power plans"), because it deletes our plan. No

@@ -13,11 +13,13 @@ What a boost does, in this order (restore goes in reverse):
 3. **RAM trim** of all other processes (optional, off by default, not undoable).
 4. **Lower other processes** (optional, off by default): your own apps that run at Normal priority
    go to Below normal (or Idle), except the games, launchers, voice chat, anti-cheat, the shell
-   and a built-in safe list. Restore puts back each one's old priority if it still runs. With
+   and a built-in safe list. Their disk (I/O) priority goes to Low too (`lower_others_io`, default
+   on). Restore puts back each one's old priority and I/O priority if it still runs. With
    `lower_others_mode = "dynamic"` boost lowers nothing here; `boost --watch` restrains only busy
    ones while it runs (see [Watch mode](#watch-mode)).
 5. **Power plan**: activates a `gamebooster` plan copied from High performance (CPU minimum 100 %,
-   active cooling, PCIe power saving off, AMD PowerPlay max where present, no sleep; your
+   active cooling, PCIe power saving off, USB selective suspend off, AMD PowerPlay max where
+   present, no sleep; your
    brightness and lid / power button / sleep button actions are copied over unchanged; optionally
    maximum 99 % to turn Intel Turbo Boost off, and a lower minimum for less heat). Restore
    reactivates your old plan and deletes ours.
@@ -29,10 +31,13 @@ What a boost does, in this order (restore goes in reverse):
 8. **Fastest DNS** (optional, off by default): if Cloudflare, Google or Quad9 answers DNS lookups
    clearly faster than your current server, sets it on the active adapter (IPv4). Restore puts back
    the old static list or DHCP.
-9. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
-   With `game_priority_method = "registry"` (for anti-cheats that block it, like BF6's) it writes the
-   game's IFEO `CpuPriorityClass` instead, which Windows applies at the next game start; restore
-   puts the registry back exactly. `auto` writes it when `auto` starts and keeps it until it exits.
+9. **Win32PrioritySeparation** `0x2A` (short, fixed quantum, 3:1 foreground boost;
+   `priority_separation`, default on, try by feel). Takes effect at once; restore writes back the
+   old value, or deletes it if there was none.
+10. **Game priority** (High by default) for configured games that are running. Restore sets Normal.
+    With `game_priority_method = "registry"` (for anti-cheats that block it, like BF6's) it writes the
+    game's IFEO `CpuPriorityClass` instead, which Windows applies at the next game start; restore
+    puts the registry back exactly. `auto` writes it when `auto` starts and keeps it until it exits.
 
 Separately, `gamebooster ping` measures latency, jitter and loss to cloud regions near game
 servers, and `gamebooster ping --route` checks each hop on the way (your router, your ISP, the far
@@ -124,7 +129,7 @@ gamebooster ping --route
 | `boost --watch` | Boosts (or, if already boosted, re-applies game priority), then keeps running in the console until Ctrl+C or the window closes; see [Watch mode](#watch-mode). Not with `--dry-run`. |
 | `auto` | Keeps running in the console: boosts when a configured `[[game]]` starts and restores `auto_restore_delay_secs` (30) after the last one exits; see [Automatic boost](#automatic-boost). Admin. Not with `--dry-run`. |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. Also puts back IFEO entries a killed `auto` left (`gamebooster-auto-ifeo.json`). If not boosted, only resets game priority to Normal (and power throttling to Windows). |
-| `status` | Prints the saved state (if boosted), the active power plan GUID, its *Maximum processor state* on AC and DC (warns below 100 %, which turns Turbo Boost off, with the `powercfg` fix; only a note when it is gamebooster's own plan at your `max_processor_state`), `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
+| `status` | Prints the saved state (if boosted), the active power plan GUID, its *Maximum processor state* on AC and DC (warns below 100 %, which turns Turbo Boost off, with the `powercfg` fix; only a note when it is gamebooster's own plan at your `max_processor_state`), `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), whether multiplane overlays are on (`MPO: on (default) | off (OverlayTestMode=5) | off (DisableOverlays=1)`), whether Game DVR background recording is on (warns with the Settings switch to turn it off), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Times `ping_samples` (10) TCP connects to each of `ping_hosts`, AWS regional endpoints by default, and prints median, p90, jitter and loss per region, fastest first; marks a region with any loss or jitter above 10 ms. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
 | `ping --route [host]` | Per-hop path check like `pathping`: finds the hops to `host` (default: the fastest region) with ICMP, pings each hop `ping_samples` times and prints median and loss, hop 1 labelled as your router (Wi-Fi or Ethernet), plus a hint where persisting loss starts. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#route-check). |
 | `init` | Writes the built-in example config as `gamebooster.toml` next to `gamebooster.exe` (or `--config <file>`). Never overwrites an existing file. |
@@ -179,10 +184,12 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `game_priority_method` | `"process"` | How game priority is set: `"process"` (on the running game) or `"registry"` (IFEO `PerfOptions\CpuPriorityClass`, applied by Windows at the next game start; for anti-cheats that block the process way; no `realtime`). See [game priority](docs/tweaks/priority.md#registry-method). |
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
+| `lower_others_io` | `true` | With `lower_others`: also set each lowered process's disk (I/O) priority to Low (only ones at Normal); restore puts it back. Processes that refuse (anti-cheat protected) are printed and skipped. Try by feel; see [game priority](docs/tweaks/priority.md#io-priority). |
 | `lower_others_mode` | `"once"` | `"once"`: boost lowers them all. `"dynamic"`: boost lowers nothing; `boost --watch` (or `auto`) restrains only busy ones, ProBalance-style (Below normal only). See [Watch mode](#watch-mode). |
 | `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. Once mode only; dynamic mode always uses Below normal. |
 | `lower_others_exclude` | `[]` | Extra image names to leave alone (case-insensitive), on top of the built-in list. |
 | `lower_others_exclude_publishers` | `[]` | Extra publishers to leave alone: case-insensitive substrings of the exe's CompanyName (file Properties > Details), on top of the built-in list. |
+| `priority_separation` | `true` | Set `Win32PrioritySeparation` to `0x2A` while boosted (restore puts back the old value or deletes it); `false` leaves it alone. Try by feel; see [game priority](docs/tweaks/priority.md#win32priorityseparation). |
 | `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
 | `auto_restore_delay_secs` | `30` | `gamebooster auto`: seconds to wait after the last game exits before restoring; a game starting within that time keeps the boost. `0` = restore at once. |
 | `ping_hosts` | 12 AWS regional endpoints | Hosts `gamebooster ping` measures (TCP port 443). |
@@ -249,22 +256,33 @@ again within that time keeps the boost (a restart or a launcher hand-off). Then 
 
 - Before the first change, boost writes everything restore needs to
   `gamebooster-state.json` next to `gamebooster.exe` (previous power plan, the services it stops,
-  the full paths of the apps it closes, the processes it lowers with their old priority, the old
-  Game Mode value, the old accessibility shortcut flags, the old DNS setting, the old IFEO entries
-  with the registry priority method). If that write fails, nothing is
+  the full paths of the apps it closes, the processes it lowers with their old priority and I/O
+  priority, the old Game Mode value, the old accessibility shortcut flags, the old DNS setting, the
+  old `Win32PrioritySeparation` value (or that it was absent), the old IFEO entries with the
+  registry priority method). If that write fails, nothing is
   changed. The file's presence means "boosted"; boosting again doesn't overwrite it.
 - `auto` with the registry priority method records the old IFEO entries in
   `gamebooster-auto-ifeo.json` (same folder) before writing them; `restore` puts them back and
   deletes it. While that file exists, `boost` skips the IFEO step (`auto` already wrote them).
 - After a crash, a power cut or a reboot, just run `gamebooster restore`. Restore is idempotent:
   running services, running apps and an already-deleted plan are fine. If starting a service,
-  restoring the power plan, writing Game Mode, the accessibility flags or DNS fails, the state
+  restoring the power plan, writing Game Mode, `Win32PrioritySeparation`, the accessibility flags or DNS fails, the state
   file is kept so you can run restore again; it is deleted only after a clean restore.
 - Nothing is permanent: service startup types aren't touched, so a reboot restarts services too.
   Power plan by hand: `powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e` (Balanced) and
   `powercfg /delete a2921d59-9c60-439e-b61a-21c441a0df53`.
   DNS by hand: `netsh interface ip set dns "<adapter>" dhcp`.
 - Each tweak is independent: one failing is printed and the others still run.
+- Run `gamebooster restore` **before** any "reset / restore default power plans" button (for
+  example WinUtil's, which runs `powercfg /restoredefaultschemes`): that deletes our plan, and
+  restore then has to fall back to Balanced instead of your old plan.
+
+## Tips
+
+- Cap BF6's frame rate (in-game) a little below what the Mac sustains when hot: less heat, steadier
+  clocks and frame times than running uncapped into the thermal limit.
+- Game Mode only applies to games Game Bar recognises: if BF6 isn't detected, open Game Bar
+  (Win+G) in the game and tick "Remember this is a game". See [Game Mode](docs/tweaks/game-mode.md).
 
 ## Limitations
 

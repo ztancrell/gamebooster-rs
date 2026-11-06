@@ -20,7 +20,7 @@ mod state;
 mod watch;
 
 use config::Config;
-use state::{GameModeState, State};
+use state::{GameModeState, SeparationState, State};
 use std::path::{Path, PathBuf};
 
 const USAGE: &str = "\
@@ -53,11 +53,12 @@ enum Step {
     GameMode,
     Accessibility,
     Dns,
+    PrioritySeparation,
     Priority,
 }
 
 /// Boost order, as in the spec. Restore walks it backwards.
-const BOOST_ORDER: [Step; 9] = [Step::Services, Step::Processes, Step::Ram, Step::LowerOthers, Step::PowerPlan, Step::GameMode, Step::Accessibility, Step::Dns, Step::Priority];
+const BOOST_ORDER: [Step; 10] = [Step::Services, Step::Processes, Step::Ram, Step::LowerOthers, Step::PowerPlan, Step::GameMode, Step::Accessibility, Step::Dns, Step::PrioritySeparation, Step::Priority];
 
 fn restore_order() -> impl Iterator<Item = Step> {
     BOOST_ORDER.into_iter().rev()
@@ -127,6 +128,7 @@ fn describe(st: &State, cfg: &Config) -> String {
         } else {
             format!("to {} (old class restored)", priority::lower_class_name(cfg.lower_others_class))
         };
+        let how = if cfg.lower_others_io { format!("{how}, disk I/O priority low") } else { how };
         out += &format!("  lower other processes {how}: {} processes: {}\n", st.lowered.len(), if names.is_empty() { "none".into() } else { names.join(", ") });
     } else {
         out += "  lower other processes: off\n";
@@ -175,6 +177,10 @@ fn describe(st: &State, cfg: &Config) -> String {
         Some(d) => out += &format!("  DNS ({}): {} -> {}\n", d.adapter, d.previous_static.as_deref().unwrap_or("from DHCP"), d.server),
         None if cfg.fastest_dns => out += "  DNS: keep current (no public resolver meaningfully faster)\n",
         None => out += "  DNS: off\n",
+    }
+    match &st.priority_separation {
+        Some(s) => out += &format!("  {}: {} -> {:#x}\n", priority::SEPARATION_VALUE, s.previous.map_or("(absent)".into(), |v| format!("{v:#x}")), priority::SEPARATION),
+        None => out += &format!("  {}: off\n", priority::SEPARATION_VALUE),
     }
     out += &format!("  game priority method: {}\n", priority_method_text(cfg));
     if cfg.process_priority() {
@@ -316,6 +322,12 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool, auto: bool
         dns: if cfg.fastest_dns { warn("timing DNS", network::plan()).flatten() } else { None },
         lowered: if cfg.lower_others && !cfg.dynamic_lowering() { priority::plan_lower(cfg) } else { Vec::new() },
         ifeo: if cfg.process_priority() || held_path(state_path).exists() { Vec::new() } else { priority::plan_ifeo(&cfg.games) },
+        priority_separation: if cfg.priority_separation {
+            warn("reading Win32PrioritySeparation", reg_dword(windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE, priority::PRIORITY_CONTROL, priority::SEPARATION_VALUE))
+                .map(|previous| SeparationState { previous })
+        } else {
+            None
+        },
     };
     if dry_run {
         println!("Boost would do (dry run, nothing changed):\n{}", describe(&st, cfg));
@@ -353,6 +365,10 @@ fn boost(cfg: &Config, state_path: &Path, dry_run: bool, watch: bool, auto: bool
                 None if cfg.fastest_dns => println!("  kept current server (fastest)"),
                 None => println!("  off"),
             },
+            Step::PrioritySeparation if st.priority_separation.is_some() => {
+                warn("Win32PrioritySeparation", priority::write_separation(Some(priority::SEPARATION)));
+            }
+            Step::PrioritySeparation => println!("  off"),
             Step::Priority => {
                 priority::write_ifeo(&st.ifeo);
                 if priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority()) == 0 && !cfg.games.is_empty() {
@@ -455,6 +471,10 @@ fn restore(cfg: &Config, state_path: &Path, dry_run: bool) -> Result<(), String>
                 Some(d) => check("DNS", network::restore(d)),
                 None => println!("  nothing to undo"),
             },
+            Step::PrioritySeparation => match &st.priority_separation {
+                Some(s) => check("Win32PrioritySeparation", priority::write_separation(s.previous)),
+                None => println!("  nothing to undo"),
+            },
             Step::PowerPlan => {
                 if let Some(p) = &st.power {
                     check("power plan", power::restore(p));
@@ -502,6 +522,12 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
     // Read only: HAGS needs a reboot and driver support, so boost doesn't touch it (docs/tweaks/optimizer.md).
     let hags = reg_dword(windows_sys::Win32::System::Registry::HKEY_LOCAL_MACHINE, HAGS_KEY, "HwSchMode")?;
     println!("GPU scheduling (HAGS): {}", hags_text(hags));
+    use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE};
+    let overlay = reg_dword(HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\Dwm", "OverlayTestMode")?;
+    println!("MPO: {}", mpo_text(overlay, reg_dword(HKEY_LOCAL_MACHINE, HAGS_KEY, "DisableOverlays")?));
+    let dvr = r"Software\Microsoft\Windows\CurrentVersion\GameDVR";
+    println!("{}", dvr_text(reg_dword(HKEY_CURRENT_USER, r"System\GameConfigStore", "GameDVR_Enabled")?,
+        reg_dword(HKEY_CURRENT_USER, dvr, "AppCaptureEnabled")?, reg_dword(HKEY_CURRENT_USER, dvr, "HistoricalCaptureEnabled")?));
     match power::clock_under_load_mhz() {
         Ok(mhz) => {
             println!("CPU clock under load: {mhz:.0} MHz");
@@ -526,6 +552,34 @@ fn hags_text(v: Option<u32>) -> String {
     }
 }
 
+/// Multiplane overlays (read only, docs/tweaks/optimizer.md): `OverlayTestMode = 5` or
+/// `DisableOverlays = 1` turns them off; anything else leaves them on.
+fn mpo_text(overlay_test_mode: Option<u32>, disable_overlays: Option<u32>) -> String {
+    match (overlay_test_mode, disable_overlays) {
+        (None, None) => "on (default)".into(),
+        (Some(5), _) => "off (OverlayTestMode=5)".into(),
+        (_, Some(1)) => "off (DisableOverlays=1)".into(),
+        (o, d) => format!("on (OverlayTestMode={}, DisableOverlays={})", show(o), show(d)),
+    }
+}
+
+fn show(v: Option<u32>) -> String {
+    v.map_or("absent".into(), |v| v.to_string())
+}
+
+/// Game DVR background recording (read only): on when `HistoricalCaptureEnabled = 1` and neither
+/// `GameDVR_Enabled` nor `AppCaptureEnabled` is 0 (absent = on for those two, off for the first).
+fn dvr_text(game_dvr: Option<u32>, app_capture: Option<u32>, historical: Option<u32>) -> String {
+    let on = historical == Some(1) && game_dvr != Some(0) && app_capture != Some(0);
+    let mut s = format!("Game DVR background recording: {} (GameDVR_Enabled={}, AppCaptureEnabled={}, HistoricalCaptureEnabled={})",
+        if on { "on" } else { "off" }, show(game_dvr), show(app_capture), show(historical));
+    if on {
+        s += "\n  warning: Windows keeps recording the last minutes of play (GPU encoder and disk). Turn it off: \
+              Settings > Gaming > Captures > \"Record in the background while I'm playing a game\" = Off";
+    }
+    s
+}
+
 /// A REG_DWORD value, or None if it doesn't exist.
 #[cfg(windows)]
 fn reg_dword(root: windows_sys::Win32::System::Registry::HKEY, key: &str, value: &str) -> Result<Option<u32>, String> {
@@ -541,6 +595,23 @@ fn reg_dword(root: windows_sys::Win32::System::Registry::HKEY, key: &str, value:
         ERROR_FILE_NOT_FOUND => Ok(None),
         e => Err(format!("can't read {key}\\{value} (error {e})")),
     }
+}
+
+/// Write `Some(v)` as a REG_DWORD (creating the key), or delete the value for None (absent is fine).
+#[cfg(windows)]
+fn reg_set_dword(root: windows_sys::Win32::System::Registry::HKEY, key: &str, value: &str, v: Option<u32>) -> Result<(), String> {
+    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
+    use windows_sys::Win32::System::Registry::{RegDeleteKeyValueW, RegSetKeyValueW, REG_DWORD};
+    let err = unsafe {
+        match v {
+            Some(v) => RegSetKeyValueW(root, wide(key).as_ptr(), wide(value).as_ptr(), REG_DWORD, &v as *const u32 as *const _, 4),
+            None => match RegDeleteKeyValueW(root, wide(key).as_ptr(), wide(value).as_ptr()) {
+                ERROR_FILE_NOT_FOUND => ERROR_SUCCESS,
+                e => e,
+            },
+        }
+    };
+    if err == ERROR_SUCCESS { Ok(()) } else { Err(format!("can't write {key}\\{value} (error {err})")) }
 }
 
 #[cfg(windows)]
@@ -584,6 +655,18 @@ mod tests {
         assert_eq!(hags_text(Some(1)), "off");
         assert_eq!(hags_text(None), "not set (Windows default)");
         assert_eq!(hags_text(Some(7)), "unknown value 7");
+    }
+
+    #[test]
+    fn mpo_and_dvr_values() {
+        assert_eq!(mpo_text(None, None), "on (default)");
+        assert_eq!(mpo_text(Some(5), None), "off (OverlayTestMode=5)");
+        assert_eq!(mpo_text(None, Some(1)), "off (DisableOverlays=1)");
+        assert_eq!(mpo_text(Some(0), None), "on (OverlayTestMode=0, DisableOverlays=absent)");
+        assert!(dvr_text(Some(0), Some(0), Some(0)).starts_with("Game DVR background recording: off (GameDVR_Enabled=0"));
+        assert!(!dvr_text(None, None, None).contains("warning"));
+        assert!(dvr_text(None, None, Some(1)).contains("on (") && dvr_text(None, None, Some(1)).contains("warning"));
+        assert!(!dvr_text(Some(0), None, Some(1)).contains("warning"));
     }
 
     #[test]
@@ -633,6 +716,7 @@ mod tests {
             power: Some(state::PowerState { previous_scheme: power::BALANCED.into(), brightness: None, kept: vec![(power::KEEP[0].1.into(), 1, 0)] }),
             accessibility: Some(state::AccessibilityState { sticky_keys: Some(0x1fe), ..Default::default() }),
             game_mode: Some(GameModeState { previous: None }),
+            priority_separation: Some(SeparationState { previous: None }),
             ..Default::default()
         };
         let d = describe(&st, &cfg);
@@ -644,7 +728,7 @@ mod tests {
             assert!(r.contains(needle), "missing {needle} in:\n{r}");
         }
         assert!(!r.contains("-> High while running"), "{r}");
-        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off", "keep current lid close action (AC = 1, DC = 0)", "skipped (not on this machine) keep current power button action", "skipped (not on this machine) keep current display brightness", "Sticky Keys shortcut off (flags 0x1fe restored)", "Filter Keys left alone"] {
+        for needle in ["WSearch", power::BALANCED, "(absent)", "bf6.exe -> High", "minimum processor state 100 %", "maximum processor state 100 %", "apps to close (relaunched on restore): nothing", "DNS: off", "lower other processes: off", "keep current lid close action (AC = 1, DC = 0)", "skipped (not on this machine) keep current power button action", "skipped (not on this machine) keep current display brightness", "Sticky Keys shortcut off (flags 0x1fe restored)", "Filter Keys left alone", "Win32PrioritySeparation: (absent) -> 0x2a"] {
             assert!(d.contains(needle), "missing {needle} in:\n{d}");
         }
     }

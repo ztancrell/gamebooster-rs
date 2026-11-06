@@ -19,7 +19,8 @@
 //! fan curve under Windows is conservative and thermals are tight (iMacs and MacBook Pros reach
 //! their limits fast). On Macs with AMD Radeon graphics, the "ATI PowerPlay: maximize
 //! performance" setting stops the GPU from downclocking between frames; on other GPUs that
-//! setting doesn't exist and is skipped. The cost is more heat and battery use, which is why we
+//! setting doesn't exist and is skipped. USB selective suspend is off so a mouse or headset is never put to
+//! sleep mid-game (High performance leaves it on). The cost is more heat and battery use, which is why we
 //! switch back on restore.
 //!
 //! **Optional: Turbo Boost off.** The maximum processor state is 100 % unless the config sets
@@ -86,6 +87,7 @@ pub const SETTINGS: &[(&str, &str, u32, &str)] = &[
     (SUB_VIDEO, "90959d22-d6a1-49b9-af93-bce885ad335b", 0, "unidentified hidden display setting (skipped if absent)"),
     ("9596fb26-9850-41fd-ac3e-f7c3c00afd4b", "03680956-93bc-4294-bba6-4e0f09bb717f", 1, "when sharing media: prevent idle sleep"),
     ("9596fb26-9850-41fd-ac3e-f7c3c00afd4b", "34c7b99f-9a6d-4b3c-8dc7-b6693b78cef4", 0, "when playing video: optimize video quality"),
+    ("2a737441-1930-4402-8d77-b2bebba308a3", "48e6b7a6-50f5-4782-a5d4-53bb8f07e226", 0, "USB selective suspend off"),
 ];
 
 const SUB_BUTTONS: &str = "4f971e89-eebd-4455-a8de-9e59040e7347";

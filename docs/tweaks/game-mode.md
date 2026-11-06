@@ -15,6 +15,9 @@ and lowers background activity. Small but free.
 hive: run gamebooster elevated from your own account, not from a different administrator account,
 or it changes that account's setting instead.
 
+Game Mode only applies to games Game Bar recognises. If BF6 isn't picked up, press Win+G in the
+game, open the Game Bar settings and tick "Remember this is a game".
+
 ## Try and undo by hand
 
 Settings > Gaming > Game Mode, or:

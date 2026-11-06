@@ -82,6 +82,16 @@ Windows via Boot Camp, playing BF6.
   blocks ETW trace sessions system-wide) stops `bench`, and the user goes by feel instead. `bench`
   stays as built for games that allow ETW. If `bench` fails on a game without EA anti-cheat, the
   assumption is wrong: look again.
+- 2026-11-06: Six small items from the GameShift / PC-Tuning / WinUtil / Tier1Suite research
+  (docs/gameshift, docs/pc-tuning, docs/winutil, docs/tier1suite): (1) USB selective suspend off in
+  our power plan (undone with the plan); (2) `status` reads MPO (`OverlayTestMode` / `DisableOverlays`)
+  and (3) Game DVR background recording (warns with the Settings switch), both read-only;
+  (4) docs advice: run `restore` before any "reset default power plans" button, cap BF6's frame rate a
+  bit below what the hot Mac sustains, Game Mode only for games Game Bar knows; (5) `lower_others_io`
+  (default on): lowered processes also get Low I/O priority (`NtSetInformationProcess`
+  `ProcessIoPriority`), old value journalled with the old class, never the game; (6)
+  `priority_separation` (default on): `Win32PrioritySeparation = 0x2A` while boosted, old value or
+  absence recorded, restore puts it back. 5 and 6 are try-by-feel; turn off with their keys.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

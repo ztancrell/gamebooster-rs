@@ -24,9 +24,7 @@ pub use sys::*;
 #[cfg(windows)]
 mod sys {
     use super::{KEY, VALUE};
-    use crate::wide;
-    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
-    use windows_sys::Win32::System::Registry::*;
+    use windows_sys::Win32::System::Registry::HKEY_CURRENT_USER;
 
     /// The current value, or None if it doesn't exist.
     pub fn read() -> Result<Option<u32>, String> {
@@ -35,19 +33,7 @@ mod sys {
 
     /// Write `Some(v)`, or delete the value for `None`.
     pub fn write(value: Option<u32>) -> Result<(), String> {
-        let err = unsafe {
-            match value {
-                Some(v) => RegSetKeyValueW(HKEY_CURRENT_USER, wide(KEY).as_ptr(), wide(VALUE).as_ptr(), REG_DWORD,
-                    &v as *const u32 as *const _, 4),
-                None => match RegDeleteKeyValueW(HKEY_CURRENT_USER, wide(KEY).as_ptr(), wide(VALUE).as_ptr()) {
-                    ERROR_FILE_NOT_FOUND => ERROR_SUCCESS,
-                    e => e,
-                },
-            }
-        };
-        if err != ERROR_SUCCESS {
-            return Err(format!("can't write {KEY}\\{VALUE} (error {err})"));
-        }
+        crate::reg_set_dword(HKEY_CURRENT_USER, KEY, VALUE, value)?;
         println!("  {VALUE} = {}", value.map_or("(deleted)".into(), |v| v.to_string()));
         Ok(())
     }

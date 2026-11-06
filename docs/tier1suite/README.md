@@ -150,6 +150,9 @@ and the Run entry are more resident software than these tweaks justify.
 
 ## Adoption items for gamebooster-rs
 
+Built 2026-11-06: item 1 (Game DVR background recording line in `status`); see
+[DESIGN.md](../../DESIGN.md#decided).
+
 Ranked. Only items that make sense on the target Mac, can be judged by feel, and that `restore` can
 undo count.
 

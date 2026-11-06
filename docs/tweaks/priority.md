@@ -162,6 +162,21 @@ lower_others_exclude = ["Spotify.exe"]
 lower_others_exclude_publishers = ["Spotify"]
 ```
 
+### I/O priority
+
+With `lower_others_io = true` (the default; it only matters with `lower_others` on), each process
+`lower_others` lowers also gets its disk (I/O) priority set to Low, if it is at Normal (the usual
+case): `NtSetInformationProcess(ProcessIoPriority = 33)`, old value read first with
+`NtQueryInformationProcess` and recorded in the state file next to the old class (`old_io`).
+Restore, or the watcher's release in [dynamic mode](#dynamic-mode), puts the old value back on the
+same process only. The game is never touched (games are never lowered). A process that refuses
+(anti-cheat protected, for example) is printed (`chrome.exe (pid 4120): I/O priority not set
+(NTSTATUS ...)`) and skipped. Windows has no CPU-priority-to-I/O link for Below normal, so without
+this a background updater or indexer still competes with the game's asset streaming at Normal I/O.
+Try by feel (from GameShift and Process Lasso, docs/gameshift/README.md); no measurement. Verify:
+Process Explorer or System Informer, process Properties > "I/O Priority" shows Low. Turn off with
+`lower_others_io = false`.
+
 **Try and undo by hand.** Task Manager > Details > right-click an app > Set priority > Below normal
 (and back to Normal). Or PowerShell: `(Get-Process chrome).PriorityClass = 'BelowNormal'`, then
 `'Normal'`. Priorities are forgotten when an app exits.
@@ -187,7 +202,8 @@ lists), **minus the foreground window's process and all its descendants**.
 - **Release** back to Normal when it is under *release* % and has been restrained for at least
   4.2 s, or at once when it (or a parent) becomes the foreground window. No maximum time.
 - Below normal only: `lower_others_class = "idle"` is ignored in this mode (the watcher prints a
-  note). No affinity, EcoQoS or I/O priority changes.
+  note). No affinity or EcoQoS changes. With `lower_others_io` the disk priority goes to Low with
+  the restraint and back on release ([I/O priority](#io-priority)).
 
 Thresholds (`PROBALANCE` in `src/watch.rs`) are Process Lasso 19.0's own defaults by logical CPU
 count, read from `ProcessGovernor.exe` (source:
@@ -205,7 +221,7 @@ Other counts are in the const. Process Lasso's separate hybrid-CPU (P/E-core) br
 reproduced; the Mac has no E-cores.
 
 **Safety.** Each restraint is added to the state file's `lowered` list (pid, creation time, exe,
-old class) before the priority changes, and removed on release; the file is written atomically.
+old class, old I/O priority) before the priority changes, and removed on release; the file is written atomically.
 Stopping the watcher (Ctrl+C, closing the window) releases everything it restrained. If it is
 killed, `gamebooster restore` puts the recorded ones back, same pid and creation time only, as in
 once mode. A release only resets a process that is still Below normal, so a priority you set by
@@ -219,3 +235,33 @@ foreground`. Stop the load: released about 4 s later at the earliest.
 **Measure.** `gamebooster bench` (the config snapshot records `lower_others_mode`) with a
 background load: `lower_others` off, `"once"`, `"dynamic"`. Keep dynamic only if 1 % lows improve
 or stay equal; until then it is unmeasured.
+
+## Win32PrioritySeparation
+
+**What it is.** `priority_separation = true` (default) sets
+`HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl\Win32PrioritySeparation` (REG_DWORD) to
+`0x2A` (42) while boosted: short quantum (`0x20`), fixed quantum (`0x08`), 3:1 foreground boost
+(`0x02`). The old value, or its absence, is recorded in the state file first (`priority_separation`);
+restore writes it back, or deletes the value if it was absent. Boost never writes any other value.
+Takes effect at once, no reboot. `false` leaves it untouched.
+
+**Windows default.** `2` on Windows 10/11 client: short, *variable* quantum, 3:1 foreground boost
+(see [optimizer](optimizer.md) for the bit layout; SGB's `0x26` means the same as `2`).
+
+**Why it might help.** With a fixed quantum every thread gets the same time slice, and the kernel
+still boosts a foreground thread's priority when it finishes a wait, so the game (in front) gets
+the CPU back sooner after I/O or a frame wait (PC-Tuning's kernel-debugger reading,
+docs/pc-tuning/README.md). GameShift writes the same `0x2A` per session. No frame-time data
+anywhere: try by feel, and set `priority_separation = false` if BF6 feels no different or worse.
+
+**Try and undo by hand.**
+
+```bat
+reg query HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl /v Win32PrioritySeparation
+reg add HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl /v Win32PrioritySeparation /t REG_DWORD /d 42 /f
+rem undo: write back the value you noted (2 by default)
+reg add HKLM\SYSTEM\CurrentControlSet\Control\PriorityControl /v Win32PrioritySeparation /t REG_DWORD /d 2 /f
+```
+
+**Verify.** `gamebooster status` while boosted lists `Win32PrioritySeparation: <old> -> 0x2a`;
+the `reg query` above shows `0x2a`.

@@ -161,6 +161,10 @@ risk for BF6 (EA Javelin), the heat risk on the heat-limited i7-9750H, and the e
 
 ## Adoption items for gamebooster-rs
 
+Built 2026-11-06: items 1 to 4 (Game DVR line in `status`, frame-cap and Game Bar notes in the
+README, [power plan](../tweaks/power-plan.md#measure) and [game mode](../tweaks/game-mode.md) docs,
+`priority_separation`); see [DESIGN.md](../../DESIGN.md#decided).
+
 1. **Adopt: Game DVR background recording check in `status`** (read
    `HKCU\System\GameConfigStore\GameDVR_Enabled` and
    `HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR\HistoricalCaptureEnabled`, warn if

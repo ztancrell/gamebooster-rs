@@ -133,6 +133,8 @@ Proposed behaviour, all reversible and driver-free, using only APIs we already c
 5. **Action.** Below normal only. Idle stays the `lower_others_class` choice and is not recommended.
    No affinity, no EcoQoS, no I/O priority in v1. I/O Very low could be a later flag, since it helps
    with disk-heavy updaters and is equally reversible.
+   Superseded 2026-11-06: `lower_others_io` (default on) sets I/O priority Low (not Very low) with
+   each lowering or restraint; see [game priority](../tweaks/priority.md#io-priority).
 6. **Safety.** Every lowering goes into the same journal (pid, creation time, old class) **before**
    the call. Restore/exit puts back only matching pid + creation time, exactly like `lower_others`
    today. A crash leaves at most a few processes at Below normal until they exit, the same as now.
