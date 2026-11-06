@@ -56,6 +56,7 @@ The same for ExitLag (relay "ping reducer" with two kernel packet drivers; helps
 The same for Process Lasso (ProBalance dynamic priority restraint, read from the binary; the basis of `lower_others_mode = "dynamic"`): [docs/process-lasso/](docs/process-lasso/README.md).
 The same for JetBoost (BlueSprig, a rebranded IObit booster from 2012; stops a Windows 8-era service list, hard-kills apps, forces min CPU 100 % even on battery; nothing new to adopt): [docs/jetboost/](docs/jetboost/README.md).
 The same for Wise Game Booster (permanent XP-era registry tweaks, kills programs, stops services with a resume list; uploads your game list): [docs/wise-game-booster/](docs/wise-game-booster/README.md).
+The same for Tier1Suite (Tier1Settings; 43-entry registry/power catalogue with honest notes and real revert, LocalSystem broker that re-applies, no driver; adoption: a Game DVR check in `status`): [docs/tier1suite/](docs/tier1suite/README.md).
 
 ## Install and update
 
