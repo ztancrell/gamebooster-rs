@@ -20,6 +20,8 @@ Superseded (2026-11-05): the "`PROCHOT` red" reading came from ThrottleStop's ma
 indicator. The real *Limits* window stayed empty during TS Bench, so the 800 MHz lock has not been
 observed on this Mac; the CPU instead sits at ~2.29 GHz and ~22 W package power. See
 [hardware-test.md](../hardware-test.md#results-on-the-target-mac).
+That ~22 W cap was later traced to ThrottleStop's *Disable Turbo* plus an 80 % *Maximum processor
+state* in WinUtil's plan (fixed: 4050 MHz, ~85 W).
 
 ## Root causes reported for this model
 

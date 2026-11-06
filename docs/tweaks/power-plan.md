@@ -198,3 +198,12 @@ Measured on the target Mac (2026-11-05): written correctly (checked with `/qh`),
 observable: under TS Bench the CPU never got past ~2.29 GHz at ~22 W package power, below the
 cap, with or without gamebooster's plan. See
 [hardware-test.md](../hardware-test.md#results-on-the-target-mac).
+Superseded: that cap was ThrottleStop's *Disable Turbo* plus an 80 % *Maximum processor state* in
+WinUtil's plan; with both fixed the CPU reaches 4050 MHz, so the cap can now be re-tested.
+
+**Tip: other tools' plans.** Plans made by other tools (for example WinUtil's "Ultimate
+Performance") may carry a *Maximum processor state* below 100 %, which caps the clock whenever
+that plan is active (gamebooster's own plan writes `max_processor_state` itself). Check with
+`powercfg /qh scheme_current sub_processor PROCTHROTTLEMAX` (0x00000064 = 100); fix with
+`powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMAX 100`, the same with
+`/setdcvalueindex`, then `powercfg /setactive scheme_current`.

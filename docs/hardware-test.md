@@ -281,9 +281,9 @@ anti-cheat.
 | Blocked | Game priority, process method: `SetPriorityClass` refused while BF6 runs (anti-cheat). |
 | Blocked | `bench`: ETW trace sessions refused system-wide (EAAntiCheatService suspected, unconfirmed). |
 | Pending | Accessibility shortcuts always report "left alone": the Shift x5 check is outstanding. |
-| Pending | `max_cpu_mhz` clock cap: written (checked with `powercfg /qh`); no effect observable while the CPU sits at 22 W. |
+| Pending | `max_cpu_mhz` clock cap: written (checked with `powercfg /qh`); not yet re-tested now that Turbo is on (no effect was observable while the CPU sat at 22 W). |
 | Pending | `ping --route`; `status` clock check under the new build; `restore` output with the registry method. |
-| Open | CPU held at ~22 W package power under load, cause not yet identified (see below). |
+| Resolved | CPU held at ~22 W package power: ThrottleStop *Disable Turbo* plus an 80 % *Maximum processor state* in WinUtil's plan, not gamebooster (see below). |
 
 ### CPU clock and power under load (2026-11-05)
 
@@ -302,5 +302,18 @@ Titus WinUtil). SMC reset done before these readings.
 - **HWiNFO:** CPU Package Power ~22.3 W under full load; static PL1 100 W / PL2 125 W (Apple's
   ceilings); no dynamic PL values shown. So the CPU is held to about half its normal ~45 W budget
   by a dynamic limit (likely the Mac's controller); the limiting reason is not yet identified.
+  Superseded: the cause was two settings, not a hardware limit; see *Resolution* below.
 - **Next:** the HWiNFO "Performance Limit Reasons" lines that say Yes during TS Bench; then a
-  battery report (`powercfg /batteryreport`).
+  battery report (`powercfg /batteryreport`). Superseded: no limit reason said Yes; see
+  *Resolution*.
+- **Resolution.** Two settings, neither from gamebooster: ThrottleStop's *Disable Turbo* was
+  ticked, and the active WinUtil "Ultimate Performance" plan had *Maximum processor state* 80 %
+  (0x50) AC and DC (found with `powercfg /qh scheme_current sub_processor PROCTHROTTLEMAX`).
+  gamebooster's own plan writes `max_processor_state` (default 100) itself, so it was not the
+  cause; the earlier "same after `restore`" reading was Disable Turbo. Fix: untick *Disable Turbo*
+  (and save), then `powercfg /setacvalueindex scheme_current sub_processor PROCTHROTTLEMAX 100`,
+  the same with `/setdcvalueindex`, and `powercfg /setactive scheme_current`. Result under TS
+  Bench: 4050 MHz, package power up to 85.4 W, temps 54 / 57 / 70 °C, max 100 °C. ThrottleStop's
+  PROCHOT indicator now flickers grey / red (brief TjMax touches, normal thermal protection)
+  instead of solid red. BD PROCHOT left ticked (enabled, safe). Not yet checked: whether the
+  800 MHz BD PROCHOT lock returns in BF6 with Turbo on; fallback `max_cpu_mhz = 3000`.

@@ -7,6 +7,9 @@ main-window `PROCHOT 100°C` label is TjMax, not a warning; the real *Limits* wi
 Under TS Bench the CPU sat at ~2.29 GHz and ~22 W package power (PL1 100 W), cool and quiet, on
 any power plan: a different limit, still being identified. Details:
 [hardware-test.md](../hardware-test.md#results-on-the-target-mac).
+Superseded: that limit was ThrottleStop's *Disable Turbo* plus an 80 % *Maximum processor state*
+in WinUtil's plan; fixed, the CPU reaches 4050 MHz and ~85 W. Whether the 800 MHz lock returns in
+BF6 with Turbo on is still being watched.
 
 **Symptom.** The game drops to a slideshow and Task Manager shows the CPU at about 0.8 GHz even
 under load. `gamebooster status` prints `CPU clock under load: 800 MHz` (or similar) and a warning.

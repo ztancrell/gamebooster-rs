@@ -13,8 +13,8 @@ Windows via Boot Camp, playing BF6.
 - Spec section 8 unknowns (SGB's default service list, start-type changes, RAM trim API): answered
   by an SGB capture run, see [docs/hardware-test.md](docs/hardware-test.md).
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
-- What holds the target Mac's CPU at ~22 W package power under load (no PROCHOT, no thermal, static
-  PL1 100 W)? Pending HWiNFO limit reasons and battery report.
+  (Turbo is back on since 2026-11-05; watching whether the lock returns in BF6. Fallback:
+  `max_cpu_mhz = 3000`.)
 - Automatic boost mode (boost when a configured game starts, restore when the last one exits)?
   Deferred 2026-11-05. The `boost --watch` watcher now exists (it already applies game priority
   when a game starts), so auto-boost could build on it; still deferred.
@@ -23,6 +23,10 @@ Windows via Boot Camp, playing BF6.
 
 ## Decided
 
+- 2026-11-05: The target Mac's ~22 W / ~2.29 GHz cap was not gamebooster and not the hardware:
+  ThrottleStop's *Disable Turbo* was ticked, and WinUtil's "Ultimate Performance" plan had
+  *Maximum processor state* 80 %. Fixed both; the CPU now reaches 4050 MHz and ~85 W. See
+  [docs/hardware-test.md](docs/hardware-test.md#results-on-the-target-mac).
 - 2026-11-05: Also help with the Boot Camp Mac's 800 MHz clock lock (BD PROCHOT), not only SGB's
   tweaks. In scope: a low-power boost option (`min_processor_state`, with the existing
   `max_processor_state`) and an 800 MHz warning in `status`. Out of scope: clearing BD PROCHOT
