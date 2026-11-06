@@ -14,6 +14,7 @@ Static analysis notes, one folder per company and product. Plain-language pages 
 | Company | Product | Decomp folder | Docs folder |
 |---|---|---|---|
 | IObit / iTop | Smart Game Booster 6.0 | [iobit/smart-game-booster/](iobit/smart-game-booster/README.md) | [docs/sgb/](../docs/sgb/README.md) |
+| IObit | Advanced SystemCare Free 20 | [iobit/advanced-systemcare/](iobit/advanced-systemcare/README.md) | [docs/advanced-systemcare/](../docs/advanced-systemcare/README.md) |
 | Skowsand Tecnologia | ExitLag | [skowsand/exitlag/](skowsand/exitlag/README.md) | [docs/exitlag/](../docs/exitlag/README.md) |
 | AuraSide | Hone | [auraside/hone/](auraside/hone/README.md) | [docs/hone/](../docs/hone/README.md) |
 | Wagnardsoft | Intelligent Standby List Cleaner (ISLC) | [wagnardsoft/islc/](wagnardsoft/islc/README.md) | [docs/islc/](../docs/islc/README.md) |
