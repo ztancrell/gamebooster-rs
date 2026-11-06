@@ -18,8 +18,8 @@ an SGB diff answers.
 
 ## Steps (on the Boot Camp Windows install)
 
-1. Install `gamebooster.exe` in `C:\gamebooster` (see the
-   [README](../README.md#install-and-update)); if it is already there, run `gamebooster update`.
+1. Install `gamebooster.exe` in `C:\gamebooster` (see
+   [install](../docs/install.md)); if it is already there, run `gamebooster update`.
 2. Open PowerShell as administrator: Start menu, type `PowerShell`, right-click
    **Windows PowerShell**, **Run as administrator**. Use your normal Windows account, since the
    script reads your user's settings (HKCU).
