@@ -2,7 +2,7 @@
 
 What SGB 6.0's malware scanner, security check and antivirus detection actually do. Found by
 reading the program and its data files; nothing was run. Technical details and addresses:
-[decomp/SgbData/scanner/README.md](../../decomp/SgbData/scanner/README.md).
+[decomp/iobit/smart-game-booster/SgbData/scanner/README.md](../../decomp/iobit/smart-game-booster/SgbData/scanner/README.md).
 
 ## Malware scanner ("Account Guard", "Auto Scan Spyware")
 

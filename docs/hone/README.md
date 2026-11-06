@@ -4,7 +4,7 @@ Hone (hone.gg, by AuraSide Inc., distributed through Overwolf) is a popular Wind
 gamers. It offers a catalogue of about 100 one-click Windows, network, GPU and BIOS tweaks, plus a
 **Game Mode** that boosts while you play. This page comes from reading the official installer and the
 Hone 2.1.0 package it downloads (static reverse engineering, 2026-11-05). **Nothing was run.**
-Technical notes: [../../decomp/hone/README.md](../../decomp/hone/README.md).
+Technical notes: [../../decomp/auraside/hone/README.md](../../decomp/auraside/hone/README.md).
 
 ## Short version
 

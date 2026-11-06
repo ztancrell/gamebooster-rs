@@ -2,8 +2,8 @@
 
 Plain-language summary of what these parts of Smart Game Booster do, from static analysis only
 (nothing was run, no vendor server contacted). Evidence and addresses are in
-`decomp/AutoDriver.exe/notes.md`, `decomp/DriverClean.dll/notes.md`, `decomp/SgbTray.exe/notes.md`,
-`decomp/SgbMini.exe/notes.md` and `decomp/SgbAccelerate.dll/notes.md`. None of this is part of
+`decomp/iobit/smart-game-booster/AutoDriver.exe/notes.md`, `decomp/iobit/smart-game-booster/DriverClean.dll/notes.md`, `decomp/iobit/smart-game-booster/SgbTray.exe/notes.md`,
+`decomp/iobit/smart-game-booster/SgbMini.exe/notes.md` and `decomp/iobit/smart-game-booster/SgbAccelerate.dll/notes.md`. None of this is part of
 the Boost that gamebooster-rs reimplements (`docs/spec.md` section 6).
 
 ## Driver updater (AutoDriver.exe, DrvInstall/, DriverClean.dll)
@@ -22,7 +22,7 @@ than what is installed. Pro users see more entries. Nothing in the code mentions
 **Install.** It unpacks the package and runs `DpInstX64.exe`, signed by the vendor (ORANGE VIEW
 LIMITED). That is IObit's own installer, not Microsoft's DpInst: it calls Windows' DIFx driver API
 directly with the **force** flag (installs even over a newer or better-matching driver) and without
-legacy mode, so **unsigned packages are refused** (high confidence; `decomp/AutoDriver.exe/notes.md`).
+legacy mode, so **unsigned packages are refused** (high confidence; `decomp/iobit/smart-game-booster/AutoDriver.exe/notes.md`).
 Superseded: this paragraph used to call it re-signed Microsoft DpInst with unknown options.
 
 **Backup and restore.** None found: no driver backup and no restore point. The menu only opens
@@ -56,7 +56,7 @@ Its timers: a 1-second housekeeping tick (updater due-check, main-window check),
 flush, a one-shot 2-second start of the `SMGB_Tray_Boost_Game` task, and popup timers (temperature
 alarm closes after 30 s, its sound stops after 5 s). The process-watch and nag checks run on separate
 threads whose periods weren't traced. Superseded: "The poll intervals weren't recovered."
-(`decomp/SgbTray.exe/notes.md`).
+(`decomp/iobit/smart-game-booster/SgbTray.exe/notes.md`).
 
 **Mini window.** The small "boosting into Gaming Mode / restoring to Normal Mode" window. It runs
 the same Boost and Restore steps without the main UI, from the tray menu, a hotkey or auto-boost.
@@ -89,7 +89,7 @@ servers; with no account and no servers it does nothing.
    There is a kill switch.
 8. On disconnect: `sc stop itvwd`.
 
-**More detail from a full decompile of the DLL** (evidence in `decomp/SgbAccelerate.dll/notes.md`):
+**More detail from a full decompile of the DLL** (evidence in `decomp/iobit/smart-game-booster/SgbAccelerate.dll/notes.md`):
 - The DLL never sees your password. The main program logs in, then hands the DLL two session
   tokens. A node that rejects the token, or that is full, sends an error back and the connection
   stops.

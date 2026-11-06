@@ -2,7 +2,7 @@
 
 Besides Boost/Restore, SGB ships an "optimizer" / "system tweak" page of one-off registry values
 (51 in `SysSpeed.ini`, 48 in `GB3.ini`, plus the `Opt.dbd` profiles), decoded from its `.dbd` data files. The full table, with a gaming verdict for each, is in
-[decomp/SgbData/dbd/README.md](../../decomp/SgbData/dbd/README.md).
+[decomp/iobit/smart-game-booster/SgbData/dbd/README.md](../../decomp/iobit/smart-game-booster/SgbData/dbd/README.md).
 
 gamebooster builds none of them. The only ones it touches at all are read-only checks in
 `gamebooster status`: hardware-accelerated GPU scheduling, multiplane overlays (MPO) and Game DVR

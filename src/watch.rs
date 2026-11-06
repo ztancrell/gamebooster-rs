@@ -31,7 +31,7 @@ use std::collections::HashSet;
 
 /// Process Lasso's ProBalance defaults by logical CPU count, normal (non-hybrid) branch:
 /// (machine busy %, process share of the machine %, release below %). Row i is for i + 1 logical
-/// CPUs; 33 and more use the last row. Source: decomp/process-lasso/governor/notes.md, "ProBalance
+/// CPUs; 33 and more use the last row. Source: decomp/bitsum/process-lasso/governor/notes.md, "ProBalance
 /// defaults by logical CPU count" (ProcessGovernor.exe 19.0, `.rdata` tables 0x140115230-0x1401153b0).
 /// The hybrid-CPU branch (P/E cores) is not reproduced.
 pub const PROBALANCE: [(u8, u8, u8); 32] = [

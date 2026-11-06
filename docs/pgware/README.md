@@ -7,7 +7,7 @@ background program, no per-game boost, no services, no power plan, no overlay, n
 
 Everything here comes from reading the shipped files (static reverse engineering) of the installer
 downloaded on 2026-11-05 (installer version 4.6.8.2026, the programs inside say 3.10.21.2024).
-**Nothing was run.** Technical notes: [../../decomp/pgware-gameboost/README.md](../../decomp/pgware-gameboost/README.md).
+**Nothing was run.** Technical notes: [../../decomp/pgware/gameboost/README.md](../../decomp/pgware/gameboost/README.md).
 
 ## Short version
 

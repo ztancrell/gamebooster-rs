@@ -207,7 +207,7 @@ lists), **minus the foreground window's process and all its descendants**.
 
 Thresholds (`PROBALANCE` in `src/watch.rs`) are Process Lasso 19.0's own defaults by logical CPU
 count, read from `ProcessGovernor.exe` (source:
-[decomp/process-lasso/governor/notes.md](../../decomp/process-lasso/governor/notes.md#probalance-defaults-by-logical-cpu-count-normal-branch)):
+[decomp/bitsum/process-lasso/governor/notes.md](../../decomp/bitsum/process-lasso/governor/notes.md#probalance-defaults-by-logical-cpu-count-normal-branch)):
 
 | Logical CPUs | Machine busy >= | Process >= | Release under |
 |---|---|---|---|

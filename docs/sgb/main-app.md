@@ -2,7 +2,7 @@
 
 Plain-language guide to `SgbMain.exe`, the main SGB window, apart from Boost and Restore themselves
 (those are in `docs/spec.md`). Found by reading the program's code and data files; nothing was run.
-Addresses and details: `decomp/SgbMain.exe/features.md`.
+Addresses and details: `decomp/iobit/smart-game-booster/SgbMain.exe/features.md`.
 
 ## The smaller Boost steps
 
@@ -49,7 +49,7 @@ cards. SGB scores your PC and says whether each game should run. It also reports
   "how many users disabled this" ratings from the vendor. Its shipped blacklist suggests disabling
   **Windows Defender** and **Malwarebytes** at startup, alongside adware. Do not follow that advice.
 - **System Tweak, Internet Booster.** Registry and network tweaks, some with typos that write junk
-  values (see `decomp/SgbData/dbd/README.md`; how the scanner decides what is a "problem": `cleaners.md`). Browser settings edits too, including re-signing
+  values (see `decomp/iobit/smart-game-booster/SgbData/dbd/README.md`; how the scanner decides what is a "problem": `cleaners.md`). Browser settings edits too, including re-signing
   Chrome's protected preferences so Chrome accepts the change.
 - **Junk and privacy cleaner, browser extension manager.** Deletes temp files, browser history,
   cookies and similar. How it scans, what it deletes and how its numbers overstate the result:

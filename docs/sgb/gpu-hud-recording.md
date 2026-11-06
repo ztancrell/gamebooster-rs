@@ -2,9 +2,9 @@
 
 Plain-language summary of three Smart Game Booster 6.0 features that `gamebooster-rs` does **not**
 reimplement. Source: static reverse engineering of the shipped binaries (nothing was run). Details and
-evidence: `decomp/OverDrive.dll/`, `decomp/GPUlib.dll/`, `decomp/SMGBFilter64.dll/`,
-`decomp/FPS64.dll/`, `decomp/SgbHUD64.exe/`, `decomp/VideoRecord64.dll/`, `decomp/sgbGameRecord.exe/`,
-`decomp/RobloxFPS.dll/`.
+evidence: `decomp/iobit/smart-game-booster/OverDrive.dll/`, `decomp/iobit/smart-game-booster/GPUlib.dll/`, `decomp/iobit/smart-game-booster/SMGBFilter64.dll/`,
+`decomp/iobit/smart-game-booster/FPS64.dll/`, `decomp/iobit/smart-game-booster/SgbHUD64.exe/`, `decomp/iobit/smart-game-booster/VideoRecord64.dll/`, `decomp/iobit/smart-game-booster/sgbGameRecord.exe/`,
+`decomp/iobit/smart-game-booster/RobloxFPS.dll/`.
 
 ## GPU overclock (Boost action A2, `OverDrive.dll`)
 

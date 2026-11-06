@@ -11,7 +11,7 @@ Everything here comes from reading the shipped files (static reverse engineering
 8.0.5002, downloaded on 2026-11-05. **Nothing was run.** The program code is encrypted with an
 obfuscator (ConfuserEx), so the exact values some tweaks write could not be read; what the installer
 does, the power plan, the exception lists and the feature set are certain. Technical notes:
-[../../decomp/smartpcutilities-gb/README.md](../../decomp/smartpcutilities-gb/README.md).
+[../../decomp/smart-pc-utilities/game-booster/README.md](../../decomp/smart-pc-utilities/game-booster/README.md).
 
 ## Short version
 

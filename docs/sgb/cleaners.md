@@ -2,7 +2,7 @@
 
 Plain-language guide to SGB's "System Clean" (junk files), "Privacy Sweep" and "System Tweak" pages.
 Found by reading `SgbMain.exe` and its data files; nothing was run. Addresses and evidence:
-`decomp/SgbMain.exe/features.md` (section "Cleaners, System Tweak scanner…").
+`decomp/iobit/smart-game-booster/SgbMain.exe/features.md` (section "Cleaners, System Tweak scanner…").
 
 ## Junk files and privacy
 
@@ -40,7 +40,7 @@ cleaner items above.
 
 ## System Tweak
 
-51 + 48 registry tweaks (`SysSpeed.dbd`, see `decomp/SgbData/dbd/README.md`). An item counts as a
+51 + 48 registry tweaks (`SysSpeed.dbd`, see `decomp/iobit/smart-game-booster/SgbData/dbd/README.md`). An item counts as a
 problem whenever the current value differs from SGB's preferred value, **including when the value isn't
 set at all**, which is Windows' normal state. So a fresh Windows install shows most items as problems.
 The scan also creates any missing registry key it checks (empty keys, harmless but a write during a

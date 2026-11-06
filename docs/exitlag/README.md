@@ -4,7 +4,7 @@ ExitLag (exitlag.com, by Skowsand Tecnologia Ltda, Brazil) is a popular paid "pi
 online games. This page comes from reading the official installer, version **5.24.0**, downloaded
 from ExitLag's CDN on 2026-11-05 (static reverse engineering). **Nothing was run, no account was
 made, and no ExitLag server or relay was contacted.** Technical notes and hashes:
-[../../decomp/exitlag/README.md](../../decomp/exitlag/README.md).
+[../../decomp/skowsand/exitlag/README.md](../../decomp/skowsand/exitlag/README.md).
 
 ## Short version
 

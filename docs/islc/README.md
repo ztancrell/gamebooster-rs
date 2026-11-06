@@ -4,7 +4,7 @@ Intelligent Standby List Cleaner (ISLC), by Wagnardsoft (the author of DDU), is 
 Windows tool. Gamers run it in the background to "fix stutter". It empties Windows' standby memory
 list when free memory gets low, and it can hold a fine timer resolution. This page comes from
 reading the official ISLC 1.0.4.8 package (static reverse engineering, 2026-11-05). **Nothing was
-run.** Technical notes: [../../decomp/islc/README.md](../../decomp/islc/README.md).
+run.** Technical notes: [../../decomp/wagnardsoft/islc/README.md](../../decomp/wagnardsoft/islc/README.md).
 
 ## Short version
 

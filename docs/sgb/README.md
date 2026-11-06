@@ -15,7 +15,7 @@ run.** Details:
 - [drivers-tray-accelerator.md](drivers-tray-accelerator.md): driver updater, tray and mini windows,
   network accelerator.
 - [../spec.md](../spec.md): the exact Boost/Restore behaviour that gamebooster-rs copies.
-- Technical notes per program: [../../decomp/README.md](../../decomp/README.md).
+- Technical notes per program: [../../decomp/iobit/smart-game-booster/README.md](../../decomp/iobit/smart-game-booster/README.md).
 
 ## Every feature, in one table
 

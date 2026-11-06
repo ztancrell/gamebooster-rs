@@ -25,7 +25,7 @@ security software or Apple/Boot Camp keyboard and trackpad services.
 
 `gamebooster.example.toml` carries a commented-out `services = [...]` block (64 services): Smart
 Game Booster's `[Services_WIN10]` list, which Windows 11 also gets, ticked and unticked entries
-alike (decoded in [decomp/SgbData/README.md](../../decomp/SgbData/README.md)). It is opt-in: the
+alike (decoded in [decomp/iobit/smart-game-booster/SgbData/README.md](../../decomp/iobit/smart-game-booster/SgbData/README.md)). It is opt-in: the
 default stays `services = []`. Each line says what the service is; `risky:` marks ones that can
 break something during the session (an update in progress, text input, Bluetooth, security
 features), `SGB default: off` marks ones SGB listed but didn't tick. Listed services that aren't

@@ -46,7 +46,7 @@ Boost. Items marked "user list" act only on what the user ticked in the Boost co
 | A8 | Windows automatic updates | Saves the current automatic-update notification level, then sets it to "disabled" (2.5). | Writes back the saved level. | On. |
 | A9 | Windows Game Mode | Sets `HKCU\Software\Microsoft\GameBar` value `AutoGameModeEnabled` (REG_DWORD) to 1. Saves the old value or notes that it was absent. | Writes back the old value, or deletes the value if it was absent. | On. |
 | A10 | Game process priority | When the boosted game runs, sets its priority class to the user's choice: Realtime, High, Above normal, Normal, Below normal or Low. Never changes `steam.exe`, `explorer.exe` or SGB's own processes. | Sets the game back to Normal, or leaves it alone if it has exited. | Per game, opt-in. |
-| A11 | Tidy tray icons | **No-op in SGB 6.0**: only logs "Remove Dead Tray Icons" (SgbMain.exe 0x7c7a2e, `decomp/SgbMain.exe/features.md`). Do not implement. Superseded: said it removed dead icons after A4. | Nothing. | Cosmetic. |
+| A11 | Tidy tray icons | **No-op in SGB 6.0**: only logs "Remove Dead Tray Icons" (SgbMain.exe 0x7c7a2e, `decomp/iobit/smart-game-booster/SgbMain.exe/features.md`). Do not implement. Superseded: said it removed dead icons after A4. | Nothing. | Cosmetic. |
 
 Not part of Boost (separate SGB features, do not implement as Boost): the TCP/IP registry tweaks
 (TcpTimedWaitDelay, TcpMaxDupAcks, TcpWindowSize, Nagle, MaxCPS), the SSD/defrag and Windows Search
@@ -133,7 +133,7 @@ longer exists, activate Balanced.
   listed unticked. There is no `Services_2000` section. Win10/11 ticks 61 services (e.g.
   `RemoteRegistry`, `Fax`, `WerSvc`, `WinRM`, `W32Time`, `FontCache`, `StiSvc`, `PrintNotify`,
   the `vmic*` Hyper-V guest services); many are legacy and absent on Windows 11. Full lists per
-  version: `decomp/SgbData/README.md`. Ours ships its own explicit list.
+  version: `decomp/iobit/smart-game-booster/SgbData/README.md`. Ours ships its own explicit list.
   Superseded: earlier versions said the lists were encrypted or downloaded and the names unknown.
 
 ### 2.3 Processes (A4)
@@ -152,7 +152,7 @@ longer exists, activate Balanced.
   `ASCTray.exe /auto`, `IOTransfer.exe /autorun`. Everything else is started with no arguments.
 - SGB keeps user-editable lists `UserProcWL.txt` and `UserProcBL.txt` (white- and blacklist) next to
   `UserWinSvc.ini`. The installer ships no default for either, so SGB has no built-in default
-  kill list from a data file (see `decomp/SgbData/README.md`).
+  kill list from a data file (see `decomp/iobit/smart-game-booster/SgbData/README.md`).
 
 ### 2.4 RAM (A5)
 
@@ -174,7 +174,7 @@ steam.exe, `SgbTray.exe`, `SgbMain.exe`, `SgbMini.exe`, SGB's own exe and the 31
 the game is **not** excluded. But **nothing in SgbMain ever calls it**: Boost dispatch skips the
 object, and the object is only used by the Boost settings dialog to store `[Boost] Priority` (on/off)
 and `[Boost] PriorityClass` (default 3), the "Set the priority of game when running" option (evidence:
-SgbMain.exe 0x7c8acc, `decomp/SgbMain.exe/features.md`). The game-priority setting is
+SgbMain.exe 0x7c8acc, `decomp/iobit/smart-game-booster/SgbMain.exe/features.md`). The game-priority setting is
 probably applied by `SgbTray.exe`, which imports SetPriorityClass and reads the same two keys (strings
 only). So lowering other processes is **not** something SGB does; ours is an extra.
 Ours: opt-in, a configurable class (default BELOW_NORMAL, IDLE starves voice chat and similar), and it
@@ -182,7 +182,7 @@ excludes the game, its launcher and their children.
 Implemented as `lower_others` (opt-in, only processes at NORMAL, PID-reuse-safe restore); see
 [docs/tweaks/priority.md](tweaks/priority.md#lower-other-processes).
 Superseded: this section used to say SGB lowers other processes to IDLE while boosted. The code
-exists but has no caller (decomp/SgbMain.exe/notes.md, second pass, left that open).
+exists but has no caller (decomp/iobit/smart-game-booster/SgbMain.exe/notes.md, second pass, left that open).
 
 ### 2.5 Windows automatic updates (A8)
 
@@ -275,21 +275,21 @@ does not use it, and **no kernel driver is needed** for anything in this spec.
 
 Fill these from a `capture/` diff (snapshot before and after Boost on the real machine):
 
-- Superseded (answered by static analysis, see decomp/SgbMain.exe/notes.md, second pass): services
+- Superseded (answered by static analysis, see decomp/iobit/smart-game-booster/SgbMain.exe/notes.md, second pass): services
   are never set to Disabled or Manual (2.2); A10's "lower other processes to IDLE" code is never called (2.4a, superseded); A5 uses
   SetProcessWorkingSetSize(-1, -1) and skips only the Symantec list (2.4); the GUID
   `{58231417-…}` is only a lookup key. The "protector" that seemed to hide API calls did not exist:
   it was an extraction error, and every API call site can now be traced.
 - Superseded (answered): auto-boost game watching is in `SgbTray.exe` (SVIP), which tells SgbMain to
   boost; A11 is a no-op; A1 saves VCP 0xDC/0x14/0x10/0x12 to `Monitor.ini`; A2 goes through
-  `OverDrive.dll` within the driver's range; A6 is a plain clear. See `decomp/SgbMain.exe/features.md`
+  `OverDrive.dll` within the driver's range; A6 is a plain clear. See `decomp/iobit/smart-game-booster/SgbMain.exe/features.md`
   and `docs/sgb/`.
 - Superseded (answered): nothing calls TPriorityController's Boost; it is dead code, and the game was
   never excluded from its list (2.4a). Still open: where the game's own class (A10, `[Boost]
   PriorityClass`) is applied. SgbMain's only SetPriorityClass call is in the dead code, so most likely
   in `SgbTray.exe` (imports SetPriorityClass, reads the same keys; not read in code).
 - Superseded: the default service list per Windows version
-  is now known (plain-text `WinSvc.ini`, see 2.2 and `decomp/SgbData/README.md`).
+  is now known (plain-text `WinSvc.ini`, see 2.2 and `decomp/iobit/smart-game-booster/SgbData/README.md`).
 - The default process list. The installer ships no default `ProcWL.txt`/`ProcBL.txt` (SgbInit would
   copy them to `UserProcWL.txt`/`UserProcBL.txt`), so it comes from the user's choices and possibly
   a download or online score database.
@@ -305,7 +305,7 @@ Fill these from a `capture/` diff (snapshot before and after Boost on the real m
   can ignore it.
 - SgbAccelerate.dll is only partly decompiled, on purpose; it is out of scope (section 6).
 - Superseded: "`SgbMain.exe` was only partly analysed". Every feature is now surveyed
-  (`decomp/SgbMain.exe/features.md`), but only Boost/Restore was read in detail; error handling and
+  (`decomp/iobit/smart-game-booster/SgbMain.exe/features.md`), but only Boost/Restore was read in detail; error handling and
   timeouts of A1, A2, A8 and A9 are inferred from log strings only.
 
 ---
@@ -338,13 +338,13 @@ table of `sgb-extract/app/cmAppVer/SgbMain.exe`. Nothing was executed.
 | Windows Update | SgbMain strings "TUpdateBoost.Boost", "save windows update state to file", "PreviousStaus", "ServiceEnabled Exit", "ReadOnly Exit", "Required Exit"; CLSID_AutomaticUpdates at file offset 0x64aa6c, IID_IAutomaticUpdates at 0x64aa5c, IID_IAutomaticUpdatesSettings at 0x3c17b0 |
 | Priority | SgbMain strings "Process Priority", "PriorityClass", "Realtime/High/Above normal/Normal/Below normal/Low", exclusions "steam.exe", "explorer.exe", "SgbTray.exe", "SgbMain.exe", "SgbMini.exe"; imports SetPriorityClass, GetPriorityClass |
 | Monitor DDC/CI | SgbMain strings "TFrameMonitorDDC.Boost", "VCP_DC", "VCP_14", "Monitor.ini"; Boost 0x7c07bc, Restore 0x7c0f7c, VCP get/set 0x7bd5e0 |
-| Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM"; loader 0x7b8da4 (GetProcAddress OverClock/Reset/CanOverClock/GetGPUInfo/GetRange); `decomp/OverDrive.dll/notes.md` |
-| Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/SgbAccelerate.dll/notes.md (full decompile, deleted); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
-| SgbMain targeted disassembly (method, limits; the "protector" was an extraction error) | decomp/SgbMain.exe/notes.md; decomp/README.md |
+| Overclock | SgbMain strings "TOverClockBoost", "OverDrive.dll", "OC_GPU", "OC_RAM"; loader 0x7b8da4 (GetProcAddress OverClock/Reset/CanOverClock/GetGPUInfo/GetRange); `decomp/iobit/smart-game-booster/OverDrive.dll/notes.md` |
+| Network accelerator, WinDivert | SgbAccelerate.dll strings ("[CClientP2S]…", "vpnenv_firewall", WinDivertOpen/Recv/Send); decomp/iobit/smart-game-booster/SgbAccelerate.dll/notes.md (full decompile, deleted); itvwd64.sys strings `\Device\itvwd`, `windivert.c` |
+| SgbMain targeted disassembly (method, limits; the "protector" was an extraction error) | decomp/iobit/smart-game-booster/SgbMain.exe/notes.md; decomp/README.md |
 | Boost/Restore dispatch order; temp-file failure only logged | SgbMain.exe 0x7c6f0c |
 | Power step order; display and sleep timeouts 0; GUID {58231417-…} passed to SetGamePwrCFG | SgbMain.exe 0x7b81f4 (VA 0x7b82f8 and 0x7b830b push 0); PowerMgr.dll 0x10001090, 0x100010a0 |
 | Default service INI sections per Windows version | SgbMain.exe 0x78754c |
-| Default service lists (plain-text WinSvc.ini, copied to UserWinSvc.ini by SgbInit.exe VA 0x6575e0); no default ProcWL/ProcBL in the installer; .dbd files are not Boost data | decomp/SgbData/README.md, decomp/SgbData/winsvc_lists.py |
+| Default service lists (plain-text WinSvc.ini, copied to UserWinSvc.ini by SgbInit.exe VA 0x6575e0); no default ProcWL/ProcBL in the installer; .dbd files are not Boost data | decomp/iobit/smart-game-booster/SgbData/README.md, decomp/iobit/smart-game-booster/SgbData/winsvc_lists.py |
 | Win32PrioritySeparation is read only (diagnostics) | SgbMain.exe 0x473324 |
 | No timer-resolution, affinity, MMCSS, network-throttling APIs or strings | SgbMain import table and string tables (searched for timeBeginPeriod, NtSetTimerResolution, SetProcessAffinityMask, SystemProfile, NetworkThrottlingIndex, SystemResponsiveness, SetSystemFileCacheSize) |
 | Other processes lowered to IDLE (0x40), saved class restored; exclusions | SgbMain.exe 0x7c4278 (0x7c42e1 mov ecx,0x40 → SetPriorityClass at 0x7c34d5; list built at 0x7c3a9c) |

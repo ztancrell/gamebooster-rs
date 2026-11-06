@@ -5,7 +5,7 @@ part, **ProBalance**, lowers background programs for a few seconds while they ho
 program you are using stays responsive. This page comes from reading the official installer of
 **Process Lasso 19.0.0.94** (static reverse engineering, 2026-11-05; signed by Bitsum Technologies)
 and Bitsum's public docs. **Nothing was run.** Technical notes, hashes and addresses:
-[../../decomp/process-lasso/README.md](../../decomp/process-lasso/README.md).
+[../../decomp/bitsum/process-lasso/README.md](../../decomp/bitsum/process-lasso/README.md).
 
 ## Short version
 
@@ -61,7 +61,7 @@ In words, on a 16-thread Mac: when the PC is at least 10 % busy, and a backgroun
 at least 0.8 of a thread for 0.9 s in a row, it drops to Below normal. It stays there at least 4.2 s,
 until it uses less than 2 % (about a third of a thread). The per-process trigger always sits near one
 busy thread ("a thread spinning flat out"), so ordinary background work is left alone. Full table and
-evidence: [governor notes](../../decomp/process-lasso/governor/notes.md).
+evidence: [governor notes](../../decomp/bitsum/process-lasso/governor/notes.md).
 
 ## Mac (Boot Camp) and BF6
 

@@ -3,7 +3,7 @@
 Razer Cortex (razer.com/cortex) is Razer's free PC "game booster", game launcher and rewards app. This page
 comes from reading the official installer and the Cortex 11.12.0.14 package it downloads (static reverse
 engineering, 2026-11-05). **Nothing was run.** Technical notes:
-[../../decomp/razer-cortex/README.md](../../decomp/razer-cortex/README.md).
+[../../decomp/razer/cortex/README.md](../../decomp/razer/cortex/README.md).
 
 ## Short version
 
