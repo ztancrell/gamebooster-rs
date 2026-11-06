@@ -199,8 +199,19 @@ copy the whole window text and send it.
     c. `.\gamebooster.exe restore`. Look for `  bf6.exe: IFEO CpuPriorityClass deleted, removed
        PerfOptions and key` (if the bf6.exe key didn't exist before), then `Restored.`; the
        `reg query` from (a) now says the key can't be found. Quit BF6 and remove the config line.
+18c. Automatic boost (BF6 closed, `status` says `Not boosted.`; keep
+    `game_priority_method = "registry"` from 18b for this step). `.\gamebooster.exe auto`.
+    Look for: `Game priority (registry): holding the IFEO entries while auto runs`; the `reg query`
+    from 18b (a) shows `0x3` before BF6 starts.
+    a. Start BF6. Within about a second: `bf6.exe started: boosting`, then the full boost output.
+       `(Get-Process bf6).PriorityClass` in a second PowerShell says `High`.
+    b. Quit BF6. Look for `last game exited: restoring in 30 s`, then the full restore and
+       `restored; waiting for a game`. `status`: `Not boosted.` and the step 5 plan; WSearch
+       running; the IFEO entry is still there (held while `auto` runs).
+    c. Ctrl+C. The `reg query` now says the key can't be found; no `gamebooster-state.json` or
+       `gamebooster-auto-ifeo.json` in `C:\gamebooster`. Remove the config line afterwards.
 19. Quit BF6. Send `diff-boost.txt`, `diff-restore.txt`, the three `.json` files, the `bench`
-    folder and the console text of steps 9, 12, 13, 16, 17, 18 and 18b.
+    folder and the console text of steps 9, 12, 13, 16, 17, 18, 18b and 18c.
 
 ## Recovery
 
@@ -285,6 +296,15 @@ anti-cheat.
 | Pending | `ping --route`; `status` clock check under the new build; `restore` output with the registry method. |
 | Resolved | CPU held at ~22 W package power: ThrottleStop *Disable Turbo* plus an 80 % *Maximum processor state* in WinUtil's plan, not gamebooster (see below). |
 
+2026-11-06: same Mac (i7-9750H), BF6, `gamebooster auto` with `game_priority_method = "registry"`.
+
+| Result | What |
+|---|---|
+| Works | `auto` (build dabbf43): `bf6.exe` detected within ~1 s of launch; full boost (services stopped, gamebooster plan active, DNS kept, power throttling off). After exit: `last game exited: restoring in 30 s`, then full restore in reverse order; `Not boosted.`, Balanced `381b4222-...` active, WSearch running, no IFEO key. |
+| Fixed | dabbf43 wrote the IFEO `CpuPriorityClass` at boost time, after BF6 had started, so BF6 ran at Normal; the restore then removed it. 9271794: `auto` holds the IFEO entries for its whole run. |
+| Works | `auto` (build 9271794): printed `Game priority (registry): holding the IFEO entries while auto runs` and wrote `CpuPriorityClass = 3` before BF6 launched; `bf6.exe` ran at High (`Get-Process` `PriorityClass`). Exit + 30 s: restored, IFEO entry still held. Ctrl+C: IFEO key removed, no `gamebooster-state.json` or `gamebooster-auto-ifeo.json` left, `Not boosted.` |
+| Works | In game (Portal "Spec Ops Survival" custom experience), Turbo on: ~105–108 % processor performance (~2.75 GHz) at ~80 % utility, no 800 MHz BD PROCHOT lock. `status` single-thread clock 4.3 GHz. Played well. |
+
 ### CPU clock and power under load (2026-11-05)
 
 i7-9750H (6 cores / 12 threads). Windows plan before boosting: "Ultimate Performance" (from Chris
@@ -315,5 +335,6 @@ Titus WinUtil). SMC reset done before these readings.
   the same with `/setdcvalueindex`, and `powercfg /setactive scheme_current`. Result under TS
   Bench: 4050 MHz, package power up to 85.4 W, temps 54 / 57 / 70 °C, max 100 °C. ThrottleStop's
   PROCHOT indicator now flickers grey / red (brief TjMax touches, normal thermal protection)
-  instead of solid red. BD PROCHOT left ticked (enabled, safe). Not yet checked: whether the
-  800 MHz BD PROCHOT lock returns in BF6 with Turbo on; fallback `max_cpu_mhz = 3000`.
+  instead of solid red. BD PROCHOT left ticked (enabled, safe). Whether the 800 MHz BD PROCHOT
+  lock returns in BF6 with Turbo on: not in the 2026-11-06 session (~2.75 GHz all-core, see the
+  table above); fallback `max_cpu_mhz = 3000`.

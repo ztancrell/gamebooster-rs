@@ -270,5 +270,5 @@ again within that time keeps the boost (a restart or a launcher hand-off). Then 
 - `AutoGameModeEnabled` is per user: run elevated from your own account.
 - Not implemented (on purpose): GPU overclock, monitor presets, clipboard clearing, Windows Update
   changes, network acceleration (relay servers; `ping` and fastest DNS are the substitute), tray icon cleanup, killing `explorer.exe`, SGB's other optimizer registry tweaks (see [optimizer](docs/tweaks/optimizer.md)).
-- Tested only by unit tests and a cross-compile; not yet run on real hardware. First-run checklist:
+- Run on one real machine so far (the target Mac: Boot Camp, BF6); checklist and results in
   [docs/hardware-test.md](docs/hardware-test.md).

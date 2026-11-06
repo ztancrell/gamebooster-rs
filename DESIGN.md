@@ -14,7 +14,8 @@ Windows via Boot Camp, playing BF6.
   by an SGB capture run, see [docs/hardware-test.md](docs/hardware-test.md).
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
   (Turbo is back on since 2026-11-05; watching whether the lock returns in BF6. Fallback:
-  `max_cpu_mhz = 3000`.)
+  `max_cpu_mhz = 3000`. 2026-11-06: a BF6 session with Turbo on showed no 800 MHz lock, ~2.75 GHz
+  all-core under load.)
 - How to measure BF6 when its anti-cheat blocks ETW capture (bench incomplete, 2026-11-05): confirm
   the cause, then choose BF6 overlay / screen-update counting / another game.
 
