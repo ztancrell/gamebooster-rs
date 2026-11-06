@@ -15,6 +15,7 @@ The same for JetBoost (BlueSprig, a rebranded IObit booster from 2012; stops a W
 The same for Wise Game Booster (permanent XP-era registry tweaks, kills programs, stops services with a resume list; uploads your game list): [docs/wise-game-booster/](wise-game-booster/README.md).
 The same for Tier1Suite (Tier1Settings; 43-entry registry/power catalogue with honest notes and real revert, LocalSystem broker that re-applies, no driver; adoption: a Game DVR check in `status`): [docs/tier1suite/](tier1suite/README.md).
 The same for BoosterX (Eazfuscator-protected settings manager; its "6.6× less CPU load" CS2 claim is idle-desktop debloat incl. Defender off, worth ~2–3 % FPS; adoption: try a background raw-input throttle): [docs/boosterx/](boosterx/README.md).
+The same for eclean Optimizer (Tauri/Rust, 47 explained persistent tweaks with real undo, demand-start broker, no driver; its gaming tweaks are default-equal or placebo, the Pro Expert ones add heat or remove security; adoption: maybe `WerSvc`/`dmwappushservice` in the services list): [docs/eclean/](eclean/README.md).
 Open-source tools and guides, read from source, with adoption items:
 [GameShift](gameshift/README.md) (per-session apply/revert with a crash journal; mostly folklore tweaks, several of which need a reboot to work),
 [valleyofdoom PC-Tuning](pc-tuning/README.md) (measure-first guide; keeps idle states on, prefers per-process timer resolution, silent on Nagle/MMCSS),
