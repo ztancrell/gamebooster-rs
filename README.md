@@ -57,6 +57,10 @@ The same for Process Lasso (ProBalance dynamic priority restraint, read from the
 The same for JetBoost (BlueSprig, a rebranded IObit booster from 2012; stops a Windows 8-era service list, hard-kills apps, forces min CPU 100 % even on battery; nothing new to adopt): [docs/jetboost/](docs/jetboost/README.md).
 The same for Wise Game Booster (permanent XP-era registry tweaks, kills programs, stops services with a resume list; uploads your game list): [docs/wise-game-booster/](docs/wise-game-booster/README.md).
 The same for Tier1Suite (Tier1Settings; 43-entry registry/power catalogue with honest notes and real revert, LocalSystem broker that re-applies, no driver; adoption: a Game DVR check in `status`): [docs/tier1suite/](docs/tier1suite/README.md).
+Open-source tools and guides, read from source, with adoption items:
+[GameShift](docs/gameshift/README.md) (per-session apply/revert with a crash journal; mostly folklore tweaks, several of which need a reboot to work),
+[valleyofdoom PC-Tuning](docs/pc-tuning/README.md) (measure-first guide; keeps idle states on, prefers per-process timer resolution, silent on Nagle/MMCSS),
+[Chris Titus WinUtil](docs/winutil/README.md) (gaming-relevant tweaks only; its Ultimate Performance undo resets all power plans).
 
 ## Install and update
 
