@@ -105,6 +105,7 @@ cd C:\gamebooster
 gamebooster boost --dry-run
 gamebooster boost
 gamebooster boost --watch
+gamebooster auto
 gamebooster status
 gamebooster restore
 gamebooster ping
@@ -115,6 +116,7 @@ gamebooster ping --route
 |---|---|
 | `boost` | Applies the enabled tweaks. If already boosted, only re-applies game priority and power throttling off (use this after starting the game). |
 | `boost --watch` | Boosts (or, if already boosted, re-applies game priority), then keeps running in the console until Ctrl+C or the window closes; see [Watch mode](#watch-mode). Not with `--dry-run`. |
+| `auto` | Keeps running in the console: boosts when a configured `[[game]]` starts and restores `auto_restore_delay_secs` (30) after the last one exits; see [Automatic boost](#automatic-boost). Admin. Not with `--dry-run`. |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. If not boosted, only resets game priority to Normal (and power throttling to Windows). |
 | `status` | Prints the saved state (if boosted), the active power plan GUID, its *Maximum processor state* on AC and DC (warns below 100 %, which turns Turbo Boost off, with the `powercfg` fix; only a note when it is gamebooster's own plan at your `max_processor_state`), `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](docs/tweaks/optimizer.md)), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](docs/tweaks/prochot.md)). |
 | `ping` | Times `ping_samples` (10) TCP connects to each of `ping_hosts`, AWS regional endpoints by default, and prints median, p90, jitter and loss per region, fastest first; marks a region with any loss or jitter above 10 ms. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](docs/tweaks/network.md#ping). |
@@ -171,11 +173,12 @@ as `gamebooster.toml` next to `gamebooster.exe`. Keys:
 | `ram_trim` | `false` | Trim other processes' RAM once. |
 | `game_priority_method` | `"process"` | How game priority is set: `"process"` (on the running game) or `"registry"` (IFEO `PerfOptions\CpuPriorityClass`, applied by Windows at the next game start; for anti-cheats that block the process way; no `realtime`). See [game priority](docs/tweaks/priority.md#registry-method). |
 | `lower_others` | `false` | Lower your other Normal-priority processes during the boost; see [game priority](docs/tweaks/priority.md#lower-other-processes). |
-| `lower_others_mode` | `"once"` | `"once"`: boost lowers them all. `"dynamic"`: boost lowers nothing; `boost --watch` restrains only busy ones, ProBalance-style (Below normal only). See [Watch mode](#watch-mode). |
+| `lower_others_mode` | `"once"` | `"once"`: boost lowers them all. `"dynamic"`: boost lowers nothing; `boost --watch` (or `auto`) restrains only busy ones, ProBalance-style (Below normal only). See [Watch mode](#watch-mode). |
 | `lower_others_class` | `"below_normal"` | `"below_normal"` or `"idle"`. Idle can starve voice chat and streams. Once mode only; dynamic mode always uses Below normal. |
 | `lower_others_exclude` | `[]` | Extra image names to leave alone (case-insensitive), on top of the built-in list. |
 | `lower_others_exclude_publishers` | `[]` | Extra publishers to leave alone: case-insensitive substrings of the exe's CompanyName (file Properties > Details), on top of the built-in list. |
 | `fastest_dns` | `false` | On boost, time DNS lookups against the current server and 1.1.1.1, 8.8.8.8, 9.9.9.9; switch the active adapter's IPv4 DNS to a public one only if it is more than 10 ms and 20 % faster. See [network](docs/tweaks/network.md#fastest-dns). |
+| `auto_restore_delay_secs` | `30` | `gamebooster auto`: seconds to wait after the last game exits before restoring; a game starting within that time keeps the boost. `0` = restore at once. |
 | `ping_hosts` | 12 AWS regional endpoints | Hosts `gamebooster ping` measures (TCP port 443). |
 | `ping_samples` | `10` | Probes per host for `ping` and per hop for `ping --route` (1 to 100). |
 | `services` | `[]` | Service key names to stop (`sc query` names, e.g. `"WSearch"`). The example file has a commented-out suggested list from SGB, pruned; see [services](docs/tweaks/services.md#suggested-list-from-sgb-pruned). |
@@ -210,6 +213,25 @@ restore` when you're done playing.": the rest of the boost stays until you run `
 restraint is recorded in the state file as it happens, so if the watcher is killed, `restore`
 still undoes it. If you run `restore` in another window, the watcher notices and stops.
 
+## Automatic boost
+
+`gamebooster auto` (as administrator; leave the window open) runs the same watcher without
+boosting first. When a configured `[[game]]` starts it runs the normal `boost` (`bf6.exe started:
+boosting`) and then watches like `boost --watch`. When the last game has exited it waits
+`auto_restore_delay_secs` (default 30 s; `last game exited: restoring in 30 s`); a game starting
+again within that time keeps the boost (a restart or a launcher hand-off). Then it runs the normal
+`restore` (`restored; waiting for a game`) and waits for the next game.
+
+- It only restores boosts it made. If you were already boosted when `auto` started (or boost by
+  hand while it waits), it watches that boost like `boost --watch` and leaves it for you to restore.
+- If you run `restore` in another window while a game is running, it doesn't boost again until all
+  games have exited and one starts.
+- Ctrl+C or closing the window while it is boosted restores; while it waits, it just exits. Windows
+  allows about 5 s after the window is closed: if restore doesn't finish in time, the state file
+  stays, so run `gamebooster restore`.
+- If a restore step fails, the state file is kept and `auto` treats it as a boost it didn't make:
+  run `gamebooster restore`.
+
 ## Safety and restore
 
 - Before the first change, boost writes everything restore needs to
@@ -230,8 +252,8 @@ still undoes it. If you run `restore` in another window, the watcher notices and
 ## Limitations
 
 - Game priority (process method) is set only on games already running when you boost. Start the game first, or run
-  `boost` again once it's running, or use `boost --watch`. The watcher only runs while its
-  console is open; there is no service or automatic boost.
+  `boost` again once it's running, or use `boost --watch` or `auto`. The watcher and `auto` only
+  run while their console is open; there is no service or logon task.
 - Closed apps are relaunched without their original command-line arguments.
 - The power plan values follow the spec; the sleep timeout is 0 (never), an assumption.
 - `AutoGameModeEnabled` is per user: run elevated from your own account.

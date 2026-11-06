@@ -28,6 +28,7 @@ usage: gamebooster <command> [--dry-run] [--config <file>]
 
   boost      apply the tweaks enabled in the config (if already boosted: re-apply game priority and power throttling off)
   boost --watch  boost, then keep running until Ctrl+C: game priority when a game starts, dynamic lower_others
+  auto       keep running: boost when a configured game starts, restore auto_restore_delay_secs after the last one exits
   restore    undo everything the last boost changed
   status     show whether a boost is active and what it changed
   ping       latency, jitter and loss to cloud regions near game servers, fastest first (changes nothing)
@@ -91,7 +92,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
             "--watch" if command.as_deref() == Some("boost") => watch = true,
             _ if route && host.is_none() && !a.starts_with('-') => host = Some(a),
             "--version" | "-V" if command.is_none() => command = Some("version".to_string()),
-            "boost" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" if command.is_none() => command = Some(a),
+            "boost" | "auto" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" if command.is_none() => command = Some(a),
             "compare" if command.as_deref() == Some("bench") && seconds.is_none() => command = Some("bench compare".into()),
             _ if command.as_deref() == Some("bench") && seconds.is_none() && a.parse::<u64>().is_ok() => seconds = a.parse().ok(),
             _ if matches!(command.as_deref(), Some("snapshot" | "compare" | "bench compare")) && !a.starts_with('-') => files.push(PathBuf::from(a)),
@@ -106,6 +107,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
         ("bench", _) if seconds.is_some_and(|s| !(10..=3600).contains(&s)) => Err("bench seconds: use 10 to 3600".into()),
         (c, _) if c != "bench" && label.is_some() => Err("--label only goes with bench".into()),
         _ if watch && dry_run => Err("--watch can't be combined with --dry-run".into()),
+        ("auto", _) if dry_run => Err("auto can't be combined with --dry-run".into()),
         _ => Ok(Args { command, dry_run, config, files, seconds, label, route, host, watch }),
     }
 }
@@ -245,13 +247,14 @@ fn run(args: Args) -> Result<(), String> {
     let cfg = Config::load(&config_path).map_err(|e| format!("{e}\n(run `gamebooster init` to create it, then edit it)"))?;
     let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
     if !matches!(args.command.as_str(), "status" | "ping") && (!args.dry_run || args.command == "bench") && !admin {
-        return Err("boost, restore and bench need administrator rights: right-click your terminal, \"Run as administrator\"".into());
+        return Err("boost, auto, restore and bench need administrator rights: right-click your terminal, \"Run as administrator\"".into());
     }
     match args.command.as_str() {
         "boost" => {
             boost(&cfg, &state_path, args.dry_run, args.watch)?;
-            if args.watch { watch::run(&cfg, &state_path) } else { Ok(()) }
+            if args.watch { watch::run(&cfg, &state_path, false) } else { Ok(()) }
         }
+        "auto" => watch::run(&cfg, &state_path, true),
         "restore" => restore(&cfg, &state_path, args.dry_run),
         "ping" if args.route => network::route(&cfg.ping_hosts, args.host.as_deref(), cfg.ping_samples),
         "ping" => Ok(network::ping(&cfg.ping_hosts, cfg.ping_samples)),
@@ -551,6 +554,9 @@ mod tests {
         assert!(parse_args(["boost", "--watch"].map(String::from)).unwrap().watch);
         assert!(parse_args(["restore", "--watch"].map(String::from)).is_err());
         assert!(parse_args(["boost", "--watch", "--dry-run"].map(String::from)).is_err());
+        assert_eq!(parse_args(["auto"].map(String::from)).unwrap().command, "auto");
+        assert!(parse_args(["auto", "--dry-run"].map(String::from)).is_err());
+        assert!(parse_args(["auto", "--watch"].map(String::from)).is_err());
     }
 
     #[test]

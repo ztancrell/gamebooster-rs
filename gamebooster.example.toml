@@ -187,6 +187,10 @@ close = []
 #              (BF6 launches normally, Task Manager shows High).
 # game_priority_method = "registry"
 
+# `gamebooster auto`: seconds to wait after the last game exits before restoring. A game that starts
+# again within this time keeps the boost (restart, launcher hand-off). 0 = restore at once.
+# auto_restore_delay_secs = 30
+
 # Games to raise in CPU priority while they run. Priority: realtime, high, above_normal, normal,
 # below_normal, low. Use high; realtime can freeze input and audio.
 [[game]]

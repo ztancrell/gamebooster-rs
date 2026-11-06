@@ -18,6 +18,11 @@
 //! watcher leaves `gamebooster restore` able to undo it. On exit the watcher releases what it
 //! restrained and leaves everything else boosted. If the state file disappears (restore ran in
 //! another console), the watcher stops without touching anything.
+//!
+//! **`gamebooster auto`** runs the same loop without a boost first: [`auto_step`] boosts (the normal
+//! `boost`) when a configured game starts and runs the normal `restore` `auto_restore_delay_secs`
+//! after the last one exits. It only restores boosts it made; Ctrl+C or closing the console while
+//! it is boosted restores (restore keeps the state file until it has finished).
 
 use std::collections::HashSet;
 
@@ -129,6 +134,45 @@ impl Track {
     }
 }
 
+/// `gamebooster auto`: where it stands. Times are milliseconds since the watcher started.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Auto {
+    /// Not boosted: boost when a configured game starts.
+    Idle,
+    /// Our boost, a game running.
+    Boosted,
+    /// Our boost, no game running since this time: restore once the delay has passed.
+    Grace(u64),
+    /// A boost auto didn't make (state file found): watch it like `boost --watch`, never restore it.
+    Manual,
+    /// Restore ran elsewhere while a game was running: don't boost again until no game runs.
+    Disarmed,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AutoDo {
+    Boost,
+    Restore,
+}
+
+/// One tick of `auto`. `boosted`: the state file exists.
+pub fn auto_step(s: Auto, now: u64, game: bool, boosted: bool, delay_ms: u64) -> (Auto, Option<AutoDo>) {
+    use Auto::*;
+    match s {
+        Idle if boosted => (Manual, None),
+        Idle if game => (Boosted, Some(AutoDo::Boost)),
+        Idle => (Idle, None),
+        Disarmed if !game => (Idle, None),
+        Disarmed => (Disarmed, None),
+        _ if !boosted => (if game { Disarmed } else { Idle }, None), // restore ran elsewhere
+        Manual => (Manual, None),
+        Boosted | Grace(_) if game => (Boosted, None),
+        Boosted => auto_step(Grace(now), now, game, boosted, delay_ms),
+        Grace(t) if now.saturating_sub(t) >= delay_ms => (Idle, Some(AutoDo::Restore)),
+        Grace(t) => (Grace(t), None),
+    }
+}
+
 #[cfg(windows)]
 pub use sys::run;
 
@@ -212,12 +256,22 @@ mod sys {
         track: Track,
     }
 
-    pub fn run(cfg: &Config, state_path: &Path) -> Result<(), String> {
+    /// `auto`: boost when a game starts and restore after the last one exits (see [`auto_step`]).
+    pub fn run(cfg: &Config, state_path: &Path, auto: bool) -> Result<(), String> {
+        if auto && cfg.games.is_empty() {
+            return Err("auto needs at least one [[game]] in the config".into());
+        }
+        let delay = cfg.auto_restore_delay_secs;
         let cpus = std::thread::available_parallelism().map_or(0, |n| n.get());
         let t = thresholds(cpus);
         let dynamic = cfg.dynamic_lowering();
         unsafe { SetConsoleCtrlHandler(Some(on_ctrl), 1) };
-        println!("Watching once a second until Ctrl+C or this window closes.");
+        if auto {
+            println!("Auto: boost when a configured game starts, restore {delay} s after the last one exits.");
+            println!("Ctrl+C or closing this window restores a boost auto made, then exits.");
+        } else {
+            println!("Watching once a second until Ctrl+C or this window closes.");
+        }
         println!("  games: priority and power throttling set when a configured game starts");
         if dynamic {
             println!("  lower others (dynamic, {cpus} logical CPUs): restrain to below normal when the machine is >= {} % busy and a process uses >= {} % for {:.1} s; release under {} % after >= {:.1} s, or when it comes to the foreground",
@@ -235,6 +289,7 @@ mod sys {
         let mut procs: HashMap<u32, Entry> = HashMap::new();
         let mut games: HashSet<u32> = HashSet::new();
         let (mut last_status, mut status_at) = (String::new(), None::<Instant>);
+        let mut mode = Auto::Idle;
         let stopped_by_restore = loop {
             for _ in 0..TICK_MS / 100 {
                 if !STOP.load(SeqCst) {
@@ -246,7 +301,7 @@ mod sys {
             }
             // ponytail: a restore landing between this check and a journal write can leave a fresh
             // state file behind; narrow window, a second `restore` cleans it up.
-            if !state_path.exists() {
+            if !auto && !state_path.exists() {
                 println!("Not boosted any more (restore ran): stopping the watcher.");
                 break true;
             }
@@ -261,16 +316,50 @@ mod sys {
 
             // Games: apply to a newly started one (re-applying to the others is harmless).
             let running: HashSet<u32> = list.iter().filter(|p| cfg.is_game(&p.name)).map(|p| p.pid).collect();
-            if running.iter().any(|p| !games.contains(p)) {
+            let mut fresh = running.iter().any(|p| !games.contains(p));
+            if auto {
+                let (next, act) = auto_step(mode, ms, !running.is_empty(), state_path.exists(), delay * 1000);
+                let game = list.iter().find(|p| running.contains(&p.pid)).map_or("game", |p| p.name.as_str());
+                match (mode, next, act) {
+                    (_, _, Some(AutoDo::Boost)) => {
+                        println!("{game} started: boosting");
+                        if let Err(e) = crate::boost(cfg, state_path, false, true) {
+                            println!("boost failed: {e}");
+                        }
+                        fresh = false; // boost just applied game priority
+                    }
+                    (_, _, Some(AutoDo::Restore)) => {
+                        println!("{}", if mode == Auto::Boosted { "last game exited: restoring".to_string() } else { format!("no game for {delay} s: restoring") });
+                        if let Err(e) = crate::restore(cfg, state_path, false) {
+                            println!("restore failed: {e}");
+                        }
+                        if !state_path.exists() {
+                            println!("restored; waiting for a game");
+                        } // else: the next tick sees the kept state file as a boost auto didn't make
+                    }
+                    (Auto::Boosted, Auto::Grace(_), _) => println!("last game exited: restoring in {delay} s"),
+                    (Auto::Grace(_), Auto::Boosted, _) => println!("{game} started again: keeping the boost"),
+                    (_, Auto::Manual, _) => println!("Already boosted, not by auto: watching it like `boost --watch`; auto won't restore it"),
+                    (_, Auto::Disarmed, _) => println!("Not boosted any more (restore ran): waiting until the games exit"),
+                    (Auto::Disarmed, Auto::Idle, _) => println!("games exited; waiting for a game"),
+                    (Auto::Boosted | Auto::Grace(_) | Auto::Manual, Auto::Idle, None) => println!("Not boosted any more (restore ran); waiting for a game"),
+                    _ => {}
+                }
+                mode = next;
+            }
+            let boosted = state_path.exists();
+            if fresh && boosted {
                 println!("Game started:");
                 priority::apply(&cfg.games, false, cfg.game_power_throttling_off, cfg.process_priority());
             }
-            if games.iter().any(|p| !running.contains(p)) && running.is_empty() {
+            if !auto && games.iter().any(|p| !running.contains(p)) && running.is_empty() {
                 println!("Game exited (its priority and power throttling ended with it).");
             }
             games = running;
 
-            if dynamic {
+            if !boosted {
+                procs.clear(); // restore reset what was restrained; nothing to journal into
+            } else if dynamic {
                 let alive: HashSet<u32> = list.iter().map(|p| p.pid).collect();
                 procs.retain(|pid, e| {
                     let keep = alive.contains(pid);
@@ -345,7 +434,13 @@ mod sys {
             }
         };
 
-        if !stopped_by_restore {
+        if matches!(mode, Auto::Boosted | Auto::Grace(_)) {
+            // If Windows ends us mid-restore (console closed), the state file stays for a later `restore`.
+            println!("Stopping: restoring the boost auto made.");
+            if let Err(e) = crate::restore(cfg, state_path, false) {
+                println!("restore failed: {e}");
+            }
+        } else if !stopped_by_restore && state_path.exists() {
             let held: Vec<Lowered> = procs.iter().filter(|(_, e)| e.track.restrained_at.is_some())
                 .map(|(&pid, e)| Lowered { pid, exe: e.exe.clone(), created: e.created, old_class: NORMAL_CLASS }).collect();
             println!("Stopping the watcher.");
@@ -443,5 +538,29 @@ mod tests {
         assert_eq!(tr.step(2000, 50.0, 9.0, false, t), None);
         assert_eq!(tr.step(3000, 50.0, 9.0, false, t), Some(Event::Restrain));
         assert_eq!(tr.step(3500, 50.0, 30.0, true, t), Some(Event::Release));
+    }
+
+    #[test]
+    fn auto_grace_and_rearm() {
+        use Auto::*;
+        let d = 30_000;
+        assert_eq!(auto_step(Idle, 0, false, false, d), (Idle, None));
+        assert_eq!(auto_step(Idle, 0, true, false, d), (Boosted, Some(AutoDo::Boost))); // game starts
+        assert_eq!(auto_step(Boosted, 1000, true, true, d), (Boosted, None));
+        assert_eq!(auto_step(Boosted, 5000, false, true, d), (Grace(5000), None)); // last game exits
+        assert_eq!(auto_step(Grace(5000), 20_000, false, true, d), (Grace(5000), None));
+        assert_eq!(auto_step(Grace(5000), 20_000, true, true, d), (Boosted, None)); // restart within the grace
+        assert_eq!(auto_step(Grace(5000), 35_000, false, true, d), (Idle, Some(AutoDo::Restore))); // grace over
+        assert_eq!(auto_step(Boosted, 5000, false, true, 0), (Idle, Some(AutoDo::Restore))); // delay 0: at once
+        // Boosted by hand (state file at start): watched, never restored, even with no game.
+        assert_eq!(auto_step(Idle, 0, true, true, d), (Manual, None));
+        assert_eq!(auto_step(Manual, 99_000, false, true, d), (Manual, None));
+        assert_eq!(auto_step(Manual, 99_000, false, false, d), (Idle, None)); // restored by hand
+        // `restore` in another window while the game runs: no boost until all games are gone.
+        assert_eq!(auto_step(Boosted, 1000, true, false, d), (Disarmed, None));
+        assert_eq!(auto_step(Grace(0), 1000, true, false, d), (Disarmed, None));
+        assert_eq!(auto_step(Disarmed, 2000, true, false, d), (Disarmed, None));
+        assert_eq!(auto_step(Disarmed, 3000, false, false, d), (Idle, None));
+        assert_eq!(auto_step(Grace(0), 1000, false, false, d), (Idle, None)); // restored by hand in the grace
     }
 }

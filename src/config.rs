@@ -64,6 +64,9 @@ pub struct Config {
     /// (IFEO `PerfOptions\CpuPriorityClass`, applied by Windows when the game starts).
     #[serde(default)]
     pub game_priority_method: PriorityMethod,
+    /// `gamebooster auto`: seconds to wait after the last game exits before restoring (0 = at once).
+    #[serde(default = "thirty")]
+    pub auto_restore_delay_secs: u64,
     #[serde(default, rename = "game")]
     pub games: Vec<Game>,
 }
@@ -122,6 +125,9 @@ fn full() -> u32 {
 }
 fn ten() -> usize {
     10
+}
+fn thirty() -> u64 {
+    30
 }
 
 fn high() -> Priority {
@@ -208,6 +214,7 @@ mod tests {
         assert!(cfg.power_plan && cfg.game_mode && !cfg.ram_trim && !cfg.fastest_dns);
         assert_eq!(cfg.ping_hosts.len(), crate::network::DEFAULT_PING_HOSTS.len());
         assert_eq!(cfg.ping_samples, 10);
+        assert_eq!(cfg.auto_restore_delay_secs, 30);
         assert!(Config::parse("ping_samples = 0").is_err());
         assert!(cfg.services.is_empty() && cfg.close.is_empty());
         assert!(!cfg.lower_others && cfg.lower_others_class == LowerClass::BelowNormal && cfg.lower_others_exclude.is_empty());

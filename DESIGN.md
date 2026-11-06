@@ -15,9 +15,6 @@ Windows via Boot Camp, playing BF6.
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
   (Turbo is back on since 2026-11-05; watching whether the lock returns in BF6. Fallback:
   `max_cpu_mhz = 3000`.)
-- Automatic boost mode (boost when a configured game starts, restore when the last one exits)?
-  Deferred 2026-11-05. The `boost --watch` watcher now exists (it already applies game priority
-  when a game starts), so auto-boost could build on it; still deferred.
 - How to measure BF6 when its anti-cheat blocks ETW capture (bench incomplete, 2026-11-05): confirm
   the cause, then choose BF6 overlay / screen-update counting / another game.
 
@@ -75,6 +72,11 @@ Windows via Boot Camp, playing BF6.
   never Realtime. Low but nonzero risk that an anti-cheat objects to IFEO entries.
 - 2026-11-05: `status` warns when the active plan's Maximum processor state is below 100 (AC or
   DC), after the 80 % cap found on the target Mac; our own plan at `max_processor_state` is only a note.
+- 2026-11-06: Automatic boost: `gamebooster auto` (console, run as admin, window left open) waits
+  for a configured `[[game]]`, runs the full boost when one starts, and restores 30 s after the last
+  one exits (`auto_restore_delay_secs`; a restart or launcher hand-off within the grace keeps the
+  boost). Built on the `boost --watch` watcher. It only restores boosts it made itself; closing the
+  window while it is boosted restores. No logon task / service for now.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

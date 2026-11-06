@@ -101,7 +101,8 @@ break things, cost privacy or security, or trip anti-cheat), **bloat**.
      (SystemParametersInfo). This is comfort, not FPS, and fully reversible. Built 2026-11-05:
      [accessibility shortcuts](../tweaks/accessibility-shortcuts.md).
   2. If gamebooster-rs ever gets an automatic mode: restore only when the **last** watched game exits
-     (Cortex counts running games), so a second game doesn't get un-boosted.
+     (Cortex counts running games), so a second game doesn't get un-boosted. Built 2026-11-06:
+     `gamebooster auto` ([Automatic boost](../../README.md#automatic-boost)).
   3. Optional, for a custom power plan: copy the user's **lid and power-button actions and screen
      brightness** from the current plan into the boost plan, so switching plans doesn't change them.
      Built 2026-11-05 (lid, power button, sleep button): [power plan](../tweaks/power-plan.md).
