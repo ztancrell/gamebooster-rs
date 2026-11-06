@@ -135,8 +135,8 @@ Boost and restore without `--dry-run`, and bench, refuse to run without administ
 
 ## Measuring
 
-Every tweak should show a measurable gain on the target Mac, or be documented as not helping.
-Status: not working yet on the target Mac (BF6's anti-cheat appears to block the capture); see
+Optional: tweaks are judged by feel on the target Mac, because BF6's anti-cheat (assumed) blocks
+the capture there. `bench` works on games that allow ETW trace sessions; see
 [docs/measuring.md](docs/measuring.md).
 
 With the game running in a match, in an administrator terminal:

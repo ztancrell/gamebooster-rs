@@ -16,8 +16,6 @@ Windows via Boot Camp, playing BF6.
   (Turbo is back on since 2026-11-05; watching whether the lock returns in BF6. Fallback:
   `max_cpu_mhz = 3000`. 2026-11-06: a BF6 session with Turbo on showed no 800 MHz lock, ~2.75 GHz
   all-core under load.)
-- How to measure BF6 when its anti-cheat blocks ETW capture (bench incomplete, 2026-11-05): confirm
-  the cause, then choose BF6 overlay / screen-update counting / another game.
 
 ## Decided
 
@@ -55,7 +53,7 @@ Windows via Boot Camp, playing BF6.
   DC) from the previous plan, like brightness, instead of SGB's "lid does nothing".
 - 2026-11-05: Every tweak must be measurable: keep what helps on the target Mac, document what
   doesn't. `gamebooster bench` records frame times (PresentMon, no injection) and compares runs
-  with run-to-run noise accounted for. (Status: incomplete, see Open questions)
+  with run-to-run noise accounted for. Superseded 2026-11-06: no measuring, see below.
 - 2026-11-05: While boosted, opt the running game out of Windows power throttling (EcoQoS)
   (`game_power_throttling_off`, default on: harmless and process-scoped, nothing stored). Applied
   with game priority; restore hands control back to Windows. No timer-resolution flag. From the
@@ -65,7 +63,7 @@ Windows via Boot Camp, playing BF6.
   `lower_others_mode = "dynamic"` restrains busy background processes ProBalance-style (Process
   Lasso's per-CPU-count thresholds, Below normal only, never the foreground app). Each restraint is
   journalled in the state file; stopping the watcher releases them, `restore` undoes the rest.
-  Measure with bench (off / once / dynamic) before keeping dynamic.
+  (Measuring dynamic first was dropped 2026-11-06.)
 - 2026-11-05: `game_priority_method = "registry"` (default `"process"`): BF6's anti-cheat blocks
   `SetPriorityClass` from outside, so boost can instead write the game's IFEO
   `PerfOptions\CpuPriorityClass`, which Windows applies at game start. Recorded in the state file
@@ -80,6 +78,10 @@ Windows via Boot Camp, playing BF6.
   window while it is boosted restores. No logon task / service for now.
   With the registry priority method auto holds the IFEO entries for its whole run (written at auto
   start, put back at auto exit, journalled in `gamebooster-auto-ifeo.json` for `restore`).
+- 2026-11-06: No measuring of tweaks: BF6's anti-cheat (assumed, not tested: EAAntiCheatService
+  blocks ETW trace sessions system-wide) stops `bench`, and the user goes by feel instead. `bench`
+  stays as built for games that allow ETW. If `bench` fails on a game without EA anti-cheat, the
+  assumption is wrong: look again.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.

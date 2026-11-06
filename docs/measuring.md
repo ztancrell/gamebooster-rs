@@ -6,6 +6,9 @@ by run-to-run noise.
 
 ## Status
 
+2026-11-06: measuring is dropped for BF6 (DESIGN.md). The anti-cheat is assumed to be the cause;
+the confirmation test below was not run. `bench` is kept for games that allow ETW.
+
 Not complete: `bench` does not work yet on the target Mac. First Windows test, 2026-11-05 (Boot Camp
 MacBook Pro, elevated PowerShell, account in Administrators and Performance Log Users):
 
