@@ -29,7 +29,9 @@ pub fn update(exe: &Path, boosted: bool) -> Result<(), String> {
     // .exe extension so it can be started for the --version check.
     let new = exe.with_extension("new.exe");
     println!("current: gamebooster {VERSION}\ndownloading {URL}");
-    let ok = Command::new("curl.exe").args(["-fL", "--progress-bar", "-o"]).arg(&new).arg(URL).status()
+    // Unique query: some GitHub edges cache the `latest` redirect and point at a deleted asset (404).
+    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let ok = Command::new("curl.exe").args(["-fL", "--progress-bar", "-o"]).arg(&new).arg(format!("{URL}?t={t}")).status()
         .map_err(|e| format!("can't run curl.exe (needs Windows 10 1803 or later): {e}"))?
         .success();
     let r = if ok { swap(exe, &new, boosted) } else { Err("download failed (see curl's message above)".into()) };
