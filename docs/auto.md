@@ -23,3 +23,22 @@ again within that time keeps the boost (a restart or a launcher hand-off). Then 
   puts them back (run while `auto` is still open, it ends that hold as well). If a boost is still
   active when `auto` exits (one it didn't make), the entries go to that boost's state file and its
   `restore` puts them back.
+
+## Start at logon
+
+A scheduled task can start `auto` when you log on, as administrator, in its own console window
+(closing that window restores, as above). Run once in an administrator PowerShell:
+
+```powershell
+$u = "$env:COMPUTERNAME\$env:USERNAME"
+$a = New-ScheduledTaskAction -Execute 'C:\gamebooster-rs\gamebooster.exe' -Argument 'auto' -WorkingDirectory 'C:\gamebooster-rs'
+$t = New-ScheduledTaskTrigger -AtLogOn -User $u
+$p = New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Highest
+$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0 -MultipleInstances IgnoreNew
+Register-ScheduledTask -TaskName gamebooster -Action $a -Trigger $t -Principal $p -Settings $s
+```
+
+The settings override Task Scheduler defaults that would break `auto`: no start on battery, stop
+when unplugged, and a 72-hour kill. Use `$env:COMPUTERNAME`, not `$env:USERDOMAIN` (over SSH the
+latter is `WORKGROUP` and registration fails). Remove with
+`Unregister-ScheduledTask gamebooster -Confirm:$false`; start it now with `Start-ScheduledTask gamebooster`.
