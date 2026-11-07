@@ -28,6 +28,11 @@ Windows via Boot Camp, playing BF6.
   15–17x and cut the GPU limit 35 → 30 W after ~7 min; ~60 FPS then ~45 FPS. The limit is Apple's
   shared power/thermal budget. See
   [docs/hardware-test.md](docs/hardware-test.md#max_cpu_mhz--3000-without-throttlestop-hwinfo-log-2026-11-07-524536).
+  The charger is the official Apple 96 W brick with its stock cable, so "charger under 96 W" is
+  ruled out. Convergence and Spec Ops survival (13:32–14:04) hit the same cap faster and lower
+  (GPU ~30 W, CPU ~14 W at 13–16x, 69–73 °C). Open: which input the firmware follows (SMC
+  skin temperatures or fans were not logged). See
+  [docs/hardware-test.md](docs/hardware-test.md#convergence-and-spec-ops-survival-hwinfo-log-2026-11-07-1332-1404).
 
 ## Decided
 

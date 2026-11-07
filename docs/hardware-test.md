@@ -367,8 +367,10 @@ Facts:
     *Disable Turbo* (the 2026-11-05 cause, see above) is a CPU register setting that stays until
     reboot, so a ThrottleStop run earlier in that Windows session is not ruled out.
 
-Hypothesis (unconfirmed): Apple's firmware shares one power budget between CPU and GPU, and a
-charger smaller than the stock 96 W shrinks it. Which charger was used is being checked.
+Hypothesis: Apple's firmware shares one power budget between CPU and GPU, and a charger smaller
+than the stock 96 W shrinks it. Superseded: the charger is the official Apple 96 W brick with
+its stock cable (user, 2026-11-07), so a small charger is ruled out; the shared budget stands, see
+[the Convergence / Spec Ops log](#convergence-and-spec-ops-survival-hwinfo-log-2026-11-07-1332-1404).
 
 Next:
 
@@ -415,3 +417,23 @@ ThrottleStop closed and rebooted; Turbo allowed, plan cap 3000 MHz; BF6 for ~12 
 - Battery (HWiNFO): charge rate 0 W, capacity roughly flat (~67 Wh); no clear drain.
 
 Conclusion: the remaining limit is Apple's firmware power/thermal budget, not a Windows setting.
+
+### Convergence and Spec Ops survival, HWiNFO log (2026-11-07, 13:32–14:04)
+
+Two other games, ~31 minutes, 2 s samples, on the official Apple 96 W charger and stock cable
+(file `applesmc-1.CSV` on the Mac; despite the name it holds no Apple SMC sensors, so no fan
+speeds or SMC temperatures).
+
+- **Same squeeze as BF6, faster and lower.** Within ~3 minutes the firmware cut the GPU limit
+  (PPT Limit [W]) 46 → 35 → ~30 W (28.5–33 W for the rest) and the CPU from 28 W / 26x to
+  ~14 W / 13–16x (1.3–1.6 GHz). Combined CPU + GPU ~44 W, below the ~50 W of the BF6 log.
+- **Not heat, as far as the logged sensors show:** after the first minute CPU 69–73 °C, GPU
+  ~73 °C (hotspot ~77 °C). A thermal flag appears in 19 of 943 samples, all at the 93 °C start;
+  no PL1/PL2 or PROCHOT. GPU at its limit throughout (~97 % busy, ~500–600 MHz).
+- **Both chips were limiting:** in the first game the CPU was 75–80 % busy at ~1.35 GHz while the
+  GPU was 97 % busy; 20–25 FPS. Second game (from ~13:53) CPU 45–65 % busy, 17–28 FPS.
+- Battery charged 96 → 100 % then held (charge rate 0 W): on AC all the way.
+
+Conclusion: with the stock 96 W charger ruled out, the cap is Apple's firmware budget. Untested
+guess: the firmware may follow sensors HWiNFO did not log here (SMC skin/palm-rest temperatures,
+fans). Logging the Apple SMC sensor group would show it.
