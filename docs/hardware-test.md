@@ -420,7 +420,7 @@ Conclusion: the remaining limit is Apple's firmware power/thermal budget, not a 
 
 ### Convergence and Spec Ops survival, HWiNFO log (2026-11-07, 13:32–14:04)
 
-Two other games, ~31 minutes, 2 s samples, on the official Apple 96 W charger and stock cable
+Convergence, then a match of the BF6 Portal "Spec Ops Survival" experience; ~31 minutes, 2 s samples, on the official Apple 96 W charger and stock cable
 (file `applesmc-1.CSV` on the Mac; despite the name it holds no Apple SMC sensors, so no fan
 speeds or SMC temperatures).
 
