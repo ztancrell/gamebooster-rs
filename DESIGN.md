@@ -24,6 +24,10 @@ Windows via Boot Camp, playing BF6.
   2026-11-07 (8 cores): Turbo off via ThrottleStop felt better in BF6 (CPU 2.29 GHz, ~49 % busy;
   GPU ~96 % busy), which fits the shared-budget idea; `max_cpu_mhz` was overridden by ThrottleStop. See
   [docs/hardware-test.md](docs/hardware-test.md#turbo-off-for-bf6-and-max_cpu_mhz-vs-throttlestop-2026-11-07).
+  Later 2026-11-07 (HWiNFO, ThrottleStop closed): `max_cpu_mhz` works, but the firmware held the CPU at
+  15–17x and cut the GPU limit 35 → 30 W after ~7 min; ~60 FPS then ~45 FPS. The limit is Apple's
+  shared power/thermal budget. See
+  [docs/hardware-test.md](docs/hardware-test.md#max_cpu_mhz--3000-without-throttlestop-hwinfo-log-2026-11-07-524536).
 
 ## Decided
 

@@ -391,3 +391,27 @@ Test of "cap the CPU so the GPU gets more of the shared budget", after the 8-cor
 - **Result: the user reports BF6 runs better** (by feel; no FPS or GPU clock numbers recorded).
 - Battery WMI (`root\wmi BatteryStatus`) under Boot Camp is unusable as a charger check: it
   reported neither charging nor discharging while *RemainingCapacity* rose 970 mWh in 10 s.
+
+### `max_cpu_mhz = 3000` without ThrottleStop, HWiNFO log (2026-11-07, ~5:24–5:36)
+
+ThrottleStop closed and rebooted; Turbo allowed, plan cap 3000 MHz; BF6 for ~12 minutes on AC.
+
+- **The cap works without ThrottleStop**, but it hardly matters: the CPU was at 30–32x for about a
+  minute, then Apple's firmware took it down to 23x, 18x and finally 15–17x (1.5–1.7 GHz,
+  package ~17–22 W, ~72–80 °C) with **no Intel limit reason flagged**. The same pattern as the
+  22x lock above, only lower.
+- **GPU power limit (PPT Limit [W]) set by the firmware changed during the session:** 50 W while
+  loading, 35 W for ~7 minutes (GPU ~1000–1100 MHz, effective ~850–900), then from 5:31:27
+  **30 W** for the rest (GPU ~610–700 MHz). The GPU sat at its limit throughout. When the GPU
+  limit dropped, the CPU went from 15x to 17x: the firmware seems to shift one shared budget
+  between CPU and GPU (CPU ~17–20 W + GPU 30–35 W ≈ 50 W).
+- **GPU temperature** peaked at 92 °C (hotspot 100 °C) in the first minutes, then settled at
+  ~75–80 °C (hotspot ~80–85 °C).
+- **Frame rate (PresentMon):** ~60 FPS (16.7 ms frames, likely a 60 Hz / vsync cap) while the
+  GPU had 35 W, ~41–48 FPS (1 % lows ~30) once it dropped to 30 W. Far above the morning's
+  12–20 FPS, but that session was before the `numproc` fix, so the cap alone can't take credit.
+  At 45 FPS, GPU busy and CPU busy were both ~22 ms per frame: the 1.5 GHz CPU was close to
+  being a second limit.
+- Battery (HWiNFO): charge rate 0 W, capacity roughly flat (~67 Wh); no clear drain.
+
+Conclusion: the remaining limit is Apple's firmware power/thermal budget, not a Windows setting.
