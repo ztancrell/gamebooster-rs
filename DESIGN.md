@@ -25,7 +25,7 @@ Windows via Boot Camp, playing BF6.
 ## Decided
 
 - 2026-11-07: The target Mac's CPU is an i9-9880H (8 cores / 16 threads), not an i7-9750H. A BCD
-  `numproc 12` had disabled 2 cores; it was removed (effective after reboot). Measurements before
+  `numproc 12` had disabled 2 cores; it was removed; after the reboot Windows shows 8 cores / 16 threads. Measurements before
   this date were taken with 6 cores / 12 threads active. See
   [docs/hardware-test.md](docs/hardware-test.md#numproc-gpu-power-limit-and-cpu-22x-lock-2026-11-07).
 - 2026-11-05: The target Mac's ~22 W / ~2.29 GHz cap was not gamebooster and not the hardware:

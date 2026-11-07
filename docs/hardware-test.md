@@ -354,8 +354,8 @@ Facts:
 - **`numproc 12`.** Windows' BCD had the boot option `numproc 12`, so only 6 cores / 12 threads
   were active. That is why earlier notes recorded an "i7-9750H (6 cores / 12 threads)": every
   measurement before 2026-11-07 is the i9 with 2 cores disabled. Who set it is unknown. Removed on
-  2026-11-07 with `bcdedit /deletevalue {current} numproc`, effective from the next reboot (the
-  reboot is not confirmed yet).
+  2026-11-07 with `bcdedit /deletevalue {current} numproc`, effective from the next reboot.
+  Confirmed after the reboot on 2026-11-07: Task Manager shows 8 cores / 16 logical processors.
 - **BF6 session, HWiNFO log.** gamebooster boost active, on AC (battery 93 %, charge rate 0 W).
   - GPU: ~99 % busy and at its power limit (*GPU PPT Limit* ~100 %), the PPT limit switching
     between 30 W and 25 W; GPU clock ~300–900 MHz; GPU 72–76 °C, hotspot up to ~84 °C.
@@ -363,16 +363,16 @@ Facts:
   - CPU locked at 22x (~2.2 GHz), 13–27 W package power, 72–80 °C, with no limit reason flagged
     (no PROCHOT, thermal or PL1/PL2; PL1 100 W / PL2 125 W static).
   - Windows plan: turbo boost mode aggressive, no maximum frequency cap, maximum processor state
-    100 %. So neither the plan nor ThrottleStop's *Disable Turbo* (the 2026-11-05 cause, see above)
-    explains the 22x lock this time.
+    100 %, so the plan does not explain the 22x lock. ThrottleStop was not running, but its
+    *Disable Turbo* (the 2026-11-05 cause, see above) is a CPU register setting that stays until
+    reboot, so a ThrottleStop run earlier in that Windows session is not ruled out.
 
 Hypothesis (unconfirmed): Apple's firmware shares one power budget between CPU and GPU, and a
 charger smaller than the stock 96 W shrinks it. Which charger was used is being checked.
 
 Next:
 
-1. Reboot, then confirm 8 cores / 16 threads in Task Manager (*Performance* > *CPU*: Cores 8,
-   Logical processors 16).
+1. Done 2026-11-07: after the reboot Task Manager shows Cores 8, Logical processors 16.
 2. Replay the same BF6 map on the stock 96 W charger plugged straight in (no hub or adapter). Log
    *GPU PPT Limit*, GPU clock and FPS in HWiNFO and compare with the session above.
 3. Check whether the CPU 22x lock persists after the reboot (HWiNFO core multiplier and limit
