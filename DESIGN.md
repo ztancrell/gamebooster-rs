@@ -21,6 +21,9 @@ Windows via Boot Camp, playing BF6.
   limit reason flagged. Is it a shared CPU+GPU power budget shrunk by a charger under 96 W
   (hypothesis), and does the 22x lock survive the reboot that removes `numproc 12`? See
   [docs/hardware-test.md](docs/hardware-test.md#numproc-gpu-power-limit-and-cpu-22x-lock-2026-11-07).
+  2026-11-07 (8 cores): Turbo off via ThrottleStop felt better in BF6 (CPU 2.29 GHz, ~49 % busy;
+  GPU ~96 % busy), which fits the shared-budget idea; `max_cpu_mhz` was overridden by ThrottleStop. See
+  [docs/hardware-test.md](docs/hardware-test.md#turbo-off-for-bf6-and-max_cpu_mhz-vs-throttlestop-2026-11-07).
 
 ## Decided
 

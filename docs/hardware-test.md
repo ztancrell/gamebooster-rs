@@ -377,3 +377,17 @@ Next:
    *GPU PPT Limit*, GPU clock and FPS in HWiNFO and compare with the session above.
 3. Check whether the CPU 22x lock persists after the reboot (HWiNFO core multiplier and limit
    reasons, under BF6 and under TS Bench).
+
+### Turbo off for BF6, and `max_cpu_mhz` vs ThrottleStop (2026-11-07)
+
+Test of "cap the CPU so the GPU gets more of the shared budget", after the 8-core reboot.
+
+- **`max_cpu_mhz = 3000` did not hold.** Our plan showed *maximum processor frequency 3000 MHz*,
+  but `status` measured 4351 MHz under one busy thread. ThrottleStop was running; it programs the
+  CPU's limits itself and overrides the Windows plan's frequency cap. Whether the cap works
+  without ThrottleStop is untested.
+- **ThrottleStop *Disable Turbo* (kept running, minimized) did hold:** 2289 MHz in BF6, CPU ~49 %
+  busy, GPU 3D ~96 % busy. The CPU has headroom even without turbo, so the cap costs BF6 nothing.
+- **Result: the user reports BF6 runs better** (by feel; no FPS or GPU clock numbers recorded).
+- Battery WMI (`root\wmi BatteryStatus`) under Boot Camp is unusable as a charger check: it
+  reported neither charging nor discharging while *RemainingCapacity* rose 970 mWh in 10 s.
