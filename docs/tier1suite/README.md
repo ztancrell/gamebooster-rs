@@ -52,7 +52,7 @@ explains, and never writes. **Free** marks the Free tier; everything else needs 
 same for every registry entry: the previous value is written back, or deleted if it did not exist.
 None of the entries needs a driver. Anti-cheat risk is "none" unless noted: these are ordinary,
 documented settings, and nothing touches a game process. **Heat** is for a heat-limited laptop CPU
-such as the target Mac's i7-9750H.
+such as the target Mac's i9-9880H.
 
 ### Latency (12)
 

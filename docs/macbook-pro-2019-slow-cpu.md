@@ -1,6 +1,6 @@
 # MacBook Pro 2019 stuck slow in Windows (Boot Camp)
 
-For a 2019 MacBook Pro with an Intel i7-9750H (or a similar Coffee Lake chip) running Windows 10
+For a 2019 MacBook Pro with an Intel i9-9880H, i7-9750H or a similar Coffee Lake chip running Windows 10
 or 11 under Boot Camp, when the CPU stays slow under load. Found and fixed on a real machine on
 2026-11-05; the full notes are in [hardware-test.md](hardware-test.md#cpu-clock-and-power-under-load-2026-11-05).
 
@@ -84,8 +84,9 @@ Leave **BD PROCHOT** ticked: that's a safety feature, not the problem.
 
 Run ThrottleStop's TS Bench (or a game) and watch the clock:
 
-- About 4.0 GHz on all cores under full load (the tested Mac held 4050 MHz; Intel's all-core
-  turbo spec is 4.0 GHz). About 4.4 GHz at light load (single-core maximum is 4.5 GHz).
+- About 4.0 GHz on all cores under full load (the tested i9-9880H held 4050 MHz, measured with 2
+  cores disabled by `numproc 12`, see [hardware-test.md](hardware-test.md)). Higher at light load
+  (single-core maximum 4.8 GHz on the i9-9880H, 4.5 GHz on the i7-9750H).
 - Package power up to about 85 W.
 - Temperatures mostly 54 to 70 °C, with brief peaks to 100 °C.
 - ThrottleStop's PROCHOT indicator may flicker red briefly at those peaks. That's normal thermal

@@ -70,7 +70,7 @@ Constant defaults (all CPU counts):
 Worked example, 2019 MacBook Pro 16" with 16 threads: restrain a process when the whole machine is at
 or above 10 % and the process has been at or above 5 % of the machine (0.8 of one thread) for
 900 ms. It is restored once it is below 2 % and has been restrained for at least 4.2 s. With 12
-threads (i7-9750H) the thresholds are 10 / 7 / 3 %; with 8 threads (13" models) 11 / 8 / 4 %.
+threads (i7-9750H, or the target i9-9880H while `numproc 12` was set) the thresholds are 10 / 7 / 3 %; with 8 threads (13" models) 11 / 8 / 4 %.
 
 ## ProBalance: the algorithm
 

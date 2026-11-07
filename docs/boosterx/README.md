@@ -126,8 +126,8 @@ undo count.
 2. **IFEO `IoPriority` / `PagePriority` beside our `CpuPriorityClass`**: **skip**. Normal I/O and
    page priority are already the top values a user process gets (High I/O is reserved), so for a
    game they are no-ops. They only help as *lowering* tools, and `lower_others` covers that.
-3. **Affinity presets (one thread per core, skip CPU 0)**: **skip**. Frostbite spreads across all 12
-   threads of the i7-9750H. Touching a protected game's affinity is what EA Javelin blocks. The
+3. **Affinity presets (one thread per core, skip CPU 0)**: **skip**. Frostbite spreads across all 16
+   threads of the i9-9880H. Touching a protected game's affinity is what EA Javelin blocks. The
    vendor itself says leave All cores.
 4. **MSI mode / interrupt affinity / Interrupt Routing Lock**: **skip**. Reboot-only, persistent,
    not undoable by `restore`, and the Radeon and Apple Boot Camp drivers already choose their

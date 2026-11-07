@@ -16,9 +16,18 @@ Windows via Boot Camp, playing BF6.
   (Turbo is back on since 2026-11-05; watching whether the lock returns in BF6. Fallback:
   `max_cpu_mhz = 3000`. 2026-11-06: a BF6 session with Turbo on showed no 800 MHz lock, ~2.75 GHz
   all-core under load.)
+- BF6 on the Mac is GPU-power-bound: on 2026-11-07 the Radeon Pro 5500M sat at its PPT limit
+  (switching 25–30 W, clock ~300–900 MHz, 12–20 FPS) while the CPU stayed locked at 22x with no
+  limit reason flagged. Is it a shared CPU+GPU power budget shrunk by a charger under 96 W
+  (hypothesis), and does the 22x lock survive the reboot that removes `numproc 12`? See
+  [docs/hardware-test.md](docs/hardware-test.md#numproc-gpu-power-limit-and-cpu-22x-lock-2026-11-07).
 
 ## Decided
 
+- 2026-11-07: The target Mac's CPU is an i9-9880H (8 cores / 16 threads), not an i7-9750H. A BCD
+  `numproc 12` had disabled 2 cores; it was removed (effective after reboot). Measurements before
+  this date were taken with 6 cores / 12 threads active. See
+  [docs/hardware-test.md](docs/hardware-test.md#numproc-gpu-power-limit-and-cpu-22x-lock-2026-11-07).
 - 2026-11-05: The target Mac's ~22 W / ~2.29 GHz cap was not gamebooster and not the hardware:
   ThrottleStop's *Disable Turbo* was ticked, and WinUtil's "Ultimate Performance" plan had
   *Maximum processor state* 80 %. Fixed both; the CPU now reaches 4050 MHz and ~85 W. See

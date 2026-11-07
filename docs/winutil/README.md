@@ -32,7 +32,7 @@ read 2026-11-06: `config/tweaks.json` (66 entries), `functions/public/Invoke-WPF
 ## Per tweak
 
 All are driver-free and none touches the game process, so the anti-cheat risk for BF6 is nil
-unless noted. "Heat" is on the heat-limited i7-9750H.
+unless noted. "Heat" is on the heat-limited i9-9880H.
 
 | Tweak | Exact change (apply / undo) | Reversible? | Heat | Evidence / notes |
 |---|---|---|---|---|

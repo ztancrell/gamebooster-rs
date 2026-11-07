@@ -36,7 +36,7 @@ driver blocklist.
 ## Per tweak
 
 Columns as in our other research docs: is the change reversible, is it driver-free, the anti-cheat
-risk for BF6 (EA Javelin), the heat risk on the heat-limited i7-9750H, and the evidence.
+risk for BF6 (EA Javelin), the heat risk on the heat-limited i9-9880H, and the evidence.
 
 ### Timer resolution (`NtSetTimerResolution`, `GlobalTimerResolutionRequests`)
 

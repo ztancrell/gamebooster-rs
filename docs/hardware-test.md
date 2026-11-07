@@ -277,8 +277,9 @@ What each part of `sgb-diff-boost.txt` answers (spec section 8 unless noted):
 
 ## Results on the target Mac
 
-2026-11-05: 2019 MacBook Pro, Boot Camp, Windows, i7 with 12 logical CPUs, BF6 with EA Javelin
-anti-cheat.
+2026-11-05: 2019 MacBook Pro, Boot Camp, Windows, i9-9880H with 12 logical CPUs active (2 of its 8
+cores disabled by `numproc 12`; recorded at the time as an i7, see
+[2026-11-07](#numproc-gpu-power-limit-and-cpu-22x-lock-2026-11-07)), BF6 with EA Javelin anti-cheat.
 
 | Result | What |
 |---|---|
@@ -296,7 +297,7 @@ anti-cheat.
 | Pending | `ping --route`; `status` clock check under the new build; `restore` output with the registry method. |
 | Resolved | CPU held at ~22 W package power: ThrottleStop *Disable Turbo* plus an 80 % *Maximum processor state* in WinUtil's plan, not gamebooster (see below). |
 
-2026-11-06: same Mac (i7-9750H), BF6, `gamebooster auto` with `game_priority_method = "registry"`.
+2026-11-06: same Mac (i9-9880H, still 12 logical CPUs under `numproc 12`), BF6, `gamebooster auto` with `game_priority_method = "registry"`.
 
 | Result | What |
 |---|---|
@@ -307,7 +308,9 @@ anti-cheat.
 
 ### CPU clock and power under load (2026-11-05)
 
-i7-9750H (6 cores / 12 threads). Windows plan before boosting: "Ultimate Performance" (from Chris
+i9-9880H, measured with 2 cores disabled by `numproc 12` (6 cores / 12 threads active; recorded at
+the time as an i7-9750H, see
+[2026-11-07](#numproc-gpu-power-limit-and-cpu-22x-lock-2026-11-07)). Windows plan before boosting: "Ultimate Performance" (from Chris
 Titus WinUtil). SMC reset done before these readings.
 
 - **No PROCHOT lock seen.** ThrottleStop's main-window label `PROCHOT 100°C` (right of the
@@ -338,3 +341,39 @@ Titus WinUtil). SMC reset done before these readings.
   instead of solid red. BD PROCHOT left ticked (enabled, safe). Whether the 800 MHz BD PROCHOT
   lock returns in BF6 with Turbo on: not in the 2026-11-06 session (~2.75 GHz all-core, see the
   table above); fallback `max_cpu_mhz = 3000`.
+
+### numproc, GPU power limit and CPU 22x lock (2026-11-07)
+
+Checked directly on the Mac (WMI, `bcdedit`, an HWiNFO log of one BF6 session).
+
+Facts:
+
+- **CPU.** Intel Core i9-9880H: 8 cores / 16 threads, 2.3 GHz base, up to 4.8 GHz turbo. HWiNFO
+  reports the system as Apple MacBookPro16,1 with an AMD Radeon Pro 5500M 8 GB (driver
+  32.0.21045.11001, dated 2026-09-24).
+- **`numproc 12`.** Windows' BCD had the boot option `numproc 12`, so only 6 cores / 12 threads
+  were active. That is why earlier notes recorded an "i7-9750H (6 cores / 12 threads)": every
+  measurement before 2026-11-07 is the i9 with 2 cores disabled. Who set it is unknown. Removed on
+  2026-11-07 with `bcdedit /deletevalue {current} numproc`, effective from the next reboot (the
+  reboot is not confirmed yet).
+- **BF6 session, HWiNFO log.** gamebooster boost active, on AC (battery 93 %, charge rate 0 W).
+  - GPU: ~99 % busy and at its power limit (*GPU PPT Limit* ~100 %), the PPT limit switching
+    between 30 W and 25 W; GPU clock ~300–900 MHz; GPU 72–76 °C, hotspot up to ~84 °C.
+  - BF6 mostly 12–20 FPS.
+  - CPU locked at 22x (~2.2 GHz), 13–27 W package power, 72–80 °C, with no limit reason flagged
+    (no PROCHOT, thermal or PL1/PL2; PL1 100 W / PL2 125 W static).
+  - Windows plan: turbo boost mode aggressive, no maximum frequency cap, maximum processor state
+    100 %. So neither the plan nor ThrottleStop's *Disable Turbo* (the 2026-11-05 cause, see above)
+    explains the 22x lock this time.
+
+Hypothesis (unconfirmed): Apple's firmware shares one power budget between CPU and GPU, and a
+charger smaller than the stock 96 W shrinks it. Which charger was used is being checked.
+
+Next:
+
+1. Reboot, then confirm 8 cores / 16 threads in Task Manager (*Performance* > *CPU*: Cores 8,
+   Logical processors 16).
+2. Replay the same BF6 map on the stock 96 W charger plugged straight in (no hub or adapter). Log
+   *GPU PPT Limit*, GPU clock and FPS in HWiNFO and compare with the session above.
+3. Check whether the CPU 22x lock persists after the reboot (HWiNFO core multiplier and limit
+   reasons, under BF6 and under TS Bench).

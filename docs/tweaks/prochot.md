@@ -2,7 +2,8 @@
 
 ## Findings on the target Mac (2026-11-05)
 
-The 800 MHz lock was not observed on the user's 2019 MacBook Pro (i7-9750H). ThrottleStop's
+The 800 MHz lock was not observed on the user's 2019 MacBook Pro (i9-9880H, then running 6 of its 8 cores
+because of `numproc 12`; recorded at the time as an i7-9750H). ThrottleStop's
 main-window `PROCHOT 100°C` label is TjMax, not a warning; the real *Limits* window stayed empty.
 Under TS Bench the CPU sat at ~2.29 GHz and ~22 W package power (PL1 100 W), cool and quiet, on
 any power plan: a different limit, still being identified. Details:

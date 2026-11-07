@@ -31,7 +31,7 @@ from its README and code comments.
   TcpAckFrequency) are PLACEBO for Fortnite -- gameplay uses UDP".
 - No Battlefield / EA Javelin profile. `EAAntiCheat.GameService` appears only in ProBalance's
   do-not-touch list.
-- For a heat-limited i7-9750H laptop, most of the "competitive" items (C-state limit, idle off,
+- For a heat-limited i9-9880H laptop, most of the "competitive" items (C-state limit, idle off,
   timer 0.5 ms, ULPS off, deep sleep off, interrupt moderation off) add heat and power, which is the
   wrong direction on the target Mac.
 
@@ -51,7 +51,7 @@ BF6 (EA Javelin) on the target Mac.
 | Power plan | Activates Ultimate Performance (`e9a42b02-d5df-448d-aa00-03f14749eb61`, created if missing), then overrides AC and DC: EPP `36687f9e-...6863` (and `...6864`) = 0; processor boost policy `45bcc044-d885-43e2-8605-ee0ec6e96b59` = 100; USB selective suspend `2a737441-.../48e6b7a6-50f5-4782-a5d4-53bb8f07e226` = 0; USB 3 link power `d4e98f31-5ffe-4ce1-be31-1b38b384c009` = 0; NVMe primary idle timeout `0012ee47-.../d639518a-e56d-4345-8af2-b9f32fb26109` = 0; Wi-Fi power saving `19cbb8fa-.../12bbebe6-...` = 0. | Yes (old plan reactivated; overrides restored from AC/DC snapshot) | None | EPP 0 and boost 100: more. USB/NVMe/Wi-Fi: negligible on AC. | Plan switch: real. USB selective suspend off is the common fix for a mouse lagging after idle. |
 | PCIe ASPM | `powercfg /setacvalueindex SCHEME_CURRENT 501a4d13-... ee12f906-... 0` | Yes | None | Small | We already set it. |
 | Core parking | In the active plan, AC and DC: `CPMINCORES` (`0cc5b647-...`) = 100 (50 on AMD dual-CCD X3D), `CPMAXCORES` = 100, minimum processor state = 100, concurrency threshold set. Competitive: idle state max `9943e905-...` = 1 (C1 only), promote/demote 100, idle scaling 0, latency hints 100. | Yes | None | High for the C-state limit and min 100 % | Parking: High performance (which our plan copies) already keeps cores unparked. C-state limit: PC-Tuning advises keeping idle states on for most users and not with Turbo Boost. |
-| Hybrid CPU scheduling | P-core soft affinity for the game, E-cores and EcoQoS for background. | Yes | Affinity on the game: same risk as priority. | None | Not applicable: the i7-9750H has no E-cores. |
+| Hybrid CPU scheduling | P-core soft affinity for the game, E-cores and EcoQoS for background. | Yes | Affinity on the game: same risk as priority. | None | Not applicable: the i9-9880H has no E-cores. |
 | Core isolation | `ReservedCpuSets` (opt-in, reboot). | Yes, with a reboot | Low | None | PC-Tuning: soft policy, measure first. Reboot rules it out for us. |
 | MPO off | `HKLM\SOFTWARE\Microsoft\Windows\Dwm\OverlayTestMode = 5`; on 24H2+ also `HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers\DisableOverlays = 1`. Competitive only. | Yes (value restored or deleted) | None | None | Fixes flicker/stutter on some multi-monitor and driver combinations. PC-Tuning: "run the command below ... and reboot", so a per-session toggle without a reboot likely does nothing. |
 | Visual effects | `HKCU\...\Themes\Personalize\EnableTransparency = 0`, animations off via `SystemParametersInfo`. | Yes | None | None | Negligible in a fullscreen game. |

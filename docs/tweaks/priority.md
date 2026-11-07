@@ -213,7 +213,7 @@ count, read from `ProcessGovernor.exe` (source:
 |---|---|---|---|
 | 4 | 23 % | 15 % | 5 % |
 | 8 | 11 % | 8 % | 4 % |
-| 12 (i7-9750H) | 10 % | 7 % | 3 % |
+| 12 (i7-9750H; the target i9-9880H with `numproc 12`) | 10 % | 7 % | 3 % |
 | 16 (2019 MBP 16") | 10 % | 5 % | 2 % |
 | 32 and more | 7 % | 2 % | 1 % |
 

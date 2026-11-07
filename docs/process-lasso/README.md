@@ -54,7 +54,7 @@ binary shows they depend on the number of logical CPUs:
 |---|---|---|---|---|---|---|
 | 4 | 23 % | 15 % | 5 % | 900 ms | 4.2 s | none |
 | 8 (13" MacBook Pro 2019) | 11 % | 8 % | 4 % | 900 ms | 4.2 s | none |
-| 12 (16", i7-9750H) | 10 % | 7 % | 3 % | 900 ms | 4.2 s | none |
+| 12 (16", i7-9750H; also the target i9-9880H while `numproc 12` disabled 2 cores) | 10 % | 7 % | 3 % | 900 ms | 4.2 s | none |
 | 16 (16", i9-9880H/9980HK) | 10 % | 5 % | 2 % | 900 ms | 4.2 s | none |
 
 In words, on a 16-thread Mac: when the PC is at least 10 % busy, and a background program has used
