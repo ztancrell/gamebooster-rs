@@ -91,7 +91,7 @@ Windows via Boot Camp, playing BF6.
   for a configured `[[game]]`, runs the full boost when one starts, and restores 30 s after the last
   one exits (`auto_restore_delay_secs`; a restart or launcher hand-off within the grace keeps the
   boost). Built on the `boost --watch` watcher. It only restores boosts it made itself; closing the
-  window while it is boosted restores. No logon task / service for now.
+  window while it is boosted restores. No logon task / service for now (superseded 2026-11-07, see below).
   With the registry priority method auto holds the IFEO entries for its whole run (written at auto
   start, put back at auto exit, journalled in `gamebooster-auto-ifeo.json` for `restore`).
 - 2026-11-06: No measuring of tweaks: BF6's anti-cheat (assumed, not tested: EAAntiCheatService
@@ -108,6 +108,9 @@ Windows via Boot Camp, playing BF6.
   `ProcessIoPriority`), old value journalled with the old class, never the game; (6)
   `priority_separation` (default on): `Win32PrioritySeparation = 0x2A` while boosted, old value or
   absence recorded, restore puts it back. 5 and 6 are try-by-feel; turn off with their keys.
+- 2026-11-07: `auto` starts at logon via a scheduled task ("gamebooster": interactive, highest run
+  level, battery-safe, no time limit), documented in docs/auto.md; no Windows service. Installed on the
+  target Mac.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.
