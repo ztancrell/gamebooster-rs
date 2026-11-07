@@ -171,15 +171,15 @@ published in that release.
 
 ## On a 2019 MacBook Pro under Boot Camp playing BF6
 
-The target is an i9-9880H (8 cores / 16 threads), CPU-bound in BF6, with EA Javelin anti-cheat.
+The target is an i7-9750H (6 cores / 12 threads), CPU-bound in BF6, with EA Javelin anti-cheat.
 
 - **Detection.** BF6 is not in the downloaded whitelist (Battlefield 2, Bad Company 2 and older
   are), and the EA app is not a "game client". BF6 would be picked up by full-screen detection with
   high CPU, or after a manual add.
 - **Affinity.** BF6 is not touched. Background user apps (EA app, browser, Spotify, launchers,
   anything not on the ignore list) are pinned to CPUs 0 and 1. Services and Windows processes are
-  left alone unless "system processes" is turned on. With 16 threads and BF6 using many of them,
-  freeing 14 threads from background noise is a small gain, only while something in the background
+  left alone unless "system processes" is turned on. With 12 threads and BF6 using many of them,
+  freeing 10 threads from background noise is a small gain, only while something in the background
   is busy. The cost: the EA app (overlay, friends, party voice) and any browser or voice client not
   on the list run on one core that also takes the interrupts, and the game's own helper processes
   are pinned too, because only the detected exe is excluded (inferred from the flags).
@@ -219,7 +219,7 @@ streaming apps ([process-lasso](../process-lasso/README.md)).
 ## Adoption items for gamebooster-rs
 
 1. **Affinity restriction of background apps: skip for now.** It is reversible and documented
-   (`SetProcessAffinityMask`), but on the Mac's 16 threads the gain is small, the cost (EA app,
+   (`SetProcessAffinityMask`), but on the Mac's 12 threads the gain is small, the cost (EA app,
    voice, browser and the game's helpers squeezed onto the interrupt core) is real, and
    `lower_others` already covers the "background spike" case without capping anything. If a
    measurement ever shows `lower_others` is not enough on the 4-core Macs, a dynamic, per-process
