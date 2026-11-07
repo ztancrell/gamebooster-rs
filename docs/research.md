@@ -27,4 +27,5 @@ The same for Norton Game Optimizer (Norton 360 26.10 is the Avast engine; "core 
 Open-source tools and guides, read from source, with adoption items:
 [GameShift](gameshift/README.md) (per-session apply/revert with a crash journal; mostly folklore tweaks, several of which need a reboot to work),
 [valleyofdoom PC-Tuning](pc-tuning/README.md) (measure-first guide; keeps idle states on, prefers per-process timer resolution, silent on Nagle/MMCSS),
-[Chris Titus WinUtil](winutil/README.md) (gaming-relevant tweaks only; its Ultimate Performance undo resets all power plans).
+[Chris Titus WinUtil](winutil/README.md) (gaming-relevant tweaks only; its Ultimate Performance undo resets all power plans),
+[windows-amd-registry-boost](amd-registry-boost/README.md) (one PowerShell script, ~200 AMD driver registry values; mostly Catalyst-era no-ops, the live ones are power/thermal safeguards off that add heat, and its `.reg` restore never deletes what it created; never run it on the Boot Camp 5500M; adoption: maybe a read-only ReLive line in `status`).
