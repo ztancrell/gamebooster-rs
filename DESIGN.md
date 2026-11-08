@@ -122,7 +122,8 @@ Windows via Boot Camp, playing BF6.
   docs/hardware-test.md). Next lever to try by hand: a CPU undervolt in ThrottleStop.
 - 2026-11-07: From the PC Manager / Optimizer / Atlas research: `status` reports whether Windows'
   Fault Tolerant Heap has flagged a configured game (read-only), plus docs tips (don't clear the
-  shader cache; Atlas's `0x26` view on `priority_separation`). Lossless Scaling under research.
+  shader cache; Atlas's `0x26` view on `priority_separation`). Lossless Scaling: not for BF6 on this
+  Mac (60 Hz panel, power-capped GPU, no anti-cheat clearance); see docs/lossless-scaling/.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.
