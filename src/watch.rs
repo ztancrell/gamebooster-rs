@@ -347,8 +347,8 @@ mod sys {
                     }
                     (Auto::Boosted, Auto::Grace(_), _) => println!("last game exited: restoring in {delay} s"),
                     (Auto::Grace(_), Auto::Boosted, _) => println!("{game} started again: keeping the boost"),
-                    (_, Auto::Manual, _) => println!("Already boosted, not by auto: watching it like `boost --watch`; auto won't restore it"),
-                    (_, Auto::Disarmed, _) => println!("Not boosted any more (restore ran): waiting until the games exit"),
+                    (m, Auto::Manual, _) if m != Auto::Manual => println!("Already boosted, not by auto: watching it like `boost --watch`; auto won't restore it"),
+                    (m, Auto::Disarmed, _) if m != Auto::Disarmed => println!("Not boosted any more (restore ran): waiting until the games exit"),
                     (Auto::Disarmed, Auto::Idle, _) => println!("games exited; waiting for a game"),
                     (Auto::Boosted | Auto::Grace(_) | Auto::Manual, Auto::Idle, None) => println!("Not boosted any more (restore ran); waiting for a game"),
                     _ => {}
