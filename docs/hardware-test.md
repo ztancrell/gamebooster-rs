@@ -437,3 +437,20 @@ speeds or SMC temperatures).
 Conclusion: with the stock 96 W charger ruled out, the cap is Apple's firmware budget. Untested
 guess: the firmware may follow sensors HWiNFO did not log here (SMC skin/palm-rest temperatures,
 fans). Logging the Apple SMC sensor group would show it.
+
+### GPU tuning via the SoftPowerPlayTable: not possible on this driver (2026-11-07)
+
+Win11 driver 32.0.21045.11001 (2026-09-25), class key `{4d36e968-…}\0000`. Its INF (`oem13.inf`,
+section `ati2mtag_Navi14`) itself installs `PP_PhmSoftPowerPlayTable` (1674 bytes), so the driver
+reads its power table from the registry. MorePowerTool loads it (dropdown `[0] AMD Radeon Pro 5500M`):
+
+- GFX and SoC voltage 700–1050 mV, power limit 50 W, TDC 60 A GFX / 10 A SoC.
+- All Overdrive feature caps are set; OD limits are normal (GFX 1665 MHz, memory 950 MHz, power ±20 %).
+- AMD Software → Performance → Tuning still shows no manual tuning. The driver hides it for this
+  GPU regardless of the table, so no table edit can unlock undervolting or overclocking.
+- The 50 W table limit is above the 30–35 W seen in HWiNFO: the cap is Apple's firmware, as above.
+
+Nothing was written. A backup of the key is `C:\gamebooster-rs\gpu-0000-original.reg` (and
+`capture/gpu/` locally, git-ignored). Never use MorePowerTool's "Delete SPPT" here: it would remove
+the driver's own table. A kernel driver was ruled out: it breaks the "no kernel driver" rule, needs
+Microsoft signing, and BF6's anti-cheat rejects test-signing.
