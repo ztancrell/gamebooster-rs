@@ -281,7 +281,7 @@ mod sys {
 
     /// The GPU table step: back up the old value into the record, write the table, restart the GPU.
     fn gpu_step(rec: &mut Record, gpu: &Gpu) -> Result<String, String> {
-        let table = gpu_table::build(&gpu.class_key)?;
+        let table = gpu_table::build()?;
         let current = reg_get(HKEY_LOCAL_MACHINE, &gpu.class_key, gpu_table::VALUE)?;
         if current.as_deref() == Some(&table[..]) {
             return Ok(format!("{} W (already set)", gpu_table::GPU_WATTS));
@@ -291,6 +291,9 @@ mod sys {
             save(rec)?; // before the write
         }
         reg_set_binary(&gpu.class_key, gpu_table::VALUE, Some(&table))?;
+        if reg_get(HKEY_LOCAL_MACHINE, &gpu.class_key, gpu_table::VALUE)?.as_deref() != Some(&table[..]) {
+            return Err("the GPU table read back differs from what was written".into());
+        }
         Ok(if restart_gpu(&gpu.instance_id) { format!("{} W, always on", gpu_table::GPU_WATTS) } else { format!("{} W after a reboot", gpu_table::GPU_WATTS) })
     }
 
@@ -565,8 +568,12 @@ Start-ScheduledTask gamebooster
         match gate() {
             Ok(gpu) => {
                 let table = reg_get(HKEY_LOCAL_MACHINE, &gpu.class_key, gpu_table::VALUE);
-                println!("Mac power fix: GPU power table ({}): {}", gpu_table::VALUE, match table {
-                    Ok(Some(t)) => format!("present ({} bytes)", t.len()),
+                println!("Mac power fix: GPU power limit ({}): {}", gpu_table::VALUE, match table {
+                    Ok(Some(t)) => match gpu_table::build() {
+                        Ok(ours) if ours == t => format!("{} W (gamebooster table)", gpu_table::GPU_WATTS),
+                        Ok(_) => format!("other table present ({} bytes)", t.len()),
+                        Err(e) => format!("a table is present ({} bytes); can't compare ({e})", t.len()),
+                    },
                     Ok(None) => "absent (stock driver limits)".into(),
                     Err(e) => format!("couldn't read ({e})"),
                 });

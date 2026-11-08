@@ -29,7 +29,7 @@ The full step-by-step description is in [docs/commands.md](docs/commands.md#what
 
 Student on the 16" MacBook Pro 2019: download `gamebooster.exe`, double-click it, read the summary,
 play BF6. It installs itself to `C:\gamebooster-rs`, applies the Mac power fix (CPU 1700 MHz while
-BF6 runs, BF6 Borderless, GPU 32 W table: not built yet) only on that exact Mac, and starts `auto`
+BF6 runs, BF6 Borderless, GPU 32 W table) only on that exact Mac, and starts `auto`
 at every logon. `gamebooster uninstall` undoes all of it. See [docs/install.md](docs/install.md#student-install-double-click).
 
 By hand:

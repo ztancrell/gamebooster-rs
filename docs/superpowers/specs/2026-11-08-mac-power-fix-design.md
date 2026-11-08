@@ -1,7 +1,8 @@
 # MacBook Pro 2019 power fix in gamebooster-rs (design)
 
-Date: 2026-11-08. Status: built except the GPU table step (`src/mac.rs`: install, uninstall, gate,
-Borderless, install record; `src/gpu_table.rs`: the table builder, still returns "not built yet"). Evidence: the mbp16-power project
+Date: 2026-11-08. Status: built in full (`src/mac.rs`: install, uninstall, gate,
+Borderless, install record, read-back of the GPU table; `src/gpu_table.rs`: the table builder, stock
+table from the ACPI VFCT, see docs/tweaks/gpu-power-table.md). Owed: the confirmation run on the Mac. Evidence: the mbp16-power project
 (`/home/zpt/projects/mbp16-power`, DESIGN.md "Where we are" and the 2026-11-08 run entries).
 
 Labels: **(user)** = the user decided it in the brainstorm; **(my call)** = Claude's default, open to
@@ -22,7 +23,8 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
   signed SMC firmware; nothing in Windows raises it.
 - So the only lever is to keep the total draw under the warm budget: cap the GPU and the CPU together.
 - Measured preset: **GPU 32 W + CPU max 1700 MHz**, stock driver flag, BF6 Borderless, Low preset,
-  with a MorePowerTool table at 950 mV (the shipped fix uses stock voltage)
+  with a MorePowerTool table at 950 mV (the shipped fix uses stock voltage; correction below: 950 mV
+  is the stock `MaxVoltageGfx`)
   (11:15 run, ~7 min of play): draw peaked 65.6 W against a budget that bottomed at 70.2 W (~5 W
   margin); `PZ0T`, `MSLC`, `MSLG` stayed 0, no PROCHOT, GPU limit 32 W throughout; FPS median 53,
   10th percentile 47. 1800 MHz reached the budget edge (`PZ0T` climbing after ~7 min); 1600 MHz kept
@@ -46,8 +48,11 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
   - Once: install a GPU soft PowerPlay table capped at **32 W** (`PP_PhmSoftPowerPlayTable`,
     REG_BINARY, under `HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000`).
     **(user)** Built at run time from the card's **stock** table with only the PPT / power-limit field
-    changed to 32 W: no 950 mV undervolt, no other MorePowerTool edits, and the shipped exe embeds no
-    vendor table bytes. The table is always on, so every game benefits.
+    changed to 32 W: no other MorePowerTool edits, and the shipped exe embeds no vendor table bytes.
+    Correction (2026-11-08, docs/tweaks/gpu-power-table.md): this said "no 950 mV undervolt", but
+    950 mV is the stock `MaxVoltageGfx` in the firmware's table, not an undervolt. MorePowerTool only
+    lowered the OverDrive voltage limits (1050 -> 950 mV); the reference `5500m-unmodded.mpt` has
+    1050 mV in `MaxVoltageGfx`, so it isn't pure stock. The table is always on, so every game benefits.
   - While BF6 runs: CPU cap **1700 MHz** via the existing `max_cpu_mhz` power-plan setting, applied
     by the existing `auto` watcher, lifted when BF6 quits (`auto`'s 30 s delay). Everyday use keeps
     full CPU speed.
@@ -144,8 +149,8 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 - Mac-only gate on Apple / MacBookPro16,1 / 5500M Apple subsystem / VBIOS.
 - gamebooster switches BF6 to Borderless itself (with backup and restore).
 - No kernel driver for now.
-- GPU table built at run time from the stock table, only the power limit changed (no undervolt, no
-  shipped blob).
+- GPU table built at run time from the stock table, only the power limit changed (no OverDrive
+  edits, no shipped blob).
 - `restore` per session; new `uninstall` removes everything, from its own backup file.
 - Borderless re-checked at `auto` start and after each BF6 exit; skipped until the profile exists.
 - First version is a BF6 fix; the GPU table is always on for every game.
@@ -166,13 +171,16 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 
 ## Open questions
 
-- **Source of the stock table (builder).** On the user's Mac the registry already holds the
+- Superseded: **Source of the stock table (builder)**, answered: the ACPI VFCT table via
+  `GetSystemFirmwareTable` (docs/tweaks/gpu-power-table.md, `src/gpu_table.rs`). Original question:
+  On the user's Mac the registry already holds the
   MorePowerTool table, so "stock" can't be read from the registry there. Where the patcher gets the
   stock table (the VBIOS ROM via the driver or registry; `Desktop\5500m-unmodded.mpt` and
   `Navi 14.rom` on the Mac as references for building and testing) is left to the builder. The
   shipped exe must not embed vendor table bytes.
-- **Confirmation run owed.** Every measurement so far used the 950 mV MPT table and only ~7 min of
-  32 W + 1700 MHz. With the first build: stock-voltage 32 W + 1700 MHz, Borderless, 15+ min from
+- **Confirmation run owed.** Every measurement so far used the MorePowerTool table (stock 950 mV
+  `MaxVoltageGfx`, but OverDrive caps on and lower OD maxima) and only ~7 min of
+  32 W + 1700 MHz. With the first build: gamebooster's table (stock apart from 32 W) + 1700 MHz, Borderless, 15+ min from
   wave 1. FPS may be somewhat lower at stock voltage. If the draw crosses the budget, fall back to
   30 W or 1600 MHz.
 - **Future, not now:** per-game caps; an adaptive cap that reads the SMC budget (`PZ0E`/`PZ0F`) and

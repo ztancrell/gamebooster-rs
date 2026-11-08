@@ -2,7 +2,11 @@
 
 Research notes for the builder of the Mac power fix
 ([design](../superpowers/specs/2026-11-08-mac-power-fix-design.md), open question "Source of the
-stock table"). Not built yet. Researched 2026-11-08 on the target Mac (read-only) plus the public
+stock table"). Built: `src/gpu_table.rs` (parse, validate, patch; unit tests on synthetic buffers
+only), written by `install` in `src/mac.rs`; checked locally against the Mac's VFCT dump (table
+found at `0xCB98`, 1674 bytes; the patched table matches the MorePowerTool registry table at 494/510
+and differs from it only in MorePowerTool's OverDrive edits, offsets 194-255). Confirmation on the
+Mac (HWiNFO PPT limit 32 W) still owed. Researched 2026-11-08 on the target Mac (read-only) plus the public
 Linux amdgpu headers (`smu_v11_0_pptable.h`, `smu11_driver_if_navi10.h`, `atomfirmware.h`).
 Everything here is in our own words; no vendor bytes are in this repo or meant to be shipped.
 

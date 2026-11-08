@@ -34,8 +34,8 @@ Not built: [SGB's other optimizer tweaks](optimizer.md) (placebo or harmful on W
 `gamebooster status` only reports whether hardware-accelerated GPU scheduling, multiplane overlays
 and Game DVR background recording are on.
 
-Not built yet: [GPU power table](gpu-power-table.md) for the Mac power fix (stock table read from
-the ACPI VFCT, power limit patched to 32 W; research notes for the builder).
+[GPU power table](gpu-power-table.md) for the Mac power fix (`src/gpu_table.rs`: stock table read
+from the ACPI VFCT, power limit patched to 32 W, written by `install`).
 
 Not a tweak, but related: [Stuck at 800 MHz (BD PROCHOT)](prochot.md), the problem `gamebooster
 status` warns about, and how to fix it.

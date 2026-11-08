@@ -16,8 +16,8 @@ On the 16" MacBook Pro 2019 (Boot Camp, Radeon Pro 5500M) playing BF6:
 4. Open Steam > BF6 and play.
 
 The double-click runs `gamebooster install`: it copies itself to `C:\gamebooster-rs`, writes
-`gamebooster.toml` there, applies the Mac power fix (CPU 1700 MHz while BF6 runs, GPU 32 W table
-(not built yet), BF6 Borderless; only on that exact Mac, see [commands](commands.md)), and
+`gamebooster.toml` there, applies the Mac power fix (CPU 1700 MHz while BF6 runs, GPU 32 W table,
+BF6 Borderless; only on that exact Mac, see [commands](commands.md)), and
 registers and starts the logon task that runs `gamebooster auto` (see [Automatic boost](auto.md)).
 Undo all of it: `C:\gamebooster-rs\gamebooster.exe uninstall` in a terminal. The downloaded copy
 can be deleted afterwards.
