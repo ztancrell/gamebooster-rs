@@ -10,6 +10,9 @@ Windows via Boot Camp, playing BF6.
 
 ## Open questions
 
+- 2026-11-08: MacBook Pro 2019 power fix (GPU 32 W soft PowerPlay table once, CPU cap 1700 MHz via
+  `auto` while BF6 runs, BF6 set to Borderless, Mac-only gate): designed, not built. See
+  [docs/superpowers/specs/2026-11-08-mac-power-fix-design.md](docs/superpowers/specs/2026-11-08-mac-power-fix-design.md).
 - Spec section 8 unknowns (SGB's default service list, start-type changes, RAM trim API): answered
   by an SGB capture run, see [docs/hardware-test.md](docs/hardware-test.md).
 - Does Turbo off plus a low minimum processor state stop the 800 MHz BD PROCHOT lock on the Mac?
