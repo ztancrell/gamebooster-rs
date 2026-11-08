@@ -287,6 +287,10 @@ mod sys {
         } else {
             println!("  lower others: {}", if cfg.lower_others { "once (done by boost); set lower_others_mode = \"dynamic\" for the watcher to do it" } else { "off" });
         }
+        if auto {
+            crate::mac::auto_console();
+            crate::mac::borderless_recheck();
+        }
         if auto && !cfg.process_priority() {
             crate::hold_ifeo(cfg, state_path)?;
         }
@@ -344,6 +348,7 @@ mod sys {
                         if !state_path.exists() {
                             println!("restored; waiting for a game");
                         } // else: the next tick sees the kept state file as a boost auto didn't make
+                        crate::mac::borderless_recheck(); // BF6 has long finished rewriting its profile
                     }
                     (Auto::Boosted, Auto::Grace(_), _) => println!("last game exited: restoring in {delay} s"),
                     (Auto::Grace(_), Auto::Boosted, _) => println!("{game} started again: keeping the boost"),

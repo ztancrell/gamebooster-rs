@@ -1,14 +1,15 @@
 # Config
 
 `gamebooster init` writes [gamebooster.example.toml](../gamebooster.example.toml) (built into the exe)
-as `gamebooster.toml` next to `gamebooster.exe`. Keys:
+as `gamebooster.toml` next to `gamebooster.exe`; `gamebooster install` (or a double-click) does the
+same in `C:\gamebooster-rs` (see [Install](install.md#student-install-double-click)). Keys:
 
 | Key | Default | Meaning |
 |---|---|---|
 | `power_plan` | `true` | Use the gamebooster power plan. |
 | `max_processor_state` | `100` | Maximum processor state (%) in that plan, 5 to 100. `99` turns Intel Turbo Boost off (less heat and throttling, lower peak clocks); see [power plan](tweaks/power-plan.md#optional-turbo-boost-off). |
 | `min_processor_state` | unset (= `100`) | Minimum processor state (%) in that plan, 0 to 100, not above `max_processor_state`. `5` with `max_processor_state = 99` is the low-power combo for a Mac stuck at 800 MHz; see [power plan](tweaks/power-plan.md#optional-low-minimum-state). |
-| `max_cpu_mhz` | unset (no cap) | Maximum processor frequency (MHz) in that plan, 800 to 6000; `0` or unset = no cap. Turbo stays on up to the cap; with `max_processor_state` below 100 too, the lower limit wins. Try 2600 to 3000 on a Mac that hits BD PROCHOT. A running ThrottleStop overrides it (use its own Turbo / clock settings instead); without ThrottleStop it works (verified on the target Mac 2026-11-07); see [power plan](tweaks/power-plan.md#optional-frequency-cap). |
+| `max_cpu_mhz` | unset (no cap) | Maximum processor frequency (MHz) in that plan, 800 to 6000; `0` or unset = no cap. Turbo stays on up to the cap; with `max_processor_state` below 100 too, the lower limit wins. Try 2600 to 3000 on a Mac that hits BD PROCHOT. A running ThrottleStop overrides it (use its own Turbo / clock settings instead); without ThrottleStop it works (verified on the target Mac 2026-11-07); see [power plan](tweaks/power-plan.md#optional-frequency-cap). `install` on a 16" MacBook Pro 2019 with the 5500M sets `1700` (fallback `1600` if BF6 still hits the power budget); like every boost setting it applies only while boosted, and `auto` boosts only while a `[[game]]` runs (BF6 in the example), so the CPU is at full speed otherwise. |
 | `game_mode` | `true` | Make sure Game Mode is on. |
 | `accessibility_shortcuts_off` | `true` | Turn off the Sticky / Filter / Toggle Keys hotkeys while boosted; see [accessibility shortcuts](tweaks/accessibility-shortcuts.md). |
 | `game_power_throttling_off` | `true` | Opt each running `[[game]]` out of Windows power throttling (EcoQoS) while boosted; restore hands it back to Windows. See [game priority](tweaks/priority.md#power-throttling-off). |

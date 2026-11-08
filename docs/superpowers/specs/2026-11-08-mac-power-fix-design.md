@@ -1,6 +1,7 @@
 # MacBook Pro 2019 power fix in gamebooster-rs (design)
 
-Date: 2026-11-08. Status: design, not built. Evidence: the mbp16-power project
+Date: 2026-11-08. Status: built except the GPU table step (`src/mac.rs`: install, uninstall, gate,
+Borderless, install record; `src/gpu_table.rs`: the table builder, still returns "not built yet"). Evidence: the mbp16-power project
 (`/home/zpt/projects/mbp16-power`, DESIGN.md "Where we are" and the 2026-11-08 run entries).
 
 Labels: **(user)** = the user decided it in the brainstorm; **(my call)** = Claude's default, open to

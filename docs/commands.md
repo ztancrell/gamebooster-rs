@@ -1,11 +1,13 @@
 # Commands
 
-Put `gamebooster.exe` and your config (`gamebooster.toml`) in one folder, for example
-`C:\gamebooster` (see [Install and update](install.md)). Open a terminal **as administrator** (right-click > Run as administrator) from
+Double-clicking `gamebooster.exe` runs `install` (see
+[Install](install.md#student-install-double-click)): it sets everything up in `C:\gamebooster-rs`
+and nothing else is needed. For the commands below, put `gamebooster.exe` and your config
+(`gamebooster.toml`) in one folder, for example `C:\gamebooster-rs` (see [Install and update](install.md)). Open a terminal **as administrator** (right-click > Run as administrator) from
 your normal Windows account, then:
 
 ```bat
-cd C:\gamebooster
+cd C:\gamebooster-rs
 gamebooster boost --dry-run
 gamebooster boost
 gamebooster boost --watch
@@ -22,9 +24,11 @@ gamebooster ping --route
 | `boost --watch` | Boosts (or, if already boosted, re-applies game priority), then keeps running in the console until Ctrl+C or the window closes; see [Watch mode](watch.md). Not with `--dry-run`. |
 | `auto` | Keeps running in the console: boosts when a configured `[[game]]` starts and restores `auto_restore_delay_secs` (30) after the last one exits; see [Automatic boost](auto.md). Admin. Not with `--dry-run`. |
 | `restore` | Undoes the last boost from the state file, then deletes the state file. Also puts back IFEO entries a killed `auto` left (`gamebooster-auto-ifeo.json`). If not boosted, only resets game priority to Normal (and power throttling to Windows). |
-| `status` | Prints the saved state (if boosted), the active power plan GUID, its *Maximum processor state* on AC and DC (warns below 100 %, which turns Turbo Boost off, with the `powercfg` fix; only a note when it is gamebooster's own plan at your `max_processor_state`), `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](tweaks/optimizer.md)), whether multiplane overlays are on (`MPO: on (default) | off (OverlayTestMode=5) | off (DisableOverlays=1)`), whether Game DVR background recording is on (warns with the Settings switch to turn it off), whether Windows' Fault Tolerant Heap has flagged a configured game (`Fault Tolerant Heap: no configured game flagged | off`, or a warning naming the exe with the fix: delete its value under `HKLM\SOFTWARE\Microsoft\FTH\State` or run `rundll32.exe fthsvc.dll,FthSysprepSpecialize`), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](tweaks/prochot.md)). |
+| `status` | Prints the saved state (if boosted), the active power plan GUID, its *Maximum processor state* on AC and DC (warns below 100 %, which turns Turbo Boost off, with the `powercfg` fix; only a note when it is gamebooster's own plan at your `max_processor_state`), `AutoGameModeEnabled`, whether hardware-accelerated GPU scheduling is on (`GPU scheduling (HAGS): on | off | not set`, see [optimizer](tweaks/optimizer.md)), whether multiplane overlays are on (`MPO: on (default) | off (OverlayTestMode=5) | off (DisableOverlays=1)`), whether Game DVR background recording is on (warns with the Settings switch to turn it off), whether Windows' Fault Tolerant Heap has flagged a configured game (`Fault Tolerant Heap: no configured game flagged | off`, or a warning naming the exe with the fix: delete its value under `HKLM\SOFTWARE\Microsoft\FTH\State` or run `rundll32.exe fthsvc.dll,FthSysprepSpecialize`), whether `install` ran (`Installed in C:\gamebooster-rs: yes | no`), on the gated Mac whether the GPU table is set (`Mac power fix: GPU power table (PP_PhmSoftPowerPlayTable): present (N bytes) | absent`) and BF6 is Borderless (`on`, `off (...)` with the current values, or `no BF6 profile yet`), elsewhere `Mac power fix: not this Mac (...)`, whether the logon task is registered, a warning if ThrottleStop is running (it overrides `max_cpu_mhz`), and the CPU clock measured with one busy thread for about a second (warns below 1000 MHz: likely stuck at 800 MHz by [BD PROCHOT](tweaks/prochot.md)). |
 | `ping` | Times `ping_samples` (10) TCP connects to each of `ping_hosts`, AWS regional endpoints by default, and prints median, p90, jitter and loss per region, fastest first; marks a region with any loss or jitter above 10 ms. An approximation of distance to game servers, not BF6's own servers; BF6's region is chosen in the game. Changes nothing, no admin needed. See [network](tweaks/network.md#ping). |
 | `ping --route [host]` | Per-hop path check like `pathping`: finds the hops to `host` (default: the fastest region) with ICMP, pings each hop `ping_samples` times and prints median and loss, hop 1 labelled as your router (Wi-Fi or Ethernet), plus a hint where persisting loss starts. Changes nothing, no admin needed. See [network](tweaks/network.md#route-check). |
+| `install` | First-run setup; also what a double-click (no arguments, a window of its own) runs. Asks for administrator rights (UAC) itself. Ends a running `gamebooster` logon task (undoing a boost it left), copies the exe to `C:\gamebooster-rs`, writes `gamebooster.toml` there if missing, and on a 16" MacBook Pro 2019 with the Radeon Pro 5500M (gate: Apple `MacBookPro16,1`, `PCI\VEN_1002&DEV_7340&SUBSYS_020F106B`, VBIOS `113-D32206U1-019`) applies the Mac power fix: `max_cpu_mhz = 1700` in the config, the GPU soft PowerPlay table capped at 32 W (not built yet: prints `GPU power limit: not set (GPU power table not built yet)`), BF6 in Borderless (`GstRender.FullscreenMode 2`, `GstRender.WindowBordersEnable 0` in `Documents\Battlefield 6\settings\steam\PROFSAVEbf6mp_profile`, only while BF6 isn't running; skipped until BF6 has run once). Elsewhere it prints `Mac power fix skipped: not a MacBookPro16,1 with the 5500M` and does the rest. Then it registers the logon task from [Automatic boost](auto.md#start-at-logon) (replacing one named `gamebooster`), starts it, prints a short summary and waits for Enter. Running it again is safe. |
+| `uninstall` | Undoes everything `install` did, from `C:\gamebooster-rs\gamebooster-install.json`: ends and removes the logon task (undoing a boost it left), puts back the old GPU table (or deletes it) and restarts the GPU, restores the BF6 profile values (refuses while BF6 runs), reverts the `max_cpu_mhz` line (or deletes a config it created), then deletes the folder it created (or the exe it copied) a few seconds after the window closes. If a step fails the record stays: run it again. Asks for administrator rights itself. |
 | `init` | Writes the built-in example config as `gamebooster.toml` next to `gamebooster.exe` (or `--config <file>`). Never overwrites an existing file. |
 | `update` | Downloads the latest `gamebooster.exe` from the `latest` release and replaces this one; prints old -> new version. No admin needed if you can write to the exe's folder. |
 | `snapshot <out.json>` | Saves a read-only snapshot of system state (runs the built-in copy of [capture/snapshot.ps1](../capture/snapshot.ps1) with Windows PowerShell). See [capture](../capture/README.md). |
@@ -35,7 +39,8 @@ gamebooster ping --route
 | `--dry-run` | With `boost` or `restore`: print the plan, change nothing. |
 | `--config <file>` | Use another config file. |
 
-Boost and restore without `--dry-run`, and bench, refuse to run without administrator rights.
+Boost and restore without `--dry-run`, and bench, refuse to run without administrator rights;
+`install` and `uninstall` ask for them (UAC) and continue in a new window.
 
 ## What boost does, in order
 

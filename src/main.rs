@@ -9,7 +9,9 @@ mod accessibility;
 mod bench;
 mod config;
 mod game_mode;
+mod gpu_table;
 mod install;
+mod mac;
 mod network;
 mod power;
 mod priority;
@@ -33,6 +35,8 @@ usage: gamebooster <command> [--dry-run] [--config <file>]
   status     show whether a boost is active and what it changed
   ping       latency, jitter and loss to cloud regions near game servers, fastest first (changes nothing)
   ping --route [host]  per-hop latency and loss to host (default: the fastest region): router, ISP or far end?
+  install    first-run setup (also what a double-click does): copy to C:\\gamebooster-rs, config, Mac power fix, logon task
+  uninstall  undo everything install did (GPU table, BF6 Borderless, logon task, config edits, copied files)
   init       write the example config as gamebooster.toml next to gamebooster.exe (never overwrites)
   update     download the latest gamebooster.exe from GitHub and replace this one
   snapshot <out.json>                save a read-only snapshot of system state (capture/snapshot.ps1)
@@ -93,7 +97,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
             "--watch" if command.as_deref() == Some("boost") => watch = true,
             _ if route && host.is_none() && !a.starts_with('-') => host = Some(a),
             "--version" | "-V" if command.is_none() => command = Some("version".to_string()),
-            "boost" | "auto" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" if command.is_none() => command = Some(a),
+            "boost" | "auto" | "restore" | "status" | "ping" | "init" | "update" | "snapshot" | "compare" | "bench" | "install" | "uninstall" if command.is_none() => command = Some(a),
             "compare" if command.as_deref() == Some("bench") && seconds.is_none() => command = Some("bench compare".into()),
             _ if command.as_deref() == Some("bench") && seconds.is_none() && a.parse::<u64>().is_ok() => seconds = a.parse().ok(),
             _ if matches!(command.as_deref(), Some("snapshot" | "compare" | "bench compare")) && !a.starts_with('-') => files.push(PathBuf::from(a)),
@@ -108,7 +112,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> Result<Args, String> {
         ("bench", _) if seconds.is_some_and(|s| !(10..=3600).contains(&s)) => Err("bench seconds: use 10 to 3600".into()),
         (c, _) if c != "bench" && label.is_some() => Err("--label only goes with bench".into()),
         _ if watch && dry_run => Err("--watch can't be combined with --dry-run".into()),
-        ("auto", _) if dry_run => Err("auto can't be combined with --dry-run".into()),
+        ("auto" | "install" | "uninstall", _) if dry_run => Err(format!("{command} can't be combined with --dry-run")),
         _ => Ok(Args { command, dry_run, config, files, seconds, label, route, host, watch }),
     }
 }
@@ -206,7 +210,11 @@ fn priority_method_text(cfg: &Config) -> &'static str {
 }
 
 fn main() {
-    let args = match parse_args(std::env::args().skip(1)) {
+    let raw: Vec<String> = std::env::args().skip(1).collect();
+    // A double-click (no arguments, a console of its own) runs the first-run setup.
+    #[cfg(windows)]
+    let raw = if raw.is_empty() && mac::own_console() { vec!["install".to_string()] } else { raw };
+    let args = match parse_args(raw) {
         Ok(a) => a,
         Err(e) => {
             eprintln!("error: {e}\n\n{USAGE}");
@@ -239,7 +247,19 @@ fn run(args: Args) -> Result<(), String> {
     let config_path = args.config.unwrap_or_else(|| dir.join("gamebooster.toml"));
     let state_path = dir.join("gamebooster-state.json");
     let f = |i: usize| args.files[i].clone().into_os_string();
+    let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
     match args.command.as_str() {
+        "install" | "uninstall" if !admin => {
+            println!("Asking for administrator rights (click Yes); the setup continues in a new window.");
+            return finish(mac::elevate(&exe, &args.command));
+        }
+        "install" => return finish(mac::install(&exe)),
+        "uninstall" => {
+            if let Some(gone) = finish(mac::uninstall())? {
+                mac::delete_after_exit(&gone);
+            }
+            return Ok(());
+        }
         "init" => return install::init(&config_path),
         "update" => return install::update(&exe, state_path.exists()),
         "snapshot" => return install::powershell("snapshot", install::SNAPSHOT_PS1, &["-Out".into(), f(0)]),
@@ -251,7 +271,6 @@ fn run(args: Args) -> Result<(), String> {
         _ => {}
     }
     let cfg = Config::load(&config_path).map_err(|e| format!("{e}\n(run `gamebooster init` to create it, then edit it)"))?;
-    let admin = unsafe { windows_sys::Win32::UI::Shell::IsUserAnAdmin() } != 0;
     if !matches!(args.command.as_str(), "status" | "ping") && (!args.dry_run || args.command == "bench") && !admin {
         return Err("boost, auto, restore and bench need administrator rights: right-click your terminal, \"Run as administrator\"".into());
     }
@@ -277,6 +296,19 @@ fn run(args: Args) -> Result<(), String> {
         "bench" => bench::run(&cfg, &dir, state_path.exists(), args.seconds.unwrap_or(60), args.label.as_deref()),
         _ => status(&cfg, &state_path),
     }
+}
+
+/// `install` / `uninstall`: show an error, then keep a window we own open until Enter.
+#[cfg(windows)]
+fn finish<T>(r: Result<T, String>) -> Result<T, String> {
+    if let Err(e) = &r {
+        println!("error: {e}");
+    }
+    mac::pause();
+    if r.is_err() {
+        std::process::exit(1);
+    }
+    r
 }
 
 /// Print a failed step and carry on: each tweak is independent.
@@ -538,6 +570,7 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
                 Fix: delete its value under HKLM\\{FTH_STATE_KEY}, or run: rundll32.exe fthsvc.dll,FthSysprepSpecialize", exes.join(", ")),
         }
     }
+    mac::status();
     match power::clock_under_load_mhz() {
         Ok(mhz) => {
             println!("CPU clock under load: {mhz:.0} MHz");
@@ -756,6 +789,11 @@ mod tests {
         assert_eq!(parse_args(["auto"].map(String::from)).unwrap().command, "auto");
         assert!(parse_args(["auto", "--dry-run"].map(String::from)).is_err());
         assert!(parse_args(["auto", "--watch"].map(String::from)).is_err());
+        assert_eq!(parse_args(["install"].map(String::from)).unwrap().command, "install");
+        assert_eq!(parse_args(["uninstall"].map(String::from)).unwrap().command, "uninstall");
+        assert!(parse_args(["uninstall", "--dry-run"].map(String::from)).is_err());
+        assert!(parse_args(["install", "x"].map(String::from)).is_err());
+        assert!(parse_args(Vec::<String>::new()).is_err());
     }
 
     #[test]

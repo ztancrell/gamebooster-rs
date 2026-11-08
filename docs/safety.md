@@ -19,6 +19,15 @@
   `powercfg /delete a2921d59-9c60-439e-b61a-21c441a0df53`.
   DNS by hand: `netsh interface ip set dns "<adapter>" dhcp`.
 - Each tweak is independent: one failing is printed and the others still run.
+- `install` (the first run) keeps its own record, `C:\gamebooster-rs\gamebooster-install.json`, not
+  the state file: whether it created the folder, the exe copy and the config, the old `max_cpu_mhz`
+  line, the old GPU `PP_PhmSoftPowerPlayTable` value (or that there was none), the BF6 profile's
+  first-seen `GstRender.FullscreenMode` / `GstRender.WindowBordersEnable` values, and that it
+  registered the logon task. Each backup is written before its change and never overwritten by a
+  second install. `gamebooster uninstall` puts all of it back; it is idempotent and keeps the record
+  (and the folder) if a step fails, so you can run it again. The GPU table is only ever written on
+  the exact Mac the fix was measured on (Apple `MacBookPro16,1`, `PCI\VEN_1002&DEV_7340&SUBSYS_020F106B`,
+  VBIOS `113-D32206U1-019`); if any check can't be made, it isn't written.
 - Run `gamebooster restore` **before** any "reset / restore default power plans" button (for
   example WinUtil's, which runs `powercfg /restoredefaultschemes`): that deletes our plan, and
   restore then has to fall back to Balanced instead of your old plan.
