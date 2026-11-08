@@ -9,6 +9,12 @@ again within that time keeps the boost (a restart or a launcher hand-off). Then 
 
 - It only restores boosts it made. If you were already boosted when `auto` started (or boost by
   hand while it waits), it watches that boost like `boost --watch` and leaves it for you to restore.
+- The window's title says what it is (`gamebooster auto: boosts BF6 while it runs. Closing this window
+  undoes the boost`). Started by the logon task (a window of its own) it starts minimised; run by hand
+  in a terminal, the terminal is left as it is.
+- After `install` on the gated Mac (see [commands](commands.md)), `auto` puts BF6 back in Borderless
+  when it starts and after each restore (30 s after BF6 exits, once the game has finished rewriting
+  its profile), if BF6 or Steam Cloud changed it; nothing is printed when it is still Borderless.
 - If you run `restore` in another window while a game is running, it doesn't boost again until all
   games have exited and one starts.
 - Ctrl+C or closing the window while it is boosted restores; while it waits, it just exits. Windows
@@ -27,7 +33,9 @@ again within that time keeps the boost (a restart or a launcher hand-off). Then 
 ## Start at logon
 
 A scheduled task can start `auto` when you log on, as administrator, in its own console window
-(closing that window restores, as above). Run once in an administrator PowerShell:
+(closing that window restores, as above). `gamebooster install` (or a double-click on the exe)
+registers exactly this task itself, replacing one named `gamebooster`, and starts it;
+`gamebooster uninstall` removes it. By hand, run once in an administrator PowerShell:
 
 ```powershell
 $u = "$env:COMPUTERNAME\$env:USERNAME"

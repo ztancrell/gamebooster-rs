@@ -65,23 +65,30 @@ pub struct GameModeState {
 
 impl State {
     pub fn load(path: &Path) -> Result<Option<State>, String> {
-        match std::fs::read_to_string(path) {
-            Ok(text) => serde_json::from_str(&text)
-                .map(Some)
-                .map_err(|e| format!("state file {} is unreadable: {e}", path.display())),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(format!("can't read state file {}: {e}", path.display())),
-        }
+        load_json(path, "state file")
     }
 
-    /// Write to a temp file and rename, so a crash never leaves a half-written state file.
     pub fn save(&self, path: &Path) -> Result<(), String> {
-        let tmp = path.with_extension("json.tmp");
-        let json = serde_json::to_string_pretty(self).expect("state serializes");
-        std::fs::write(&tmp, json)
-            .and_then(|_| std::fs::rename(&tmp, path))
-            .map_err(|e| format!("can't write state file {}: {e}", path.display()))
+        save_json(self, path, "state file")
     }
+}
+
+/// Read a JSON file written by [`save_json`]; a missing file is None. `what` names it in errors.
+pub fn load_json<T: serde::de::DeserializeOwned>(path: &Path, what: &str) -> Result<Option<T>, String> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => serde_json::from_str(&text).map(Some).map_err(|e| format!("{what} {} is unreadable: {e}", path.display())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("can't read {what} {}: {e}", path.display())),
+    }
+}
+
+/// Write to a temp file and rename, so a crash never leaves a half-written file.
+pub fn save_json<T: Serialize>(value: &T, path: &Path, what: &str) -> Result<(), String> {
+    let tmp = path.with_extension("json.tmp");
+    let json = serde_json::to_string_pretty(value).expect("serializes");
+    std::fs::write(&tmp, json)
+        .and_then(|_| std::fs::rename(&tmp, path))
+        .map_err(|e| format!("can't write {what} {}: {e}", path.display()))
 }
 
 #[cfg(test)]

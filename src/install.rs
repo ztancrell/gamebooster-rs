@@ -69,17 +69,20 @@ fn swap(exe: &Path, new: &Path, boosted: bool) -> Result<(), String> {
 
 /// Write the example config to `path`, never over an existing file.
 pub fn init(path: &Path) -> Result<(), String> {
+    if write_example(path)? {
+        println!("Wrote {}. Edit it (notepad {0}), then run `gamebooster boost --dry-run`.", path.display());
+    } else {
+        println!("{} already exists; left it unchanged.", path.display());
+    }
+    Ok(())
+}
+
+/// Write the example config to `path` unless it exists. True if it wrote it.
+pub fn write_example(path: &Path) -> Result<bool, String> {
     use std::io::Write;
     match fs::OpenOptions::new().write(true).create_new(true).open(path) {
-        Ok(mut f) => {
-            f.write_all(EXAMPLE.as_bytes()).map_err(|e| format!("can't write {}: {e}", path.display()))?;
-            println!("Wrote {}. Edit it (notepad {0}), then run `gamebooster boost --dry-run`.", path.display());
-            Ok(())
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            println!("{} already exists; left it unchanged.", path.display());
-            Ok(())
-        }
+        Ok(mut f) => f.write_all(EXAMPLE.as_bytes()).map(|_| true).map_err(|e| format!("can't write {}: {e}", path.display())),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
         Err(e) => Err(format!("can't create {}: {e}", path.display())),
     }
 }

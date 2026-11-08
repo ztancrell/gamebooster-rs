@@ -27,10 +27,17 @@ The full step-by-step description is in [docs/commands.md](docs/commands.md#what
 
 ## Install and update
 
+Student on the 16" MacBook Pro 2019: download `gamebooster.exe`, double-click it, read the summary,
+play BF6. It installs itself to `C:\gamebooster-rs`, applies the Mac power fix (CPU 1700 MHz while
+BF6 runs, BF6 Borderless, GPU 32 W table: not built yet) only on that exact Mac, and starts `auto`
+at every logon. `gamebooster uninstall` undoes all of it. See [docs/install.md](docs/install.md#student-install-double-click).
+
+By hand:
+
 1. Download `gamebooster.exe` from the
    [`latest` release](https://github.com/ztancrell/gamebooster-rs/releases/tag/latest) into
-   `C:\gamebooster`. If SmartScreen warns: **More info** > **Run anyway**.
-2. In a terminal: `cd C:\gamebooster`, then `gamebooster init` (writes `gamebooster.toml`).
+   `C:\gamebooster-rs`. If SmartScreen warns: **More info** > **Run anyway**.
+2. In a terminal: `cd C:\gamebooster-rs`, then `gamebooster init` (writes `gamebooster.toml`).
 3. Later: `gamebooster update` replaces the exe with the latest release.
 
 Build from source (Linux cross-compile; on Windows plain `cargo build --release`):
@@ -44,7 +51,7 @@ More: [docs/install.md](docs/install.md).
 
 ## Quick start
 
-In a terminal **as administrator**, in `C:\gamebooster`:
+In a terminal **as administrator**, in `C:\gamebooster-rs`:
 
 ```bat
 gamebooster auto       :: boost when a game starts, restore after it exits
@@ -61,10 +68,12 @@ gamebooster status     :: what is active, power plan, CPU clock
 | `boost --watch` | Boost, then keep running: game priority on launch, dynamic lower others. |
 | `auto` | Boost when a game starts, restore after the last one exits. |
 | `restore` | Undo the last boost from the state file. |
-| `status` | Show boost state, power plan, Game Mode, HAGS, MPO, Game DVR, CPU clock. |
+| `status` | Show boost state, power plan, Game Mode, HAGS, MPO, Game DVR, Mac power fix, logon task, CPU clock. |
 | `ping [--route [host]]` | Latency, jitter and loss to cloud regions, or per hop. Changes nothing. |
 | `bench`, `bench compare` | Record frame times with PresentMon and compare two runs. |
 | `snapshot`, `compare` | Save and diff a read-only snapshot of system state. |
+| `install` | First-run setup (also a double-click): copy to `C:\gamebooster-rs`, config, Mac power fix, logon task. |
+| `uninstall` | Undo everything `install` did. |
 | `init`, `update` | Write the example config; update the exe. |
 
 Boost, restore and bench need administrator rights. Full reference: [docs/commands.md](docs/commands.md).
