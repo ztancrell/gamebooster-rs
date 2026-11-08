@@ -251,8 +251,10 @@ Takes effect at once, no reboot. `false` leaves it untouched.
 **Why it might help.** With a fixed quantum every thread gets the same time slice, and the kernel
 still boosts a foreground thread's priority when it finishes a wait, so the game (in front) gets
 the CPU back sooner after I/O or a frame wait (PC-Tuning's kernel-debugger reading,
-docs/pc-tuning/README.md). GameShift writes the same `0x2A` per session. No frame-time data
-anywhere: try by feel, and set `priority_separation = false` if BF6 feels no different or worse.
+docs/pc-tuning/README.md). GameShift writes the same `0x2A` per session. Atlas OS disagrees: it
+pins Windows' default `0x26` and warns against fixed-quantum values, without a source
+(docs/oss-sweep-2026/README.md). No frame-time data anywhere, on either side: try by feel, and set
+`priority_separation = false` if BF6 feels no different or worse.
 
 **Try and undo by hand.**
 
