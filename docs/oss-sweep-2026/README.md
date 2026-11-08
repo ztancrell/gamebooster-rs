@@ -105,7 +105,7 @@ desktop "toggle" scripts; nothing is per game session.
 |---|---|---|---|---|
 | Configure MMCSS | `SystemResponsiveness = 10` (comment: 10 is the lowest honoured value) | Not in the tweak (install-time) | Placebo for BF6 (see Optimizer row); harmless. | Not done. |
 | Prioritize foreground applications | `Win32PrioritySeparation = 0x26` (short, variable, 3× foreground), documented as "changes nothing on a stock install", with a warning not to use `0x28`/`0x18`-style values (claimed "server semantics", no source given) | Install-time | Normaliser, not a boost. A counterpoint to our `0x2A`: fixed quantum (`0x08`) turns off the foreground *quantum* stretch that variable mode gives; the priority boost on wake stays. Neither choice has frame-time data. | We write `0x2A` per session (`priority_separation`, default on, try by feel). See adoption item 2. |
-| Disable Fault Tolerant Heap | `HKLM\SOFTWARE\Microsoft\FTH\Enabled = 0`, and runs FTH's own reset entry point to clear what it has already applied | Install-time; a Mitigations toggle can re-enable | Useful in a narrow case: FTH applies heap mitigations to an exe after repeated crashes (Microsoft docs, claimed), with a performance cost. Turning it off globally is a permanent safety-net removal. | Not done. See adoption item 1 (read-only check). |
+| Disable Fault Tolerant Heap | `HKLM\SOFTWARE\Microsoft\FTH\Enabled = 0`, and runs FTH's own reset entry point to clear what it has already applied | Install-time; a Mitigations toggle can re-enable | Useful in a narrow case: FTH applies heap mitigations to an exe after repeated crashes (Microsoft docs, claimed), with a performance cost. Turning it off globally is a permanent safety-net removal. | Not done (global off). Read-only check done: adoption item 1. |
 | Disable Game Bar / FSO and Game Bar toggle | Game DVR/Game Bar values and policies off, Game Bar presence writer off, Game Bar package removed; FSO off machine-wide via `__COMPAT_LAYER = ~ DISABLEDXMAXIMIZEDWINDOWEDMODE` in the system environment, plus `GameDVR_FSEBehavior` values | Toggle back writes defaults and deletes the policy key | Game DVR part: as Optimizer. The global compat-layer string applies to every process and is **risky** (it overrides per-app compatibility layers); FSO off only matters for DX9–11 exclusive fullscreen, not DX12 BF6. | `status` warns on background recording; FSO not done. |
 | Disable Background Apps | Per-user `GlobalUserDisabled = 1`, `BackgroundAppGlobalToggle = 0`; deliberately not the policy | Install-time; per app in Settings | Small; Store apps only. | Already an adoption item ("try background Store apps off", Advanced SystemCare research). |
 | Disable Service Host splitting | Raises the split threshold (keeps Xbox services split) | Install-time; reboot | Placebo for frames; Atlas itself notes the isolation trade-off. | Not done. |
@@ -123,19 +123,22 @@ desktop "toggle" scripts; nothing is per game session.
   restoring them; NXT has no undo.
 - Atlas is an OS replacement playbook, not something to run on the existing Boot Camp install;
   its value here is as a well-documented second opinion (its power-plan and FTH notes).
-- If BF6 has crashed several times and then feels worse than before, FTH may have flagged it (see
-  adoption item 1); clearing it is a manual step for now.
+- If BF6 has crashed several times and then feels worse than before, run `gamebooster status`: it says whether FTH has flagged it (see
+  adoption item 1). Clearing it is still a manual step (the warning gives it).
 
 ## Adoption items for gamebooster-rs
 
 Only items that `restore` can undo (or that change nothing), need no driver, and could matter on
 the GPU-bound Mac.
 
-1. **Try (`status`, read-only): report Fault Tolerant Heap for configured games.** Read FTH's
-   per-exe state for each `[[game]]` exe and print `FTH: not applied` or `FTH: applied to bf6.exe
-   (clear with FTH's reset entry point, then restart the game)`. Changes nothing; explains a
-   slowdown after crashes. The exact registry location of FTH's per-app state is from Microsoft's
-   docs, not from Atlas's source: confirm it on the target Mac (read-only) before building.
+1. **Done (`status`, read-only): report Fault Tolerant Heap for configured games.** `status`
+   lists the value names under `HKLM\SOFTWARE\Microsoft\FTH\State` (one per flagged exe, named
+   by full path per Microsoft's docs), matches their file names against the `[[game]]` exes, and
+   prints `Fault Tolerant Heap: no configured game flagged`, `Fault Tolerant Heap: off`
+   (`Enabled = 0`), or a warning with the fix (delete the value, or `rundll32.exe
+   fthsvc.dll,FthSysprepSpecialize`, Microsoft's documented reset that clears every FTH entry).
+   Changes nothing. On the target Mac the key exists with `Enabled = 1` and an empty `State`; a
+   populated one hasn't been seen yet. See `fth_flagged` in `src/main.rs`.
 2. **Docs only: note Atlas's counterpoint on `Win32PrioritySeparation`.** In
    [priority](../tweaks/priority.md#win32priorityseparation), one line: Atlas pins `0x26` (the
    default behaviour) and advises against fixed-quantum values; `0x2A` drops the variable-quantum

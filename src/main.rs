@@ -528,6 +528,16 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
     let dvr = r"Software\Microsoft\Windows\CurrentVersion\GameDVR";
     println!("{}", dvr_text(reg_dword(HKEY_CURRENT_USER, r"System\GameConfigStore", "GameDVR_Enabled")?,
         reg_dword(HKEY_CURRENT_USER, dvr, "AppCaptureEnabled")?, reg_dword(HKEY_CURRENT_USER, dvr, "HistoricalCaptureEnabled")?));
+    // Read only: Fault Tolerant Heap shims an exe after repeated crashes (docs/oss-sweep-2026/README.md).
+    if reg_dword(HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\FTH", "Enabled")? == Some(0) {
+        println!("Fault Tolerant Heap: off");
+    } else {
+        match fth_flagged(cfg, &reg_value_names(HKEY_LOCAL_MACHINE, FTH_STATE_KEY)?).as_slice() {
+            [] => println!("Fault Tolerant Heap: no configured game flagged"),
+            exes => println!("warning: Fault Tolerant Heap has flagged {} (Windows slows its heap after repeated crashes). \
+                Fix: delete its value under HKLM\\{FTH_STATE_KEY}, or run: rundll32.exe fthsvc.dll,FthSysprepSpecialize", exes.join(", ")),
+        }
+    }
     match power::clock_under_load_mhz() {
         Ok(mhz) => {
             println!("CPU clock under load: {mhz:.0} MHz");
@@ -538,6 +548,13 @@ fn status(cfg: &Config, state_path: &Path) -> Result<(), String> {
         Err(e) => println!("CPU clock under load: couldn't measure ({e})"),
     }
     Ok(())
+}
+
+const FTH_STATE_KEY: &str = r"SOFTWARE\Microsoft\FTH\State";
+
+/// FTH names each flagged app by its full exe path; return the file names that are configured games.
+fn fth_flagged(cfg: &Config, value_names: &[String]) -> Vec<String> {
+    value_names.iter().map(|n| n.rsplit('\\').next().unwrap_or(n).to_string()).filter(|exe| cfg.is_game(exe)).collect()
 }
 
 const HAGS_KEY: &str = r"SYSTEM\CurrentControlSet\Control\GraphicsDrivers";
@@ -597,6 +614,31 @@ fn reg_dword(root: windows_sys::Win32::System::Registry::HKEY, key: &str, value:
     }
 }
 
+/// Value names under a key; a missing key gives an empty list.
+#[cfg(windows)]
+fn reg_value_names(root: windows_sys::Win32::System::Registry::HKEY, key: &str) -> Result<Vec<String>, String> {
+    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS};
+    use windows_sys::Win32::System::Registry::{RegCloseKey, RegEnumValueW, RegOpenKeyExW, KEY_READ};
+    let mut h = std::ptr::null_mut();
+    match unsafe { RegOpenKeyExW(root, wide(key).as_ptr(), 0, KEY_READ, &mut h) } {
+        ERROR_SUCCESS => {}
+        ERROR_FILE_NOT_FOUND => return Ok(vec![]),
+        e => return Err(format!("can't open {key} (error {e})")),
+    }
+    let (mut names, mut buf) = (vec![], vec![0u16; 16384]); // 16383 = max value name length
+    let err = loop {
+        let mut len = buf.len() as u32;
+        let e = unsafe {
+            RegEnumValueW(h, names.len() as u32, buf.as_mut_ptr(), &mut len, std::ptr::null(),
+                std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut())
+        };
+        if e != ERROR_SUCCESS { break e; }
+        names.push(String::from_utf16_lossy(&buf[..len as usize]));
+    };
+    unsafe { RegCloseKey(h) };
+    if err == ERROR_NO_MORE_ITEMS { Ok(names) } else { Err(format!("can't list {key} (error {err})")) }
+}
+
 /// Write `Some(v)` as a REG_DWORD (creating the key), or delete the value for None (absent is fine).
 #[cfg(windows)]
 fn reg_set_dword(root: windows_sys::Win32::System::Registry::HKEY, key: &str, value: &str, v: Option<u32>) -> Result<(), String> {
@@ -647,6 +689,14 @@ mod tests {
         assert_eq!(r, BOOST_ORDER);
         assert_eq!(restore_order().next(), Some(Step::Priority));
         assert_eq!(restore_order().last(), Some(Step::Services));
+    }
+
+    #[test]
+    fn fth_matches_file_name() {
+        let cfg = Config::parse("[[game]]\nexe = \"bf6.exe\"").unwrap();
+        let names = [r"C:\Games\BF6\BF6.EXE".to_string(), r"C:\Windows\notepad.exe".into(), "bf6.exe".into()];
+        assert_eq!(fth_flagged(&cfg, &names), ["BF6.EXE", "bf6.exe"]);
+        assert!(fth_flagged(&cfg, &[]).is_empty());
     }
 
     #[test]

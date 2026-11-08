@@ -116,6 +116,13 @@ Windows via Boot Camp, playing BF6.
 - 2026-11-07: `auto` starts at logon via a scheduled task ("gamebooster": interactive, highest run
   level, battery-safe, no time limit), documented in docs/auto.md; no Windows service. Installed on the
   target Mac.
+- 2026-11-07: GPU tuning ruled out on this Mac: the AMD driver hides Overdrive for the 5500M whatever
+  the SoftPowerPlayTable says, a custom driver breaks the rule below and BF6's anti-cheat, macOS or
+  Linux tuning doesn't carry over, and Apple's firmware budget caps the GPU anyway (see
+  docs/hardware-test.md). Next lever to try by hand: a CPU undervolt in ThrottleStop.
+- 2026-11-07: From the PC Manager / Optimizer / Atlas research: `status` reports whether Windows'
+  Fault Tolerant Heap has flagged a configured game (read-only), plus docs tips (don't clear the
+  shader cache; Atlas's `0x26` view on `priority_separation`). Lossless Scaling under research.
 - No kernel driver, ever (spec section 5).
 - Services are a strict allow-list; start types are never changed.
 - Restore runs in reverse order and keeps the state file if a step fails.
