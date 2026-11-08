@@ -20,7 +20,8 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
   (`MSLC`, a clock cut the reported ratio hides), then fires PROCHOT. The budget is hard-coded in
   signed SMC firmware; nothing in Windows raises it.
 - So the only lever is to keep the total draw under the warm budget: cap the GPU and the CPU together.
-- Measured preset: **GPU 32 W + CPU max 1700 MHz**, stock driver flag, BF6 Borderless, Low preset
+- Measured preset: **GPU 32 W + CPU max 1700 MHz**, stock driver flag, BF6 Borderless, Low preset,
+  with a MorePowerTool table at 950 mV (the shipped fix uses stock voltage)
   (11:15 run, ~7 min of play): draw peaked 65.6 W against a budget that bottomed at 70.2 W (~5 W
   margin); `PZ0T`, `MSLC`, `MSLG` stayed 0, no PROCHOT, GPU limit 32 W throughout; FPS median 53,
   10th percentile 47. 1800 MHz reached the budget edge (`PZ0T` climbing after ~7 min); 1600 MHz kept
@@ -43,6 +44,9 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 - **Set and forget, and automatic (user).**
   - Once: install a GPU soft PowerPlay table capped at **32 W** (`PP_PhmSoftPowerPlayTable`,
     REG_BINARY, under `HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000`).
+    **(user)** Built at run time from the card's **stock** table with only the PPT / power-limit field
+    changed to 32 W: no 950 mV undervolt, no other MorePowerTool edits, and the shipped exe embeds no
+    vendor table bytes. The table is always on, so every game benefits.
   - While BF6 runs: CPU cap **1700 MHz** via the existing `max_cpu_mhz` power-plan setting, applied
     by the existing `auto` watcher, lifted when BF6 quits (`auto`'s 30 s delay). Everyday use keeps
     full CPU speed.
@@ -53,8 +57,18 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 - **BF6 Borderless, set by gamebooster (user).** Set `GstRender.FullscreenMode 2` and
   `GstRender.WindowBordersEnable 0` in
   `%USERPROFILE%\Documents\Battlefield 6\settings\steam\PROFSAVEbf6mp_profile` (plain text,
-  `Key value` lines), only while `bf6.exe` is not running, keeping a backup; `restore` puts the old
-  values back.
+  `Key value` lines), only while `bf6.exe` is not running. Re-checked when `auto` starts and after
+  each BF6 exit (once the game has finished rewriting the profile), and set again if it changed. If
+  the profile doesn't exist yet (BF6 never launched), skip and check next time. The first-seen
+  values are backed up for `uninstall`.
+- **Undo (user).** `restore` stays per-session: what `auto` runs 30 s after BF6 exits (CPU cap,
+  services, everything a boost does). A new **`uninstall`** command removes everything else: the GPU
+  table (puts back whatever table was there before, else deletes the value), the Borderless change
+  (restores the profile backup), the logon task, the config edits and the copied exe/folder. Those
+  backups live in their own file in the install folder, not in the per-boost
+  `gamebooster-state.json`.
+- **Scope (user).** The first version is a BF6 fix: the 1700 MHz cap and Borderless apply to BF6
+  only. Per-game caps and an adaptive SMC-based cap are future work.
 - **Mac-only gate (user).** The Mac parts (GPU table, 1700 MHz default, Borderless) run only when all
   of these match:
   - `Win32_ComputerSystem` Manufacturer `Apple Inc.`, Model `MacBookPro16,1`
@@ -63,7 +77,7 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
   Otherwise: one line ("Mac power fix skipped: not a MacBookPro16,1 with the 5500M") and the normal
   boost runs. **(my call: the rest of the boost still runs)**
 - **Plain output.** The run ends with a short summary a student understands: what was set, that it
-  applies itself whenever BF6 starts, and `gamebooster restore` to undo everything.
+  applies itself whenever BF6 starts, and `gamebooster uninstall` to undo everything.
 
 ## Non-goals
 
@@ -80,7 +94,7 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 
 ## Anti-goals (would be a failure even if it "works")
 
-- Leaving the machine changed in a way `restore` can't undo, or that survives an uninstall silently.
+- Leaving the machine changed in a way `uninstall` can't undo.
 - Writing a power table to any GPU other than the exact model/subsystem/VBIOS above.
 - Running hotter or less safely than stock.
 - Needing the student to understand registry keys, power tables or the SMC to use or undo it.
@@ -108,14 +122,14 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 - `src/main.rs`: today a run with no command prints usage and needs `gamebooster.toml` next to the
   exe (`Config::load` errors without it). A double-click needs a no-argument path: first-run setup
   (write the config with `install::init`, apply the Mac parts, register and start the `auto` task,
-  print the summary, wait for Enter so the window doesn't vanish). **(builder: shape it)**
+  print the summary (undo for good: `gamebooster uninstall`), wait for Enter so the window doesn't vanish). **(builder: shape it)**
 - `src/power.rs`: `max_cpu_mhz` / `PROC_FREQ_MAX` already exist. On the gated Mac the default becomes
   1700 (my call: the Mac default lives in the written config, so the student can see and change it).
 - `src/watch.rs` (`watch::run`, the `auto` watcher) and docs/auto.md (logon task): reuse as is;
   first run registers the task. **(my call: start the `auto` console minimised with a plain window
   title saying what it is and that closing it undoes the boost)**
-- `src/state.rs`: add the GPU table's previous value (absent, or the old bytes) and the BF6 profile
-  backup to the state, or to a separate install record (see open questions).
+- `src/state.rs`: unchanged for boosts. The install record (previous GPU table value or absent, BF6
+  profile backup, task registered) is its own file in the install folder, read by `uninstall`.
 - `src/install.rs`: `init`, `update` and the release URL already exist; distribution is the
   existing GitHub release exe.
 - `status`: report whether the Mac fix is applied (table present and 32 W, BF6 Borderless, task
@@ -129,6 +143,11 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 - Mac-only gate on Apple / MacBookPro16,1 / 5500M Apple subsystem / VBIOS.
 - gamebooster switches BF6 to Borderless itself (with backup and restore).
 - No kernel driver for now.
+- GPU table built at run time from the stock table, only the power limit changed (no undervolt, no
+  shipped blob).
+- `restore` per session; new `uninstall` removes everything, from its own backup file.
+- Borderless re-checked at `auto` start and after each BF6 exit; skipped until the profile exists.
+- First version is a BF6 fix; the GPU table is always on for every game.
 
 ## Claude's calls (change any of these)
 
@@ -137,21 +156,24 @@ What actually happens (measured in mbp16-power, 2026-11-07/08):
 - The `auto` console starts minimised with a plain title.
 - On a non-matching machine, skip only the Mac parts; the rest of the boost runs.
 - The 1700 MHz default is written into the config, visible and changeable.
+- The first run copies itself to `C:\gamebooster-rs` and registers the logon task there, replacing
+  an existing task named `gamebooster`.
+- On a machine with an existing `gamebooster.toml`, it adds or changes `max_cpu_mhz = 1700` instead
+  of skipping, and records any existing GPU table as the "previous" value for `uninstall`.
+- Build now with 32 W and 1700 MHz as named constants (fallbacks 30 W / 1600 MHz), and use the first
+  build for the owed confirmation run.
 
 ## Open questions
 
-- **Where the 32 W table bytes come from.** The table now in the Mac's registry was made with
-  MorePowerTool from the stock vBIOS table (`C:\Users\bootcamp\Desktop\5500m-modded.mpt` /
-  `5500m-unmodded.mpt` also exist). Options: ship that blob (simplest; it is AMD/Apple vendor data,
-  redistribution may be a concern, and it also carries 950 mV and other MPT edits), or build it at
-  run time by reading the card's own table and patching only the PPT field (no vendor data shipped;
-  needs the table layout). Not settled.
-- **Restore of the GPU table.** `restore` ends a boost, but the table is meant to stay. Does
-  `restore` remove it (simple, matches "restore undoes everything") or does it need its own
-  `uninstall`? Today's text in the summary ("restore undoes everything") assumes the former.
-- **Borderless on every boost or once?** Once at first run, or re-checked on each `auto` boost
-  (the game or a settings reset can flip it back, as happened around 09:00 on 2026-11-08)?
-- **15-minute confirmation still owed** for 32 W + 1700 MHz (only ~7 min measured). If it fails,
-  fall back to 30 W or 1600 MHz.
-- **Future, not now:** an adaptive cap that reads the SMC budget (`PZ0E`/`PZ0F`) and loosens or
-  tightens `max_cpu_mhz` live; needs SMC access (Macs Fan Control's driver holds it exclusively).
+- **Source of the stock table (builder).** On the user's Mac the registry already holds the
+  MorePowerTool table, so "stock" can't be read from the registry there. Where the patcher gets the
+  stock table (the VBIOS ROM via the driver or registry; `Desktop\5500m-unmodded.mpt` and
+  `Navi 14.rom` on the Mac as references for building and testing) is left to the builder. The
+  shipped exe must not embed vendor table bytes.
+- **Confirmation run owed.** Every measurement so far used the 950 mV MPT table and only ~7 min of
+  32 W + 1700 MHz. With the first build: stock-voltage 32 W + 1700 MHz, Borderless, 15+ min from
+  wave 1. FPS may be somewhat lower at stock voltage. If the draw crosses the budget, fall back to
+  30 W or 1600 MHz.
+- **Future, not now:** per-game caps; an adaptive cap that reads the SMC budget (`PZ0E`/`PZ0F`) and
+  loosens or tightens `max_cpu_mhz` live; needs SMC access (Macs Fan Control's driver holds it
+  exclusively).
