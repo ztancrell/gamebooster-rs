@@ -41,6 +41,8 @@ Windows via Boot Camp, playing BF6.
 
 ## Decided
 
+- 2026-11-08: The Mac fix's `max_cpu_mhz = 1700` stays global (every `[[game]]`, e.g. Godot, not BF6
+  only). The user accepted this over a per-game cap; per-game caps stay future work.
 - 2026-11-07: The target Mac's CPU is an i9-9880H (8 cores / 16 threads), not an i7-9750H. A BCD
   `numproc 12` had disabled 2 cores; it was removed; after the reboot Windows shows 8 cores / 16 threads. Measurements before
   this date were taken with 6 cores / 12 threads active. See
