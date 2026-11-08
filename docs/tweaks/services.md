@@ -5,7 +5,9 @@ service that is running, the running services that depend on it are stopped firs
 service itself, each with a 30 s timeout. The list is a strict allow-list: if a running dependent
 isn't listed too, the service is skipped (with a message) rather than touching an unlisted one.
 Only services that were running are recorded; restore starts exactly those again, in reverse
-order. The startup type is never changed, so a reboot also brings them back.
+order. The startup type is never changed, so a reboot also brings them back. A service that has
+been disabled since the boost (by you or Windows) is left stopped with a note, and doesn't count as
+a failed restore.
 
 Superseded: earlier versions also stopped running dependents that weren't listed.
 

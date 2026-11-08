@@ -63,6 +63,7 @@ mod sys {
     use windows_sys::Win32::System::Services::*;
 
     const ERROR_SERVICE_ALREADY_RUNNING: u32 = 1056;
+    const ERROR_SERVICE_DISABLED: u32 = 1058;
     const ERROR_SERVICE_NOT_ACTIVE: u32 = 1062;
     const TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -152,6 +153,11 @@ mod sys {
         let h = open(name, SERVICE_START | SERVICE_QUERY_STATUS)?;
         if unsafe { StartServiceW(h.0, 0, std::ptr::null()) } == 0 {
             let err = unsafe { GetLastError() };
+            if err == ERROR_SERVICE_DISABLED {
+                // Disabled since boost (by the user or Windows): can't start it, and that's their call.
+                println!("  left service {name} stopped: it is disabled now");
+                return Ok(());
+            }
             if err != ERROR_SERVICE_ALREADY_RUNNING {
                 return Err(format!("can't start {name} (error {err})"));
             }
