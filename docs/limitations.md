@@ -19,3 +19,6 @@
   clocks and frame times than running uncapped into the thermal limit.
 - Game Mode only applies to games Game Bar recognises: if BF6 isn't detected, open Game Bar
   (Win+G) in the game and tick "Remember this is a game". See [Game Mode](tweaks/game-mode.md).
+- Don't clear the DirectX shader cache before playing (cleaners like Microsoft PC Manager's Deep
+  cleanup preselect it): BF6 then recompiles shaders and stutters for the next matches. See
+  [docs/pc-manager/](pc-manager/README.md).
