@@ -3,7 +3,7 @@
 Date: 2026-11-08. Status: built in full (`src/mac.rs`: install, uninstall, gate,
 Borderless, install record, read-back of the GPU table; `src/gpu_table.rs`: the table builder, stock
 table from the ACPI VFCT, see docs/tweaks/gpu-power-table.md). Owed: the confirmation run on the Mac. Evidence: the mbp16-power project
-(`/home/zpt/projects/mbp16-power`, DESIGN.md "Where we are" and the 2026-11-08 run entries).
+(`/home/zpt/projects/macbook/mbp16-power`, DESIGN.md "Where we are" and the 2026-11-08 run entries).
 
 Labels: **(user)** = the user decided it in the brainstorm; **(my call)** = Claude's default, open to
 change; **(builder)** = left to whoever builds it.
